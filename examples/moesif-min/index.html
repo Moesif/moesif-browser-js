@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Moesif loaded via the minimized CDN file</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="moesif.min.js"></script>
+    <script type="text/javascript">
+      var options = {
+        applicationId: 'eyJhcHAiOiIzMTU6MSIsInZlciI6IjIuMCIsIm9yZyI6IjM1MToxNSIsImlhdCI6MTQ4NTkwNzIwMH0.m413mBIUrKUBCxKu_iY1kBNCNat10sB7E3O0TeYbe-I',
+        debug: true
+        // add other option here.
+      };
+
+      if (moesif) {
+        console.log('moesif is defined, yay!!!')
+      }
+      // for options see below.
+      moesif.init(options);
+
+      // this starts the capturing of the data.
+      moesif.start();
+    </script>
+</head>
+<body>
+<h1>Test moesif.min.js</h1>
+
+<p>
+    A link to the file in the root folder built by closure. moesif.min.js is included in the header.
+</p>
+<p>
+    Click on the button below should send an request to a placeholder API server. The even should by captured by
+    moesif and send to Moesif.
+</p>
+<button id="send">Send an event to placeholder api server</button>
+<script type="text/javascript">
+    if ($) {
+      console.log('yay, jquery is defined');
+    }
+
+    $( "#send" ).click(function() {
+      $.ajax('http://jsonplaceholder.typicode.com/posts/10', {
+        method: 'GET'
+      }).then(function(data) {
+        console.log(data);
+      });
+    });
+</script>
+</body>
+</html>

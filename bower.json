@@ -1,0 +1,22 @@
+{
+  "name": "moesif",
+  "homepage": "https://github.com/moesif/moesif-browser",
+  "description": "Moesif JavaScript Client Library",
+  "main": "moesif.js",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:moesif/moesif-browser.git"
+  },
+  "keywords": [
+    "moesif",
+    "resftul",
+    "api",
+    "debugging",
+    "logging"
+  ],
+  "license": "Apache-2.0",
+  "ignore": [
+    "tests",
+    "vendor"
+  ]
+}
