@@ -6,9 +6,9 @@ for monitoring and error analysis.
 
 Full documentation on Moesif integration is available [here](https://www.moesif.com/docs).
 
-[Source Code on GitHub](https://github.com/moesif/moesif-browser)
+[Source Code on GitHub](https://github.com/moesif/moesif-browser-js)
 
-[Package on NPMJS](https://www.npmjs.com/package/moesif-browser)
+[Package on NPMJS](https://www.npmjs.com/package/moesif-browser-js)
 
 ## How to Install
 
@@ -37,21 +37,21 @@ It will attach a global `moesif` object. You can access it either via `moesif` o
 
 ### Alternative installation via NPM
 
-This library is available as a [package on NPM](https://www.npmjs.com/package/moesif-browser) 
-(named `moesif-browser` to clarify this javascript library is for the client side. (There is also
+This library is available as a [package on NPM](https://www.npmjs.com/package/moesif-browser-js) 
+(named `moesif-browser-js` to clarify this javascript library is for the client side. (There is also
  moesif-expressjs for express middleware and moesif-nodejs for basic APIs). 
 
 To install into a project using NPM with a front-end packager such as 
 [Browserify](http://browserify.org/) or [Webpack](https://webpack.github.io/):
 
 ```sh
-npm install --save moesif-browser
+npm install --save moesif-browser-js
 ```
 
 You can then require the lib like a standard Node.js module:
 
 ```javascript
-var moesif = require('moesif-browser');
+var moesif = require('moesif-browser-js');
 
 var options = {
   applicationId: 'Your Application Id'
