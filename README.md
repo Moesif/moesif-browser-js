@@ -10,7 +10,7 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 
 [Package on NPMJS](https://www.npmjs.com/package/moesif-browser-js)
 
-## How to Install
+## How to install
 
 
 ### Using CDN to load the library
@@ -122,7 +122,7 @@ moesif.identifySession('your sessionId');
 ```
 
 
-## Options
+## Configuration options
 
 The `options` is an object that is passed into moesif's init method. 
 
@@ -176,12 +176,12 @@ moesif.init(options);
 
 ```
 
-## Thanks
-
-Please contact us team@moesif.com for any questions or issues. 
-
-### credits
+## Credits for moesif-browser-js 
 
 Some of the build scripts and directory structure is based on Mixpanel's Javascript Client Library, 
 which is under Apache 2.0 license.
 Some utilities are based on underscore. 
+
+## Other integrations
+
+To view more more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
