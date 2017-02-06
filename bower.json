@@ -1,11 +1,11 @@
 {
   "name": "moesif",
-  "homepage": "https://github.com/moesif/moesif-browser",
+  "homepage": "https://github.com/moesif/moesif-browser-js",
   "description": "Moesif JavaScript Client Library",
   "main": "moesif.js",
   "repository": {
     "type": "git",
-    "url": "git@github.com:moesif/moesif-browser.git"
+    "url": "git@github.com:moesif/moesif-browser-js.git"
   },
   "keywords": [
     "moesif",
