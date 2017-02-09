@@ -17,7 +17,7 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 
 
 ```html
-<script src="/moesif.min.js"></script>
+<script src="//unpkg.com/moesif-browser-js@1.0.0/moesif.min.js"></script>
 <script type="text/javascript">
 var options = {
   applicationId: 'Your Application Id'
