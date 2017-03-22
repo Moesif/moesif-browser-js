@@ -19,6 +19,14 @@ _srcLoaderModule2['default'].start();
  * Created by Xingheng on 1/31/17.
  */
 
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
 /**
  * @param recorder
  * @returns {undoPatch}
@@ -26,11 +34,6 @@ _srcLoaderModule2['default'].start();
  * The recorder is a function that takes an Event and records it.
  *
  */
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
 function captureXMLHttpRequest(recorder) {
   var XHR = XMLHttpRequest.prototype;
 
@@ -60,21 +63,46 @@ function captureXMLHttpRequest(recorder) {
         // avoid apiRequest.io and moesif.com
         var myUrl = this._url ? this._url.toLowerCase() : this._url;
         if (myUrl && myUrl.indexOf('moesif.com') < 0 && myUrl.indexOf('apirequest.io') < 0) {
-          var event = {
-            'request': {
-              'uri': this._url,
-              'verb': this._method,
-              'time': this._startTime,
-              'body': postData ? parseBody(postData) : undefined,
-              'headers': this._requestHeaders
-            },
-            'response': {
-              'status': this.status,
-              'time': endTime,
-              'headers': parseResponseHeaders(this.getAllResponseHeaders()),
-              'body': parseBody(this.responseText)
-            }
+
+          var requestModel = {
+            'uri': this._url,
+            'verb': this._method,
+            'time': this._startTime,
+            'headers': this._requestHeaders
           };
+
+          if (postData) {
+            if (isJsonHeader(this._requestHeaders) || isStartJson(postData)) {
+              requestModel['body'] = parseBody(postData);
+            } else {
+              requestModel['transfer_encoding'] = 'base64';
+              requestModel['body'] = _utils._.base64Encode(postData);
+            }
+          }
+
+          var responseHeaders = parseResponseHeaders(this.getAllResponseHeaders());
+
+          var responseModel = {
+            'status': this.status,
+            'time': endTime,
+            'headers': responseHeaders
+          };
+
+          if (this.responseText) {
+
+            if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
+              responseModel['body'] = parseBody(this.responseText);
+            } else {
+              responseModel['transfer_encoding'] = 'base64';
+              responseModel['body'] = _utils._.base64Encode(this.responseText);
+            }
+          }
+
+          var event = {
+            'request': requestModel,
+            'response': responseModel
+          };
+
           recorder(event);
         }
       }
@@ -92,18 +120,38 @@ function captureXMLHttpRequest(recorder) {
   // so caller have a handle to undo the patch if needed.
 }
 
-function parseBody(body) {
-  if (!body) {
-    return {};
+function isJsonHeader(headers) {
+  if (headers) {
+    if (headers['content-type'] && headers['content-type'].indexOf('json') >= 0) {
+      return true;
+    }
+    if (headers['Content-Type'] && headers['Content-Type'].indexOf('json') >= 0) {
+      return true;
+    }
   }
+  return false;
+}
+
+function isStartJson(body) {
+  if (body && typeof body === 'string') {
+    var trimmedBody = body.trim();
+    if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parseBody(body) {
   try {
     return JSON.parse(body);
   } catch (err) {
     return {
       'moesif_error': {
-        'code': 'moesif_parse_errhttps://www.budgetbytes.com/2010/09/naan/or',
-        'msgs': ['Can not parse body'],
-        'args': [body]
+        'code': 'moesif_parse_err',
+        'msg': 'Can not parse body',
+        'src': 'moesif-browser-js',
+        'args': body
       }
     };
   }
@@ -129,7 +177,7 @@ function parseResponseHeaders(headerStr) {
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
-},{}],3:[function(require,module,exports){
+},{"./utils":7}],3:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -286,7 +334,7 @@ exports['default'] = function () {
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
     xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'Ajax-JS 1.0.0');
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/1.1.0');
     xmlhttp.onreadystatechange = function () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {

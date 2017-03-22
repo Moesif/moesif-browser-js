@@ -57,7 +57,7 @@ export default function () {
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
     xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'Ajax-JS 1.0.0');
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/1.1.0');
     xmlhttp.onreadystatechange = function () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
