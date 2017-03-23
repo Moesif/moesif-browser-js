@@ -352,7 +352,7 @@ exports['default'] = function () {
   // console.log('moesif object creator is called');
 
   function sendEvent(event, token, debug, callback) {
-    _utils.console.log('actually sending event ' + _utils._.JSONEncode(event));
+    _utils.console.log('actually sending to log event ' + _utils._.JSONEncode(event));
     var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
@@ -362,12 +362,12 @@ exports['default'] = function () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
           if (debug) {
-            _utils.console.log('sent to moesif successfully' + event['request']['uri']);
+            _utils.console.log('sent to moesif successfully: ' + event['request']['uri']);
           }
         } else {
-          _utils.console.log('failed to sent to moesif...' + event['request']['uri']);
+          _utils.console.log('failed to sent to moesif: ' + event['request']['uri']);
           if (debug) {
-            _utils.console.error(xhr.statusText);
+            _utils.console.error(xmlhttp.statusText);
           }
           if (callback && _utils._.isFunction(callback)) {
             callback(new Error('can not sent to moesif'), event);
@@ -408,7 +408,7 @@ exports['default'] = function () {
       var _self = this;
 
       function recordEvent(event) {
-        _utils.console.log('inside record event for' + event['request']['uri']);
+        _utils.console.log('determining if should log: ' + event['request']['uri']);
         var logData = Object.assign({}, event);
         if (_self._getUserId()) {
           logData['user_id'] = _self._getUserId();
@@ -430,7 +430,7 @@ exports['default'] = function () {
         if (!_self._options.skip(event) && !isMoesif(event)) {
           sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
         } else {
-          _utils.console.log('skipped event for ' + event['request']['uri']);
+          _utils.console.log('skipped logging for ' + event['request']['uri']);
         }
       }
       _utils.console.log('moesif starting');

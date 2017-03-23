@@ -1669,7 +1669,7 @@
       // console.log('moesif object creator is called');
 
       function sendEvent(event, token, debug, callback) {
-        console.log('actually sending event ' + _.JSONEncode(event) );
+        console.log('actually sending to log event ' + _.JSONEncode(event) );
         var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
         xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
@@ -1679,12 +1679,12 @@
           if (xmlhttp.readyState === 4) {
             if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
               if (debug) {
-                console.log('sent to moesif successfully' + event['request']['uri']);
+                console.log('sent to moesif successfully: ' + event['request']['uri']);
               }
             } else {
-              console.log('failed to sent to moesif...'  + event['request']['uri']);
+              console.log('failed to sent to moesif: '  + event['request']['uri']);
               if (debug) {
-                console.error(xhr.statusText);
+                console.error(xmlhttp.statusText);
               }
               if (callback && _.isFunction(callback)) {
                 callback(new Error('can not sent to moesif'), event);
@@ -1725,7 +1725,7 @@
           var _self = this;
 
           function recordEvent(event) {
-            console.log('inside record event for' + event['request']['uri']);
+            console.log('determining if should log: ' + event['request']['uri']);
             var logData = Object.assign({}, event);
             if (_self._getUserId()) {
               logData['user_id'] = _self._getUserId();
@@ -1747,7 +1747,7 @@
             if (!_self._options.skip(event) && !isMoesif(event)) {
               sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback)
             } else {
-              console.log('skipped event for ' + event['request']['uri']);
+              console.log('skipped logging for ' + event['request']['uri']);
             }
           }
           console.log('moesif starting');
