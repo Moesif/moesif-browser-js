@@ -52,11 +52,15 @@ function captureXMLHttpRequest(recorder) {
           };
 
           if (postData) {
-            if (isJsonHeader(this._requestHeaders) || isStartJson(postData)) {
-              requestModel['body'] = parseBody(postData);
-            } else {
-              requestModel['transfer_encoding'] = 'base64';
-              requestModel['body'] = _.base64Encode(postData);
+            if (typeof postData === 'string') {
+              try {
+                requestModel['body'] = _.JSONDecode(body);
+              } catch(err) {
+                requestModel['transfer_encoding'] = 'base64';
+                requestModel['body'] = _.base64Encode(postData);
+              }
+            } else if (typeof postData === 'object' || typeof postData === 'array' || typeof postData === 'number' || typeof postData === 'boolean') {
+              requestModel['body'] = postData;
             }
           }
 
@@ -69,13 +73,20 @@ function captureXMLHttpRequest(recorder) {
           };
 
           if (this.responseText) {
-
-            if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
-              responseModel['body'] = parseBody(this.responseText);
-            } else {
+            // responseText is string or null
+            try {
+              responseModel['body'] = _.JSONDecode(this.responseText);
+            } catch(err) {
               responseModel['transfer_encoding'] = 'base64';
               responseModel['body'] = _.base64Encode(this.responseText);
             }
+
+            // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
+            //   responseModel['body'] = parseBody(this.responseText);
+            // } else {
+            //   responseModel['transfer_encoding'] = 'base64';
+            //   responseModel['body'] = _.base64Encode(this.responseText);
+            // }
           }
 
           var event = {

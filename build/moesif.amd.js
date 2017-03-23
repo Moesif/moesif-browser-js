@@ -1517,11 +1517,15 @@ define(function () { 'use strict';
               };
 
               if (postData) {
-                if (isJsonHeader(this._requestHeaders) || isStartJson(postData)) {
-                  requestModel['body'] = parseBody(postData);
-                } else {
-                  requestModel['transfer_encoding'] = 'base64';
-                  requestModel['body'] = _.base64Encode(postData);
+                if (typeof postData === 'string') {
+                  try {
+                    requestModel['body'] = _.JSONDecode(body);
+                  } catch(err) {
+                    requestModel['transfer_encoding'] = 'base64';
+                    requestModel['body'] = _.base64Encode(postData);
+                  }
+                } else if (typeof postData === 'object' || typeof postData === 'array' || typeof postData === 'number' || typeof postData === 'boolean') {
+                  requestModel['body'] = postData;
                 }
               }
 
@@ -1534,13 +1538,20 @@ define(function () { 'use strict';
               };
 
               if (this.responseText) {
-
-                if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
-                  responseModel['body'] = parseBody(this.responseText);
-                } else {
+                // responseText is string or null
+                try {
+                  responseModel['body'] = _.JSONDecode(this.responseText);
+                } catch(err) {
                   responseModel['transfer_encoding'] = 'base64';
                   responseModel['body'] = _.base64Encode(this.responseText);
                 }
+
+                // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
+                //   responseModel['body'] = parseBody(this.responseText);
+                // } else {
+                //   responseModel['transfer_encoding'] = 'base64';
+                //   responseModel['body'] = _.base64Encode(this.responseText);
+                // }
               }
 
               var event = {
@@ -1563,43 +1574,6 @@ define(function () { 'use strict';
 
       return undoPatch;
       // so caller have a handle to undo the patch if needed.
-    }
-
-    function isJsonHeader(headers) {
-      if (headers) {
-        if(headers['content-type'] && headers['content-type'].indexOf('json') >= 0) {
-          return true;
-        }
-        if(headers['Content-Type'] && headers['Content-Type'].indexOf('json') >= 0) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    function isStartJson(body) {
-      if(body && typeof body === 'string') {
-        var trimmedBody = _.trim(body);
-        if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0 ) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    function parseBody(body) {
-      try {
-        return _.JSONDecode(body);
-      } catch(err) {
-        return {
-          'moesif_error': {
-            'code': 'moesif_parse_err',
-            'msg': 'Can not parse body',
-            'src': 'moesif-browser-js',
-            'args': body
-          }
-        }
-      }
     }
 
     function parseResponseHeaders(headerStr) {
