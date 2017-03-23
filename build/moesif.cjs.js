@@ -1,8 +1,8 @@
 'use strict';
 
 var Config = {
-    DEBUG: false,
-    LIB_VERSION: '1.0.0'
+    DEBUG: true,
+    LIB_VERSION: '1.1.0'
 };
 
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -1470,6 +1470,8 @@ _['info']['device']     = _.info.device;
 _['info']['browser']    = _.info.browser;
 _['info']['properties'] = _.info.properties;
 
+var HTTP_PROTOCOL$1 = (('https:' === document.location.protocol) ? 'https://' : 'http://');
+
 /**
  * @param recorder
  * @returns {undoPatch}
@@ -1508,7 +1510,7 @@ function captureXMLHttpRequest(recorder) {
         if(myUrl && myUrl.indexOf('moesif.com') < 0 && myUrl.indexOf('apirequest.io') < 0) {
 
           var requestModel = {
-            'uri': this._url,
+            'uri': convertToFullUrl(this._url),
             'verb': this._method,
             'time': this._startTime,
             'headers': this._requestHeaders
@@ -1577,7 +1579,7 @@ function isJsonHeader(headers) {
 
 function isStartJson(body) {
   if(body && typeof body === 'string') {
-    var trimmedBody = body.trim();
+    var trimmedBody = _.trim(body);
     if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0 ) {
       return true;
     }
@@ -1587,7 +1589,7 @@ function isStartJson(body) {
 
 function parseBody(body) {
   try {
-    return JSON.parse(body);
+    return _.JSONDecode(body);
   } catch(err) {
     return {
       'moesif_error': {
@@ -1617,6 +1619,18 @@ function parseResponseHeaders(headerStr) {
   return headers;
 }
 
+function convertToFullUrl(url) {
+  if (url && typeof url === 'string') {
+    var trimedUrl = _.trim(url);
+    if (trimedUrl.indexOf('http') !== 0) {
+      return HTTP_PROTOCOL$1 + window.location.host + url;
+    } else {
+      return url;
+    }
+  }
+  return url;
+}
+
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: "api.moesif.net",
@@ -1625,16 +1639,7 @@ var MOESIF_CONSTANTS = {
   STORED_USER_ID: "moesif_stored_user_id"
 };
 
-function isContentJson(event) {
-  try {
-    var contentType = event['request']['headers']['Content-Type'] || event['request']['headers']['content-type']
-      || event['response']['headers']['Content-Type'] || event['response']['headers']['content-type'];
-
-    return contentType && contentType.toLowerCase().indexOf('json') > 0;
-  } catch (err) {
-    return false;
-  }
-}
+var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
 
 function isMoesif(event) {
   return event['request']['headers']['X-Moesif-SDK'];
@@ -1662,9 +1667,8 @@ function moesifCreator () {
 
   // console.log('moesif object creator is called');
 
-  var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
-
   function sendEvent(event, token, debug, callback) {
+    console.log('actually sending event ' + _.JSONEncode(event) );
     var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
@@ -1674,9 +1678,10 @@ function moesifCreator () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
           if (debug) {
-            console.log('sent to moesif successfully')
+            console.log('sent to moesif successfully' + event['request']['uri']);
           }
         } else {
+          console.log('failed to sent to moesif...'  + event['request']['uri']);
           if (debug) {
             console.error(xhr.statusText);
           }
@@ -1719,6 +1724,7 @@ function moesifCreator () {
       var _self = this;
 
       function recordEvent(event) {
+        console.log('inside record event for' + event['request']['uri']);
         var logData = Object.assign({}, event);
         if (_self._getUserId()) {
           logData['user_id'] = _self._getUserId();
@@ -1737,8 +1743,10 @@ function moesifCreator () {
           logData = _self._options.maskContent(logData);
         }
 
-        if (!_self._options.skip(event) && isContentJson(event) && !isMoesif(event)) {
+        if (!_self._options.skip(event) && !isMoesif(event)) {
           sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback)
+        } else {
+          console.log('skipped event for ' + event['request']['uri']);
         }
       }
       console.log('moesif starting');

@@ -27,6 +27,8 @@ Object.defineProperty(exports, '__esModule', {
 
 var _utils = require('./utils');
 
+var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
+
 /**
  * @param recorder
  * @returns {undoPatch}
@@ -65,7 +67,7 @@ function captureXMLHttpRequest(recorder) {
         if (myUrl && myUrl.indexOf('moesif.com') < 0 && myUrl.indexOf('apirequest.io') < 0) {
 
           var requestModel = {
-            'uri': this._url,
+            'uri': convertToFullUrl(this._url),
             'verb': this._method,
             'time': this._startTime,
             'headers': this._requestHeaders
@@ -134,7 +136,7 @@ function isJsonHeader(headers) {
 
 function isStartJson(body) {
   if (body && typeof body === 'string') {
-    var trimmedBody = body.trim();
+    var trimmedBody = _utils._.trim(body);
     if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0) {
       return true;
     }
@@ -144,7 +146,7 @@ function isStartJson(body) {
 
 function parseBody(body) {
   try {
-    return JSON.parse(body);
+    return _utils._.JSONDecode(body);
   } catch (err) {
     return {
       'moesif_error': {
@@ -174,6 +176,18 @@ function parseResponseHeaders(headerStr) {
   return headers;
 }
 
+function convertToFullUrl(url) {
+  if (url && typeof url === 'string') {
+    var trimedUrl = _utils._.trim(url);
+    if (trimedUrl.indexOf('http') !== 0) {
+      return HTTP_PROTOCOL + window.location.host + url;
+    } else {
+      return url;
+    }
+  }
+  return url;
+}
+
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
@@ -184,8 +198,8 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 var Config = {
-    DEBUG: false,
-    LIB_VERSION: '1.0.0'
+    DEBUG: true,
+    LIB_VERSION: '1.1.0'
 };
 
 exports['default'] = Config;
@@ -291,6 +305,16 @@ var MOESIF_CONSTANTS = {
   STORED_USER_ID: "moesif_stored_user_id"
 };
 
+var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
+
+// http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
+// https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
+// var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
+
+// IE<10 does not support cross-origin XHR's but script tags
+// with defer won't block window.onload; ENQUEUE_REQUESTS
+// should only be true for Opera<12
+
 function isContentJson(event) {
   try {
     var contentType = event['request']['headers']['Content-Type'] || event['request']['headers']['content-type'] || event['response']['headers']['Content-Type'] || event['response']['headers']['content-type'];
@@ -327,9 +351,8 @@ exports['default'] = function () {
 
   // console.log('moesif object creator is called');
 
-  var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
-
   function sendEvent(event, token, debug, callback) {
+    _utils.console.log('actually sending event ' + _utils._.JSONEncode(event));
     var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
@@ -339,9 +362,10 @@ exports['default'] = function () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
           if (debug) {
-            _utils.console.log('sent to moesif successfully');
+            _utils.console.log('sent to moesif successfully' + event['request']['uri']);
           }
         } else {
+          _utils.console.log('failed to sent to moesif...' + event['request']['uri']);
           if (debug) {
             _utils.console.error(xhr.statusText);
           }
@@ -384,6 +408,7 @@ exports['default'] = function () {
       var _self = this;
 
       function recordEvent(event) {
+        _utils.console.log('inside record event for' + event['request']['uri']);
         var logData = Object.assign({}, event);
         if (_self._getUserId()) {
           logData['user_id'] = _self._getUserId();
@@ -402,8 +427,10 @@ exports['default'] = function () {
           logData = _self._options.maskContent(logData);
         }
 
-        if (!_self._options.skip(event) && isContentJson(event) && !isMoesif(event)) {
+        if (!_self._options.skip(event) && !isMoesif(event)) {
           sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
+        } else {
+          _utils.console.log('skipped event for ' + event['request']['uri']);
         }
       }
       _utils.console.log('moesif starting');

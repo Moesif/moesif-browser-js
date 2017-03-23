@@ -4,6 +4,9 @@
 
 import { _, console } from './utils';
 
+
+var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
+
 /**
  * @param recorder
  * @returns {undoPatch}
@@ -42,7 +45,7 @@ function captureXMLHttpRequest(recorder) {
         if(myUrl && myUrl.indexOf('moesif.com') < 0 && myUrl.indexOf('apirequest.io') < 0) {
 
           var requestModel = {
-            'uri': this._url,
+            'uri': convertToFullUrl(this._url),
             'verb': this._method,
             'time': this._startTime,
             'headers': this._requestHeaders
@@ -111,7 +114,7 @@ function isJsonHeader(headers) {
 
 function isStartJson(body) {
   if(body && typeof body === 'string') {
-    var trimmedBody = body.trim();
+    var trimmedBody = _.trim(body);
     if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0 ) {
       return true;
     }
@@ -121,7 +124,7 @@ function isStartJson(body) {
 
 function parseBody(body) {
   try {
-    return JSON.parse(body);
+    return _.JSONDecode(body);
   } catch(err) {
     return {
       'moesif_error': {
@@ -149,6 +152,18 @@ function parseResponseHeaders(headerStr) {
     }
   }
   return headers;
+}
+
+function convertToFullUrl(url) {
+  if (url && typeof url === 'string') {
+    var trimedUrl = _.trim(url);
+    if (trimedUrl.indexOf('http') !== 0) {
+      return HTTP_PROTOCOL + window.location.host + url;
+    } else {
+      return url;
+    }
+  }
+  return url;
 }
 
 export default captureXMLHttpRequest;
