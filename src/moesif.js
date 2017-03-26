@@ -4,13 +4,15 @@
 
 import { _, console } from './utils';
 import patchAjaxWithCapture from './capture';
+import Config from './config';
 
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: "api.moesif.net",
   EVENT_ENDPOINT: "/v1/events",
   EVENT_BATCH_ENDPOINT: "/v1/events/batch",
-  STORED_USER_ID: "moesif_stored_user_id"
+  STORED_USER_ID: "moesif_stored_user_id",
+  STORED_SESSION_ID: "moesif_stored_session_id"
 };
 
 var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
@@ -66,7 +68,7 @@ export default function () {
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
     xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/1.1.0');
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
     xmlhttp.onreadystatechange = function () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
@@ -110,11 +112,17 @@ export default function () {
 
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
+      this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
       console.log('moesif initiated');
       return this;
     },
     'start': function () {
       var _self = this;
+
+      if (this._stopRecording) {
+        console.log('recording has already started, please call stop first.');
+        return false;
+      }
 
       function recordEvent(event) {
         console.log('determining if should log: ' + event['request']['uri']);
@@ -144,6 +152,7 @@ export default function () {
       }
       console.log('moesif starting');
       this._stopRecording = patchAjaxWithCapture(recordEvent);
+      return true;
     },
     'identifyUser': function (userId) {
       this._userId = userId;
@@ -151,6 +160,7 @@ export default function () {
     },
     'identifySession': function (session) {
       this._session = session;
+      localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
     },
     _getUserId: function () {
       return this._userId;

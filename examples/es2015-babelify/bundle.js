@@ -209,7 +209,7 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 var Config = {
-    DEBUG: true,
+    DEBUG: false,
     LIB_VERSION: '1.1.0'
 };
 
@@ -308,12 +308,17 @@ var _capture = require('./capture');
 
 var _capture2 = _interopRequireDefault(_capture);
 
+var _config = require('./config');
+
+var _config2 = _interopRequireDefault(_config);
+
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: "api.moesif.net",
   EVENT_ENDPOINT: "/v1/events",
   EVENT_BATCH_ENDPOINT: "/v1/events/batch",
-  STORED_USER_ID: "moesif_stored_user_id"
+  STORED_USER_ID: "moesif_stored_user_id",
+  STORED_SESSION_ID: "moesif_stored_session_id"
 };
 
 var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
@@ -368,7 +373,7 @@ exports['default'] = function () {
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
     xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/1.1.0');
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
     xmlhttp.onreadystatechange = function () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
@@ -412,11 +417,17 @@ exports['default'] = function () {
 
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
+      this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
       _utils.console.log('moesif initiated');
       return this;
     },
     'start': function start() {
       var _self = this;
+
+      if (this._stopRecording) {
+        _utils.console.log('recording has already started, please call stop first.');
+        return false;
+      }
 
       function recordEvent(event) {
         _utils.console.log('determining if should log: ' + event['request']['uri']);
@@ -446,6 +457,7 @@ exports['default'] = function () {
       }
       _utils.console.log('moesif starting');
       this._stopRecording = (0, _capture2['default'])(recordEvent);
+      return true;
     },
     'identifyUser': function identifyUser(userId) {
       this._userId = userId;
@@ -453,6 +465,7 @@ exports['default'] = function () {
     },
     'identifySession': function identifySession(session) {
       this._session = session;
+      localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
     },
     _getUserId: function _getUserId() {
       return this._userId;
@@ -472,7 +485,7 @@ exports['default'] = function () {
 ;
 module.exports = exports['default'];
 
-},{"./capture":2,"./utils":7}],7:[function(require,module,exports){
+},{"./capture":2,"./config":3,"./utils":7}],7:[function(require,module,exports){
 /* eslint camelcase: "off", eqeqeq: "off" */
 'use strict';
 
