@@ -64,7 +64,7 @@
 	}(this, function () { 'use strict';
 
 	    var Config = {
-	        DEBUG: false,
+	        DEBUG: true,
 	        LIB_VERSION: '1.1.0'
 	    };
 
@@ -1581,9 +1581,13 @@
 
 	              if (postData) {
 	                if (typeof postData === 'string') {
+	                  console.log('request post data is string');
+	                  console.log(postData);
 	                  try {
-	                    requestModel['body'] = _.JSONDecode(body);
+	                    requestModel['body'] = _.JSONDecode(postData);
 	                  } catch(err) {
+	                    console.log('JSON decode failed');
+	                    console.log(err);
 	                    requestModel['transfer_encoding'] = 'base64';
 	                    requestModel['body'] = _.base64Encode(postData);
 	                  }

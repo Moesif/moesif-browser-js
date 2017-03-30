@@ -75,9 +75,13 @@ function captureXMLHttpRequest(recorder) {
 
           if (postData) {
             if (typeof postData === 'string') {
+              _utils.console.log('request post data is string');
+              _utils.console.log(postData);
               try {
-                requestModel['body'] = _utils._.JSONDecode(body);
+                requestModel['body'] = _utils._.JSONDecode(postData);
               } catch (err) {
+                _utils.console.log('JSON decode failed');
+                _utils.console.log(err);
                 requestModel['transfer_encoding'] = 'base64';
                 requestModel['body'] = _utils._.base64Encode(postData);
               }
@@ -209,7 +213,7 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 var Config = {
-    DEBUG: false,
+    DEBUG: true,
     LIB_VERSION: '1.1.0'
 };
 
