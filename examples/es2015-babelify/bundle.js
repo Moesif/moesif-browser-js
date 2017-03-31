@@ -19,6 +19,16 @@ _srcLoaderModule2['default'].start();
  * Created by Xingheng on 1/31/17.
  */
 
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
+var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
+
 /**
  * @param recorder
  * @returns {undoPatch}
@@ -26,11 +36,6 @@ _srcLoaderModule2['default'].start();
  * The recorder is a function that takes an Event and records it.
  *
  */
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
 function captureXMLHttpRequest(recorder) {
   var XHR = XMLHttpRequest.prototype;
 
@@ -60,21 +65,61 @@ function captureXMLHttpRequest(recorder) {
         // avoid apiRequest.io and moesif.com
         var myUrl = this._url ? this._url.toLowerCase() : this._url;
         if (myUrl && myUrl.indexOf('moesif.com') < 0 && myUrl.indexOf('apirequest.io') < 0) {
-          var event = {
-            'request': {
-              'uri': this._url,
-              'verb': this._method,
-              'time': this._startTime,
-              'body': postData ? parseBody(postData) : undefined,
-              'headers': this._requestHeaders
-            },
-            'response': {
-              'status': this.status,
-              'time': endTime,
-              'headers': parseResponseHeaders(this.getAllResponseHeaders()),
-              'body': parseBody(this.responseText)
-            }
+
+          var requestModel = {
+            'uri': convertToFullUrl(this._url),
+            'verb': this._method,
+            'time': this._startTime,
+            'headers': this._requestHeaders
           };
+
+          if (postData) {
+            if (typeof postData === 'string') {
+              _utils.console.log('request post data is string');
+              _utils.console.log(postData);
+              try {
+                requestModel['body'] = _utils._.JSONDecode(postData);
+              } catch (err) {
+                _utils.console.log('JSON decode failed');
+                _utils.console.log(err);
+                requestModel['transfer_encoding'] = 'base64';
+                requestModel['body'] = _utils._.base64Encode(postData);
+              }
+            } else if (typeof postData === 'object' || typeof postData === 'array' || typeof postData === 'number' || typeof postData === 'boolean') {
+              requestModel['body'] = postData;
+            }
+          }
+
+          var responseHeaders = parseResponseHeaders(this.getAllResponseHeaders());
+
+          var responseModel = {
+            'status': this.status,
+            'time': endTime,
+            'headers': responseHeaders
+          };
+
+          if (this.responseText) {
+            // responseText is string or null
+            try {
+              responseModel['body'] = _utils._.JSONDecode(this.responseText);
+            } catch (err) {
+              responseModel['transfer_encoding'] = 'base64';
+              responseModel['body'] = _utils._.base64Encode(this.responseText);
+            }
+
+            // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
+            //   responseModel['body'] = parseBody(this.responseText);
+            // } else {
+            //   responseModel['transfer_encoding'] = 'base64';
+            //   responseModel['body'] = _.base64Encode(this.responseText);
+            // }
+          }
+
+          var event = {
+            'request': requestModel,
+            'response': responseModel
+          };
+
           recorder(event);
         }
       }
@@ -92,18 +137,38 @@ function captureXMLHttpRequest(recorder) {
   // so caller have a handle to undo the patch if needed.
 }
 
-function parseBody(body) {
-  if (!body) {
-    return {};
+function isJsonHeader(headers) {
+  if (headers) {
+    if (headers['content-type'] && headers['content-type'].indexOf('json') >= 0) {
+      return true;
+    }
+    if (headers['Content-Type'] && headers['Content-Type'].indexOf('json') >= 0) {
+      return true;
+    }
   }
+  return false;
+}
+
+function isStartJson(body) {
+  if (body && typeof body === 'string') {
+    var trimmedBody = _utils._.trim(body);
+    if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parseBody(body) {
   try {
-    return JSON.parse(body);
+    return _utils._.JSONDecode(body);
   } catch (err) {
     return {
       'moesif_error': {
-        'code': 'moesif_parse_errhttps://www.budgetbytes.com/2010/09/naan/or',
-        'msgs': ['Can not parse body'],
-        'args': [body]
+        'code': 'moesif_parse_err',
+        'msg': 'Can not parse body',
+        'src': 'moesif-browser-js',
+        'args': body
       }
     };
   }
@@ -126,18 +191,30 @@ function parseResponseHeaders(headerStr) {
   return headers;
 }
 
+function convertToFullUrl(url) {
+  if (url && typeof url === 'string') {
+    var trimedUrl = _utils._.trim(url);
+    if (trimedUrl.indexOf('http') !== 0) {
+      return HTTP_PROTOCOL + window.location.host + url;
+    } else {
+      return url;
+    }
+  }
+  return url;
+}
+
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
-},{}],3:[function(require,module,exports){
+},{"./utils":7}],3:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
     value: true
 });
 var Config = {
-    DEBUG: false,
-    LIB_VERSION: '1.0.0'
+    DEBUG: true,
+    LIB_VERSION: '1.1.0'
 };
 
 exports['default'] = Config;
@@ -235,13 +312,28 @@ var _capture = require('./capture');
 
 var _capture2 = _interopRequireDefault(_capture);
 
+var _config = require('./config');
+
+var _config2 = _interopRequireDefault(_config);
+
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: "api.moesif.net",
   EVENT_ENDPOINT: "/v1/events",
   EVENT_BATCH_ENDPOINT: "/v1/events/batch",
-  STORED_USER_ID: "moesif_stored_user_id"
+  STORED_USER_ID: "moesif_stored_user_id",
+  STORED_SESSION_ID: "moesif_stored_session_id"
 };
+
+var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
+
+// http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
+// https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
+// var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
+
+// IE<10 does not support cross-origin XHR's but script tags
+// with defer won't block window.onload; ENQUEUE_REQUESTS
+// should only be true for Opera<12
 
 function isContentJson(event) {
   try {
@@ -279,23 +371,23 @@ exports['default'] = function () {
 
   // console.log('moesif object creator is called');
 
-  var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
-
   function sendEvent(event, token, debug, callback) {
+    _utils.console.log('actually sending to log event ' + _utils._.JSONEncode(event));
     var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
     xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
     xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'Ajax-JS 1.0.0');
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
     xmlhttp.onreadystatechange = function () {
       if (xmlhttp.readyState === 4) {
         if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
           if (debug) {
-            _utils.console.log('sent to moesif successfully');
+            _utils.console.log('sent to moesif successfully: ' + event['request']['uri']);
           }
         } else {
+          _utils.console.log('failed to sent to moesif: ' + event['request']['uri']);
           if (debug) {
-            _utils.console.error(xhr.statusText);
+            _utils.console.error(xmlhttp.statusText);
           }
           if (callback && _utils._.isFunction(callback)) {
             callback(new Error('can not sent to moesif'), event);
@@ -329,13 +421,20 @@ exports['default'] = function () {
 
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
+      this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
       _utils.console.log('moesif initiated');
       return this;
     },
     'start': function start() {
       var _self = this;
 
+      if (this._stopRecording) {
+        _utils.console.log('recording has already started, please call stop first.');
+        return false;
+      }
+
       function recordEvent(event) {
+        _utils.console.log('determining if should log: ' + event['request']['uri']);
         var logData = Object.assign({}, event);
         if (_self._getUserId()) {
           logData['user_id'] = _self._getUserId();
@@ -354,12 +453,15 @@ exports['default'] = function () {
           logData = _self._options.maskContent(logData);
         }
 
-        if (!_self._options.skip(event) && isContentJson(event) && !isMoesif(event)) {
+        if (!_self._options.skip(event) && !isMoesif(event)) {
           sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
+        } else {
+          _utils.console.log('skipped logging for ' + event['request']['uri']);
         }
       }
       _utils.console.log('moesif starting');
       this._stopRecording = (0, _capture2['default'])(recordEvent);
+      return true;
     },
     'identifyUser': function identifyUser(userId) {
       this._userId = userId;
@@ -367,6 +469,7 @@ exports['default'] = function () {
     },
     'identifySession': function identifySession(session) {
       this._session = session;
+      localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
     },
     _getUserId: function _getUserId() {
       return this._userId;
@@ -386,7 +489,7 @@ exports['default'] = function () {
 ;
 module.exports = exports['default'];
 
-},{"./capture":2,"./utils":7}],7:[function(require,module,exports){
+},{"./capture":2,"./config":3,"./utils":7}],7:[function(require,module,exports){
 /* eslint camelcase: "off", eqeqeq: "off" */
 'use strict';
 
