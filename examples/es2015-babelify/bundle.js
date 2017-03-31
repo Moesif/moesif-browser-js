@@ -213,7 +213,7 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 var Config = {
-    DEBUG: true,
+    DEBUG: false,
     LIB_VERSION: '1.1.0'
 };
 
