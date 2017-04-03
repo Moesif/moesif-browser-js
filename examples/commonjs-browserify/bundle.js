@@ -1614,6 +1614,7 @@ var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: "api.moesif.net",
   EVENT_ENDPOINT: "/v1/events",
+  USER_ENDPOINT: "/v1/users",
   EVENT_BATCH_ENDPOINT: "/v1/events/batch",
   STORED_USER_ID: "moesif_stored_user_id",
   STORED_SESSION_ID: "moesif_stored_session_id"
@@ -1645,7 +1646,7 @@ function ensureValidOptions(options) {
 
 function moesifCreator () {
 
-  // console.log('moesif object creator is called');
+  console.log('moesif object creator is called');
 
   function sendEvent(event, token, debug, callback) {
     console.log('actually sending to log event ' + _.JSONEncode(event) );
@@ -1672,6 +1673,32 @@ function moesifCreator () {
       }
     };
     xmlhttp.send(_.JSONEncode(event));
+  }
+
+  function updateUser(userProfile, token, debug, callback) {
+    var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+    xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
+    xmlhttp.setRequestHeader('Content-Type', 'application/json');
+    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+    xmlhttp.onreadystatechange = function () {
+      if (xmlhttp.readyState === 4) {
+        if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
+          if (debug) {
+            console.log('update user to moesif successfully: ' + userProfile['user_id']);
+          }
+        } else {
+          console.log('update user to moesif failed ' + userProfile['user_id']);
+          if (debug) {
+            console.error(xmlhttp.statusText);
+          }
+          if (callback && _.isFunction(callback)) {
+            callback(new Error('can not update user to moesif'), null, userProfile);
+          }
+        }
+      }
+    };
+    xmlhttp.send(_.JSONEncode(userProfile));
   }
 
   return {
@@ -1739,8 +1766,19 @@ function moesifCreator () {
       this._stopRecording = captureXMLHttpRequest(recordEvent);
       return true;
     },
-    'identifyUser': function (userId) {
+    'identifyUser': function (userId, metadata) {
       this._userId = userId;
+      if (!(this._options && this._options.applicationId)) {
+        throw new Error('Init needs to be called with a valid application Id before calling identify User.');
+      }
+      if(metadata) {
+        var userObject = {
+          'user_id': userId,
+          'session_token': this._session,
+          'metadata': metadata
+        };
+        updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
+      }
       localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
     },
     'identifySession': function (session) {

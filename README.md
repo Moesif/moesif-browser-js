@@ -106,14 +106,37 @@ Stops the capturing. It is optional to call this, because if the browser is clos
 The main use case is that to suspend the recording temporarily due to some event. Call `start` again to restart. 
 
 
-#### identifyUser, (string) => null
+#### identifyUser, (string, object) => null
 
 ```
+
 moesif.identifyUser('your user id');
+```
+or
+
+```javascript
+
+var metadata = {
+  email: 'user@usergmail.com',
+  customdata1: 'data1'
+}
+
+moesif.identifyUser('your user id', metadata);
 ```
 
 Identifies the user if you have the userId. This is highly recommended. Even though we can auto
 detect userIds but this helps tie all the events to the userId, and make it more easily searchable. 
+
+You can also pass in optional profile data for the user. The `metadata` can by any valid Json. 
+If present, Moesif will detect special metadata fields like.
+
+- email
+- name
+- first_name
+- last_name
+- phone
+- photo_url
+
 
 #### identifySession, (string) => null
 
