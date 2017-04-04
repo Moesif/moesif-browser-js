@@ -1,6 +1,6 @@
 {
   "name": "moesif-browser-js",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Moesif AJAX Client Javascript. This is designed to log and capture AJAX REST API calls from web apps for error analysis in Moesif.",
   "main": "build/moesif.cjs.js",
   "directories": {

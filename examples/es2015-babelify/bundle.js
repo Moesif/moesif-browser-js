@@ -214,7 +214,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.1.0'
+    LIB_VERSION: '1.1.1'
 };
 
 exports['default'] = Config;

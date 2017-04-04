@@ -17,7 +17,7 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 
 
 ```html
-<script src="//unpkg.com/moesif-browser-js@1.1.0/moesif.min.js"></script>
+<script src="//unpkg.com/moesif-browser-js@1.1.1/moesif.min.js"></script>
 <script type="text/javascript">
 var options = {
   applicationId: 'Your Application Id'
@@ -128,7 +128,7 @@ Identifies the user if you have the userId. This is highly recommended. Even tho
 detect userIds but this helps tie all the events to the userId, and make it more easily searchable. 
 
 You can also pass in optional profile data for the user. The `metadata` can by any valid Json. 
-If present, Moesif will detect special metadata fields like.
+If present, Moesif will detect special metadata fields like:
 
 - email
 - name
@@ -136,7 +136,6 @@ If present, Moesif will detect special metadata fields like.
 - last_name
 - phone
 - photo_url
-
 
 #### identifySession, (string) => null
 
