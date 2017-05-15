@@ -173,7 +173,7 @@ function convertToFullUrl(url) {
   if (url && typeof url === 'string') {
     var trimedUrl = _.trim(url);
     if (trimedUrl.indexOf('http') !== 0) {
-      return HTTP_PROTOCOL + window.location.host + url;
+      return HTTP_PROTOCOL + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
     } else {
       return url;
     }

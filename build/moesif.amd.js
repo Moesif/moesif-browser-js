@@ -1601,7 +1601,7 @@ define(function () { 'use strict';
       if (url && typeof url === 'string') {
         var trimedUrl = _.trim(url);
         if (trimedUrl.indexOf('http') !== 0) {
-          return HTTP_PROTOCOL$1 + window.location.host + url;
+          return HTTP_PROTOCOL$1 + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
         } else {
           return url;
         }
