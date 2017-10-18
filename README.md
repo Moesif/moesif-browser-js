@@ -116,18 +116,20 @@ or
 
 ```javascript
 
-var metadata = {
+var userMetadata = {
   email: 'user@usergmail.com',
   customdata1: 'data1'
 }
 
-moesif.identifyUser('your user id', metadata);
+moesif.identifyUser('your user id', userMetadata);
 ```
 
 Identifies the user if you have the userId. This is highly recommended. Even though we can auto
 detect userIds but this helps tie all the events to the userId, and make it more easily searchable. 
 
-You can also pass in optional profile data for the user. The `metadata` can by any valid Json. 
+Best place to trigger this is when user logs in or signs up. 
+
+You can also pass in optional profile data for the user. The `userMetadata` can by any valid Json. 
 If present, Moesif will detect special metadata fields like:
 
 - email
@@ -159,15 +161,19 @@ client side.
 Optional function that to determine on if a particular event should be skipped logging. 
 The parameter passed in is an event model. [Detail on the event model here](https://www.moesif.com/docs/api#create-an-event).
 
-#### maskContent, (event) => event
+#### maskContent, (event) => event, optional
 
-Optional function that let you mask any sensentive data in the event model, and then return
+Optional function that let you mask any sensitive data in the event model, and then return
 the masked event. Important that do not remove required fields in the event model. See the spec 
 on the event model to see what is required. 
 
+#### getMetadata, (event) => object, optional
+
+Optional function that allow you to add metadata to the event. The metadata can be any JSON object. 
+
 #### getTags, (event) => string, optional
 
-Optional function that allow you to add tags to the event. 
+This that allow you to add tags to the event. Will be deprecated, use getMetadata instead. 
 
 full options example: 
 
@@ -187,9 +193,11 @@ var options = {
     }
     return event;
   },
-  getTags: function(event) {
+  getMetadata: function(event) {
     if (event.request.uri.includes('stripe')) {
-      return 'payment';
+      return {
+        type: 'payment'
+      };
     }
   }
 };

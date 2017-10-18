@@ -1632,6 +1632,9 @@ define(function () { 'use strict';
       if (options['getTags'] && !_.isFunction(options['getTags'])) {
         throw new Error('getTags should be a function');
       }
+      if (options['getMetadata'] && !_.isFunction(options['getMetadata'])) {
+        throw new Error('getMetadata should be a function');
+      }
       if (options['getApiVersion'] && !_.isFunction(options['getApiVersion'])) {
         throw new Error('identifyUser should be a function');
       }
@@ -1712,6 +1715,11 @@ define(function () { 'use strict';
           ops.maskContent = options['maskContent'] || function (eventData) {
               return eventData;
             };
+
+          ops.getMetadata = options['getMetadata'] || function () {
+            return undefined;
+          };
+
           ops.skip = options['skip'] || function () {
             return false;
           };
@@ -1753,6 +1761,10 @@ define(function () { 'use strict';
 
             if (_self._options.maskContent) {
               logData = _self._options.maskContent(logData);
+            }
+
+            if (_self._options.getMetadata) {
+              logData['metadata'] = _self._options.getMetadata(logData);
             }
 
             if (!_self._options.skip(event) && !isMoesif(event)) {

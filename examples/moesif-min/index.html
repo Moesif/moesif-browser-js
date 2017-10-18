@@ -7,8 +7,16 @@
     <script src="moesif.min.js"></script>
     <script type="text/javascript">
       var options = {
-        applicationId: 'eyJhcHAiOiIzMTU6MSIsInZlciI6IjIuMCIsIm9yZyI6IjM1MToxNSIsImlhdCI6MTQ4NTkwNzIwMH0.m413mBIUrKUBCxKu_iY1kBNCNat10sB7E3O0TeYbe-I',
-        debug: true
+        applicationId: 'eyJhcHAiOiIzOTE6MjEiLCJ2ZXIiOiIyLjAiLCJvcmciOiIzNTE6MTUiLCJpYXQiOjE1MDgyODQ4MDB9.FXAGeu4xFx43108YY3bg9SsSfU6_uCqdaJuLYLlHUHE',
+        debug: true,
+        getMetadata: function(eventData) {
+          console.log('getMetdata is called');
+          console.log('eventData is' + JSON.stringify(eventData));
+          return {
+            'foo' : 'browser.js',
+            'bar' : 'browser1'
+          }
+        }
         // add other option here.
       };
 

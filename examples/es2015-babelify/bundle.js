@@ -357,6 +357,9 @@ function ensureValidOptions(options) {
   if (options['getTags'] && !_utils._.isFunction(options['getTags'])) {
     throw new Error('getTags should be a function');
   }
+  if (options['getMetadata'] && !_utils._.isFunction(options['getMetadata'])) {
+    throw new Error('getMetadata should be a function');
+  }
   if (options['getApiVersion'] && !_utils._.isFunction(options['getApiVersion'])) {
     throw new Error('identifyUser should be a function');
   }
@@ -437,6 +440,11 @@ exports['default'] = function () {
       ops.maskContent = options['maskContent'] || function (eventData) {
         return eventData;
       };
+
+      ops.getMetadata = options['getMetadata'] || function () {
+        return undefined;
+      };
+
       ops.skip = options['skip'] || function () {
         return false;
       };
@@ -478,6 +486,10 @@ exports['default'] = function () {
 
         if (_self._options.maskContent) {
           logData = _self._options.maskContent(logData);
+        }
+
+        if (_self._options.getMetadata) {
+          logData['metadata'] = _self._options.getMetadata(logData);
         }
 
         if (!_self._options.skip(event) && !isMoesif(event)) {
