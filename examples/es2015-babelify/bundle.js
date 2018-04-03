@@ -85,7 +85,7 @@ function captureXMLHttpRequest(recorder) {
                 requestModel['transfer_encoding'] = 'base64';
                 requestModel['body'] = _utils._.base64Encode(postData);
               }
-            } else if (typeof postData === 'object' || typeof postData === 'array' || typeof postData === 'number' || typeof postData === 'boolean') {
+            } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
               requestModel['body'] = postData;
             }
           }
@@ -214,7 +214,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.1.2'
+    LIB_VERSION: '1.2.0'
 };
 
 exports['default'] = Config;
@@ -318,12 +318,12 @@ var _config2 = _interopRequireDefault(_config);
 
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
-  HOST: "api.moesif.net",
-  EVENT_ENDPOINT: "/v1/events",
-  USER_ENDPOINT: "/v1/users",
-  EVENT_BATCH_ENDPOINT: "/v1/events/batch",
-  STORED_USER_ID: "moesif_stored_user_id",
-  STORED_SESSION_ID: "moesif_stored_session_id"
+  HOST: 'api.moesif.net',
+  EVENT_ENDPOINT: '/v1/events',
+  USER_ENDPOINT: '/v1/users',
+  EVENT_BATCH_ENDPOINT: '/v1/events/batch',
+  STORED_USER_ID: 'moesif_stored_user_id',
+  STORED_SESSION_ID: 'moesif_stored_session_id'
 };
 
 var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
@@ -378,7 +378,7 @@ exports['default'] = function () {
   function sendEvent(event, token, debug, callback) {
     _utils.console.log('actually sending to log event ' + _utils._.JSONEncode(event));
     var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
-    xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
+    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
     xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
     xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
@@ -404,7 +404,7 @@ exports['default'] = function () {
 
   function updateUser(userProfile, token, debug, callback) {
     var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
-    xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
+    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
     xmlhttp.setRequestHeader('Content-Type', 'application/json');
     xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
     xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
@@ -536,7 +536,6 @@ exports['default'] = function () {
   };
 };
 
-;
 module.exports = exports['default'];
 
 },{"./capture":2,"./config":3,"./utils":7}],7:[function(require,module,exports){

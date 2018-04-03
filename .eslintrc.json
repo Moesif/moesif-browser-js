@@ -11,8 +11,8 @@
         "camelcase": "error",
         "eol-last": "error",
         "eqeqeq": "error",
-        "indent":
-            [2, 4, {"SwitchCase": 1}],
+        "no-unused-vars": "off",
+        "indent": "off",
         "linebreak-style": [
             "error",
             "unix"
@@ -23,6 +23,7 @@
             "error",
             "single"
         ],
+        "no-control-regex": "off",
         "semi": [
             "error",
             "always"

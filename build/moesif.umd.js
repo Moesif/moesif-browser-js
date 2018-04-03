@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.1.2'
+        LIB_VERSION: '1.2.0'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -1532,7 +1532,7 @@
                     requestModel['transfer_encoding'] = 'base64';
                     requestModel['body'] = _.base64Encode(postData);
                   }
-                } else if (typeof postData === 'object' || typeof postData === 'array' || typeof postData === 'number' || typeof postData === 'boolean') {
+                } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
                   requestModel['body'] = postData;
                 }
               }
@@ -1615,12 +1615,12 @@
 
     var MOESIF_CONSTANTS = {
       //The base Uri for API calls
-      HOST: "api.moesif.net",
-      EVENT_ENDPOINT: "/v1/events",
-      USER_ENDPOINT: "/v1/users",
-      EVENT_BATCH_ENDPOINT: "/v1/events/batch",
-      STORED_USER_ID: "moesif_stored_user_id",
-      STORED_SESSION_ID: "moesif_stored_session_id"
+      HOST: 'api.moesif.net',
+      EVENT_ENDPOINT: '/v1/events',
+      USER_ENDPOINT: '/v1/users',
+      EVENT_BATCH_ENDPOINT: '/v1/events/batch',
+      STORED_USER_ID: 'moesif_stored_user_id',
+      STORED_SESSION_ID: 'moesif_stored_session_id'
     };
 
     var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
@@ -1657,7 +1657,7 @@
       function sendEvent(event, token, debug, callback) {
         console.log('actually sending to log event ' + _.JSONEncode(event) );
         var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-        xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
+        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
         xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
@@ -1683,7 +1683,7 @@
 
       function updateUser(userProfile, token, debug, callback) {
         var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-        xmlhttp.open("POST", HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
+        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
         xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
@@ -1772,7 +1772,7 @@
             }
 
             if (!_self._options.skip(event) && !isMoesif(event)) {
-              sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback)
+              sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
             } else {
               console.log('skipped logging for ' + event['request']['uri']);
             }
@@ -1812,8 +1812,8 @@
             this._stopRecording = null;
           }
         }
-      }
-    };
+      };
+    }
 
     /*
      * Moesif Browser JS Library

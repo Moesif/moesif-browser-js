@@ -63,7 +63,7 @@ function captureXMLHttpRequest(recorder) {
                 requestModel['transfer_encoding'] = 'base64';
                 requestModel['body'] = _.base64Encode(postData);
               }
-            } else if (typeof postData === 'object' || typeof postData === 'array' || typeof postData === 'number' || typeof postData === 'boolean') {
+            } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
               requestModel['body'] = postData;
             }
           }
@@ -148,7 +148,7 @@ function parseBody(body) {
         'src': 'moesif-browser-js',
         'args': body
       }
-    }
+    };
   }
 }
 
