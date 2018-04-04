@@ -1,8 +1,13 @@
 # Moesif JavaScript Browser Library
 
-The Moesif Browser JavaScript Library is a set of methods attached to a global `moesif` object
-intended to be used by websites to capture ajax apis to send over to [Moesif](https://www.moesif.com) 
-for monitoring and error analysis.
+The library is a browser side middleware that automatically
+captures outgoing API calls and sends to [Moesif](https://www.moesif.com)
+for API monitoring and error analysis.
+
+The library can be used for browser apps making AJAX calls to either your own API or
+public APIs like Stripe and Twilio.
+
+The SDK has native support for RESTful, GraphQL, Ethereum Web3, and RPC APIs.
 
 Full documentation on Moesif integration is available [here](https://www.moesif.com/docs).
 
