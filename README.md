@@ -78,10 +78,10 @@ moesif.identifyUser('your unique userId');
 With the `require` method, the `moesif` object is not attached to the global scope.
 
 
-## Etehreum dApp support
+## Ethereum dApp support
 
 DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API.
-For Ethereum, this API layer uses JSON-RPC and is called the Ethereum Web3 API which Moesif supports natively.
+For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js){:target="_blank" rel="noopener noreferrer"} which Moesif supports natively.
 
 Moesif can capture the API call data directly from the client
 side with `moesif-browser-js` which in turn can be used for debugging and monitoring issues, and alert you of anomalies.
@@ -90,7 +90,7 @@ Review the [tutorial for building an Ethereum DApp with Integrated Web3 Monitori
 
 ### Web3 object
 
-Many Dapp clients such as the [Metamask](https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn?hl=en) extension and [Mist Browser](https://github.com/ethereum/mist), will inject a `web3` object directly in the browser's global scope.
+Many Dapp clients such as the [Metamask](https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn?hl=en){:target="_blank" rel="noopener noreferrer"} extension and [Mist Browser](https://github.com/ethereum/mist){:target="_blank" rel="noopener noreferrer"}, will inject a `web3` object directly in the browser's global scope.
 
 The default `moesif-browser-js` config will automatically instrument the injected web3 object and capture outgoing API transactions to
 the Ethereum network.
