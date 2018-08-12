@@ -78,36 +78,57 @@ moesif.identifyUser('your unique userId');
 With the `require` method, the `moesif` object is not attached to the global scope.
 
 
-### DApp Support: Capture Ethereum Web3 JSON-RPC calls.
+## Etehreum dApp support
 
-DApp (Distributed Apps) are apps that are often build using Smart Contracts with an UI odwnr built in Javascript. And the UI can communicate with the blockchain network via JSON-RPC.
-We wrote an [in-depth tutorial on this DApp and how to build them](https://www.moesif.com/blog/blockchain/ethereum/Tutorial-for-building-Ethereum-Dapp-with-Integrated-Error-Monitoring/).
+DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API.
+For Ethereum, this API layer uses JSON-RPC and is called the Ethereum Web3 API which Moesif supports natively.
 
-If user is are using [Metamask](https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn?hl=en) extension or [Mist Browser](https://github.com/ethereum/mist), a `web3` object is injected into the browser's global scope.
+Moesif can capture the API call data directly from the client
+side with `moesif-browser-js` which in turn can be used for debugging and monitoring issues, and alert you of anomalies.
 
-So by default, `moesif-browser-js` will detect if there is a `web3` object already injected,
-and will try to start capture the data using that default web3 object.
+Review the [tutorial for building an Ethereum DApp with Integrated Web3 Monitoring](https://www.moesif.com/blog/blockchain/ethereum/Tutorial-for-building-Ethereum-Dapp-with-Integrated-Error-Monitoring/).
 
-However, there are scenarios that your DApp let users chose or modify the web3 provider, or change network, or you modify or replace the global `web3` object or the provider object.
+### Web3 object
+
+Many Dapp clients such as the [Metamask](https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn?hl=en) extension and [Mist Browser](https://github.com/ethereum/mist), will inject a `web3` object directly in the browser's global scope.
+
+The default `moesif-browser-js` config will automatically instrument the injected web3 object and capture outgoing API transactions to
+the Ethereum network.
+
+For advanced scenarios where your code uses a different web3 object than the one injected, then you should call `moesif.useWeb3(myWeb3);`
+This insures the correct web3 instance is instrumented.
+
+```javascript
+if (typeof web3 !== 'undefined') {
+  myWeb3 = new Web3(web3.currentProvider);
+  // No action needed by Moesif
+} else {
+  // set the custom provider you want from Web3.providers
+  myWeb3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+
+  moesif.useWeb3(myWeb3);
+}
+```
+
+This can happen if you let users modify the selected web3 provider or change their network.
 
 Under those scenarios, in order to capture the web3 JSON-RPC calls, at the time you replaced/modified/created `web3` object or `web3Provider`, you should update `moesif` by
 invoking:
 
-```
 
-moesif.useWeb3(myWeb3);
+### Duplicate API events
 
-```
+By default, `moesif-browser-js` captures both outgoing API calls from `XMLHttpRequest` and the `web3` object.
+This way you can see both blockchain related transactions along with other 3rd party APIs like Twilio or Stripe.
 
-#### Double capture of web3 transactions.
+If the Web3 provider is also using the XMLHttpRequest (such as the HttpProvider), it's possible that the same API call is captured twice.
+This is expected.
 
-By default, `moesif-browser-js` captures data at `XMLHttpRequest` layer, and if `web3` object is detected or passed with `moesif.useWeb3()`, it also captures data at web3 layer.
+`moesif-browser-js` adds metadata depending on the captured source. For events that are captured via `web3`, we add additional [event metadata](https://www.moesif.com/docs/getting-started/api-events/#custom-metadata) for the web3 provider used.
 
-So if a web3 provider is also using the XMLHttpRequest (like the HttpProvider), it is possible that the same transaction is captured twice. This is ok and expected.
+As an example:
 
-We do make a distinction, for events that are captured at `web3` layer, we add additional metadata for the web3 provider used. If you open up the captured event in Moesif Dashboard, under `metadata` tab, you will see an `_web3` object, like this:
-
-```
+```json
 {
   _web3: {
     via_web3_provider:true
