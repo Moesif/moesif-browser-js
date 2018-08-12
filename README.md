@@ -130,9 +130,9 @@ As an example:
 
 ```json
 {
-  _web3: {
-    via_web3_provider:true
-    is_metamask:true
+  "_web3": {
+    "via_web3_provider": true
+    "is_metamask": true
   }
 }
 ```
