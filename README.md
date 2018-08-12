@@ -98,6 +98,8 @@ the Ethereum network.
 For advanced scenarios where your code uses a different web3 object than the one injected, then you should call `moesif.useWeb3(myWeb3);`
 This insures the correct web3 instance is instrumented.
 
+This can happen if you let users modify the selected web3 provider or change their network.
+
 ```javascript
 if (typeof web3 !== 'undefined') {
   myWeb3 = new Web3(web3.currentProvider);
@@ -109,12 +111,6 @@ if (typeof web3 !== 'undefined') {
   moesif.useWeb3(myWeb3);
 }
 ```
-
-This can happen if you let users modify the selected web3 provider or change their network.
-
-Under those scenarios, in order to capture the web3 JSON-RPC calls, at the time you replaced/modified/created `web3` object or `web3Provider`, you should update `moesif` by
-invoking:
-
 
 ### Duplicate API events
 
