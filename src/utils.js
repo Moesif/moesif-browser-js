@@ -1463,6 +1463,7 @@ _['JSONEncode']         = _.JSONEncode;
 _['JSONDecode']         = _.JSONDecode;
 _['isBlockedUA']        = _.isBlockedUA;
 _['isEmptyObject']      = _.isEmptyObject;
+_['each']               = _.each;
 _['info']               = _.info;
 _['info']['device']     = _.info.device;
 _['info']['browser']    = _.info.browser;

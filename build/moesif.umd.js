@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.2.0'
+        LIB_VERSION: '1.3.0'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -1469,6 +1469,7 @@
     _['JSONDecode']         = _.JSONDecode;
     _['isBlockedUA']        = _.isBlockedUA;
     _['isEmptyObject']      = _.isEmptyObject;
+    _['each']               = _.each;
     _['info']               = _.info;
     _['info']['device']     = _.info.device;
     _['info']['browser']    = _.info.browser;
@@ -1613,6 +1614,163 @@
       return url;
     }
 
+    function computeUrl(provider) {
+      // if (!provider) {
+      //   return HTTP_PROTOCOL + window.location.host + '/';
+      // }
+
+      if (provider && provider.host) {
+        return provider.host;
+      }
+
+      return '/';
+    }
+
+    function createEventModel(provider, startTime, endTime, payload, result, error) {
+      // JSONRPC will always be POST.
+      var requestModel = {
+        'uri': computeUrl(provider),
+        'verb': 'POST',
+        'time': startTime,
+        'headers': {}
+      };
+
+      if (provider['headers']) {
+        var hdrs = {};
+
+        _['each'](provider['headers'], function (item) {
+          hdrs[item['name']] = item['value'];
+        });
+
+        requestModel['headers'] = hdrs;
+      }
+
+      if (payload) {
+        if (typeof payload === 'string') {
+          console.log('request post data is string');
+          console.log(payload);
+          try {
+            requestModel['body'] = _.JSONDecode(payload);
+          } catch(err) {
+            console.log('JSON decode failed');
+            console.log(err);
+            requestModel['transfer_encoding'] = 'base64';
+            requestModel['body'] = _.base64Encode(payload);
+          }
+        } else if (typeof payload === 'object' || Array.isArray(payload) || typeof payload === 'number' || typeof postData === 'boolean') {
+          requestModel['body'] = payload;
+        }
+      }
+
+      // var responseHeaders = parseResponseHeaders(this.getAllResponseHeaders());
+
+      var responseModel = {
+        'status': 200,
+        // it is always 200 for JSON RPC.
+        'time': endTime,
+        'headers': {}
+      };
+
+      if (result) {
+        // responseText is string or null
+        responseModel['body'] = result;
+        // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
+        //   responseModel['body'] = parseBody(this.responseText);
+        // } else {
+        //   responseModel['transfer_encoding'] = 'base64';
+        //   responseModel['body'] = _.base64Encode(this.responseText);
+        // }
+      } else if (error) {
+        responseModel['body'] = {
+          'error': error
+        };
+      }
+
+      var event = {
+        'request': requestModel,
+        'response': responseModel,
+        'metadata': {
+          '_web3': {
+            'via_web3_provider': true,
+            'path': provider['path'],
+            'host': provider['host']
+          }
+        }
+      };
+
+      if (provider['isMetaMask']) {
+        event['metadata']['_web3']['is_metamask'] = true;
+      }
+
+      return event;
+    }
+
+    /**
+     * @param recorder
+     * @returns {undoPatch}
+     *
+     * The recorder is a function that takes an Event and records it.
+     *
+     */
+    function captureWeb3Requests(myWeb3, recorder, options) {
+      if (myWeb3['currentProvider']) {
+        console.log('found my currentProvider, patching it');
+        var CPDR = myWeb3['currentProvider'];
+
+        var send = CPDR['send'];
+        var sendAsync = CPDR['sendAsync'];
+
+        CPDR['send'] = function(payload) {
+          console.log('patched send is called');
+          console.log(payload);
+          var _startTime = (new Date()).toISOString();
+          var result = send.apply(CPDR, arguments);
+
+          console.log('patch send result is back');
+          console.log(result);
+          var _endTime = (new Date()).toISOString();
+          if (recorder) {
+            recorder(createEventModel(CPDR, _startTime, _endTime, payload, result));
+          }
+
+          return result;
+        };
+
+        CPDR['sendAsync'] = function(payload, callback) {
+          console.log('patched sendAsync is called');
+          console.log(payload);
+          var _startTime = (new Date()).toISOString();
+          var provider = CPDR;
+
+          var _callback = function(err, result) {
+            var _endTime = (new Date()).toISOString();
+
+            console.log('inside patched callback');
+            console.log(result);
+            if (recorder) {
+              console.log('about to record event');
+              recorder(createEventModel(provider, _startTime, _endTime, payload, result, err));
+            }
+
+            console.log('triggering original callback');
+
+            callback(err, result);
+          };
+
+          console.log(payload);
+          sendAsync.apply(CPDR, [payload, _callback]);
+        };
+
+        var undoPatch = function () {
+          CPDR.send = send;
+          CPDR.sendAsync = sendAsync;
+        };
+        return undoPatch;
+      }
+      return null;
+      // so caller have a handle to undo the patch if needed.
+    }
+
     var MOESIF_CONSTANTS = {
       //The base Uri for API calls
       HOST: 'api.moesif.net',
@@ -1739,47 +1897,54 @@
           console.log('moesif initiated');
           return this;
         },
-        'start': function () {
+        'start': function (passedInWeb3) {
           var _self = this;
 
-          if (this._stopRecording) {
+
+          if (this._stopRecording || this._stopWeb3Recording) {
             console.log('recording has already started, please call stop first.');
             return false;
           }
 
-          function recordEvent(event) {
-            console.log('determining if should log: ' + event['request']['uri']);
-            var logData = Object.assign({}, event);
-            if (_self._getUserId()) {
-              logData['user_id'] = _self._getUserId();
-            }
-            if (_self._getSession()) {
-              logData['session_token'] = _self._getSession();
-            }
-
-            logData['tags'] = _self._options.getTags(event) || '';
-
-            if (_self._options.apiVersion) {
-              logData['request']['api_version'] = _self._options.apiVersion;
-            }
-
-            if (_self._options.maskContent) {
-              logData = _self._options.maskContent(logData);
-            }
-
-            if (_self._options.getMetadata) {
-              logData['metadata'] = _self._options.getMetadata(logData);
-            }
-
-            if (!_self._options.skip(event) && !isMoesif(event)) {
-              sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
-            } else {
-              console.log('skipped logging for ' + event['request']['uri']);
-            }
+          function recorder(event) {
+            _self.recordEvent(event);
           }
+
           console.log('moesif starting');
-          this._stopRecording = captureXMLHttpRequest(recordEvent);
+          this._stopRecording = captureXMLHttpRequest(recorder);
+          this['useWeb3'](passedInWeb3);
+          // if (passedInWeb3) {
+          //   this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, _self.recordEvent, this._options);
+          // } else if (window['web3']) {
+          //   // try to patch the global web3
+          //   console.log('found global web3, will capture from it');
+          //   this._stopWeb3Recording = patchWeb3WithCapture(window['web3'], _self.recordEvent, this._options);
+          // }
           return true;
+        },
+        'useWeb3': function (passedInWeb3) {
+          var _self = this;
+
+          function recorder(event) {
+            _self.recordEvent(event);
+          }
+
+          if (this._stopWeb3Recording) {
+            this._stopWeb3Recording();
+            this._stopWeb3Recording = null;
+          }
+          if (passedInWeb3) {
+            this._stopWeb3Recording = captureWeb3Requests(passedInWeb3, recorder, this._options);
+          } else if (window['web3']) {
+            // try to patch the global web3
+            console.log('found global web3, will capture from it');
+            this._stopWeb3Recording = captureWeb3Requests(window['web3'], recorder, this._options);
+          }
+          if (this._stopWeb3Recording) {
+            // if function is returned it means we succeeded.
+            return true;
+          }
+          return false;
         },
         'identifyUser': function (userId, metadata) {
           this._userId = userId;
@@ -1800,6 +1965,42 @@
           this._session = session;
           localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
         },
+        recordEvent: function(event) {
+          var _self = this;
+          console.log('determining if should log: ' + event['request']['uri']);
+          var logData = Object.assign({}, event);
+          if (_self._getUserId()) {
+            logData['user_id'] = _self._getUserId();
+          }
+          if (_self._getSession()) {
+            logData['session_token'] = _self._getSession();
+          }
+
+          logData['tags'] = _self._options.getTags(event) || '';
+
+          if (_self._options.apiVersion) {
+            logData['request']['api_version'] = _self._options.apiVersion;
+          }
+
+          if (_self._options.maskContent) {
+            logData = _self._options.maskContent(logData);
+          }
+
+          if (_self._options.getMetadata) {
+            if (logData['metadata']) {
+              var newMetadata = _self._options.getMetadata(logData);
+              logData['metadata'] = Object.assign(logData['metadata'], newMetadata);
+            } else {
+              logData['metadata'] = _self._options.getMetadata(logData);
+            }
+          }
+
+          if (!_self._options.skip(event) && !isMoesif(event)) {
+            sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
+          } else {
+            console.log('skipped logging for ' + event['request']['uri']);
+          }
+        },
         _getUserId: function () {
           return this._userId;
         },
@@ -1810,6 +2011,10 @@
           if (this._stopRecording) {
             this._stopRecording();
             this._stopRecording = null;
+          }
+          if (this._stopWeb3Recording) {
+            this._stopWeb3Recording();
+            this._stopWeb3Recording = null;
           }
         }
       };

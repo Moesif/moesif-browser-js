@@ -4,6 +4,7 @@
 
 import { _, console } from './utils';
 import patchAjaxWithCapture from './capture';
+import patchWeb3WithCapture from './web3capture';
 import Config from './config';
 
 var MOESIF_CONSTANTS = {
@@ -151,47 +152,54 @@ export default function () {
       console.log('moesif initiated');
       return this;
     },
-    'start': function () {
+    'start': function (passedInWeb3) {
       var _self = this;
 
-      if (this._stopRecording) {
+
+      if (this._stopRecording || this._stopWeb3Recording) {
         console.log('recording has already started, please call stop first.');
         return false;
       }
 
-      function recordEvent(event) {
-        console.log('determining if should log: ' + event['request']['uri']);
-        var logData = Object.assign({}, event);
-        if (_self._getUserId()) {
-          logData['user_id'] = _self._getUserId();
-        }
-        if (_self._getSession()) {
-          logData['session_token'] = _self._getSession();
-        }
-
-        logData['tags'] = _self._options.getTags(event) || '';
-
-        if (_self._options.apiVersion) {
-          logData['request']['api_version'] = _self._options.apiVersion;
-        }
-
-        if (_self._options.maskContent) {
-          logData = _self._options.maskContent(logData);
-        }
-
-        if (_self._options.getMetadata) {
-          logData['metadata'] = _self._options.getMetadata(logData);
-        }
-
-        if (!_self._options.skip(event) && !isMoesif(event)) {
-          sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
-        } else {
-          console.log('skipped logging for ' + event['request']['uri']);
-        }
+      function recorder(event) {
+        _self.recordEvent(event);
       }
+
       console.log('moesif starting');
-      this._stopRecording = patchAjaxWithCapture(recordEvent);
+      this._stopRecording = patchAjaxWithCapture(recorder);
+      this['useWeb3'](passedInWeb3);
+      // if (passedInWeb3) {
+      //   this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, _self.recordEvent, this._options);
+      // } else if (window['web3']) {
+      //   // try to patch the global web3
+      //   console.log('found global web3, will capture from it');
+      //   this._stopWeb3Recording = patchWeb3WithCapture(window['web3'], _self.recordEvent, this._options);
+      // }
       return true;
+    },
+    'useWeb3': function (passedInWeb3) {
+      var _self = this;
+
+      function recorder(event) {
+        _self.recordEvent(event);
+      }
+
+      if (this._stopWeb3Recording) {
+        this._stopWeb3Recording();
+        this._stopWeb3Recording = null;
+      }
+      if (passedInWeb3) {
+        this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, recorder, this._options);
+      } else if (window['web3']) {
+        // try to patch the global web3
+        console.log('found global web3, will capture from it');
+        this._stopWeb3Recording = patchWeb3WithCapture(window['web3'], recorder, this._options);
+      }
+      if (this._stopWeb3Recording) {
+        // if function is returned it means we succeeded.
+        return true;
+      }
+      return false;
     },
     'identifyUser': function (userId, metadata) {
       this._userId = userId;
@@ -212,6 +220,42 @@ export default function () {
       this._session = session;
       localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
     },
+    recordEvent: function(event) {
+      var _self = this;
+      console.log('determining if should log: ' + event['request']['uri']);
+      var logData = Object.assign({}, event);
+      if (_self._getUserId()) {
+        logData['user_id'] = _self._getUserId();
+      }
+      if (_self._getSession()) {
+        logData['session_token'] = _self._getSession();
+      }
+
+      logData['tags'] = _self._options.getTags(event) || '';
+
+      if (_self._options.apiVersion) {
+        logData['request']['api_version'] = _self._options.apiVersion;
+      }
+
+      if (_self._options.maskContent) {
+        logData = _self._options.maskContent(logData);
+      }
+
+      if (_self._options.getMetadata) {
+        if (logData['metadata']) {
+          var newMetadata = _self._options.getMetadata(logData);
+          logData['metadata'] = Object.assign(logData['metadata'], newMetadata);
+        } else {
+          logData['metadata'] = _self._options.getMetadata(logData);
+        }
+      }
+
+      if (!_self._options.skip(event) && !isMoesif(event)) {
+        sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
+      } else {
+        console.log('skipped logging for ' + event['request']['uri']);
+      }
+    },
     _getUserId: function () {
       return this._userId;
     },
@@ -222,6 +266,10 @@ export default function () {
       if (this._stopRecording) {
         this._stopRecording();
         this._stopRecording = null;
+      }
+      if (this._stopWeb3Recording) {
+        this._stopWeb3Recording();
+        this._stopWeb3Recording = null;
       }
     }
   };
