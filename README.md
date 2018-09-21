@@ -88,7 +88,7 @@ side with `moesif-browser-js` which in turn can be used for debugging and monito
 
 Review the [tutorial for building an Ethereum DApp with Integrated Web3 Monitoring](https://www.moesif.com/blog/blockchain/ethereum/Tutorial-for-building-Ethereum-Dapp-with-Integrated-Error-Monitoring/).
 
-[Please also checkout this document on how Moesif supports decentralized apps build on top of Ethereum Web3 and JSON-RPCs.](https://www.moesif.com/docs/platform/ethereum-web3/)
+[Please also checkout this document on how Moesif supports decentralized apps built on top of Ethereum Web3 and JSON-RPCs.](https://www.moesif.com/docs/platform/ethereum-web3/)
 
 ### Web3 object
 
