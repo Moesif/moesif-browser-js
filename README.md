@@ -1,19 +1,27 @@
-# Moesif JavaScript Browser Library
+# Moesif JavaScript Browser SDK
 
-The library is a browser side middleware that automatically
-captures outgoing API calls and sends to [Moesif](https://www.moesif.com)
-for API monitoring and error analysis.
+[![NPM](https://nodei.co/npm/moesif-browser-js.png?compact=true&stars=true)](https://nodei.co/npm/moesif-browser-js/)
 
-The library can be used for browser apps making AJAX calls to either your own API or
-public APIs like Stripe and Twilio.
+[![Built For][ico-built-for]][link-built-for]
+[![Total Downloads][ico-downloads]][link-downloads]
+[![Software License][ico-license]][link-license]
+[![Source Code][ico-source]][link-source]
 
-The SDK has native support for RESTful, GraphQL, Ethereum Web3, and RPC APIs.
+This SDK is a browser side middleware that automatically
+captures _outgoing_ API/AJAX calls and sends to [Moesif's](https://www.moesif.com)
+AI-powered API analytics service.
+
+This SDK can be configured to log API calls to:
+
+- Your own APIs (such as APIs powering your Single Page Apps)
+- 3rd party APIs (such as to Stripe and Twilio)
+- Blockchains (such as transactions against your Ethereum Smart Contracts)
+
+It has native support for RESTful, GraphQL, Ethereum Web3, and JSON-RPC APIs.
 
 Full documentation on Moesif integration is available [here](https://www.moesif.com/docs).
 
 [Source Code on GitHub](https://github.com/moesif/moesif-browser-js)
-
-[Package on NPMJS](https://www.npmjs.com/package/moesif-browser-js)
 
 ## How to install
 
@@ -42,10 +50,9 @@ It will attach a global `moesif` object. You can access it either via `moesif` o
 
 ### Alternative installation via NPM
 
-This library is available as a [package on NPM](https://www.npmjs.com/package/moesif-browser-js)
-(named `moesif-browser-js` to clarify this javascript library is for the client side. (There is also
- moesif-expressjs for express middleware and moesif-nodejs for basic APIs).
-
+This SDK is also available as a [package on NPM](https://www.npmjs.com/package/moesif-browser-js). 
+The moesif-browser-js SDK is indended for running on the client side. For capturing API calls on the server side, there is a separate [moesif-express SDK](https://www.npmjs.com/package/moesif-express) available on NPM.
+ 
 To install into a project using NPM with a front-end packager such as
 [Browserify](http://browserify.org/) or [Webpack](https://webpack.github.io/):
 
@@ -288,3 +295,13 @@ Some utilities are based on underscore.
 ## Other integrations
 
 To view more more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
+
+[ico-built-for]: https://img.shields.io/badge/built%20for-javascript-blue.svg
+[ico-downloads]: https://img.shields.io/npm/dt/moesif-browser-js.svg
+[ico-license]: https://img.shields.io/badge/License-Apache%202.0-green.svg
+[ico-source]: https://img.shields.io/github/last-commit/moesif/moesif-browser-js.svg?style=social
+
+[link-built-for]: https://developer.mozilla.org/en-US/docs/Web/JavaScript
+[link-downloads]: https://www.npmjs.com/package/moesif-browser-js
+[link-license]: https://raw.githubusercontent.com/Moesif/moesif-browser-js/master/LICENSE
+[link-source]: https://github.com/moesif/moesif-browser-js
