@@ -286,6 +286,11 @@ moesif.init(options);
 
 ```
 
+## Examples
+
+- Example setup for [react-boilerplate](https://github.com/Moesif/moesif-react-boilerplate-example). For React apps, if you set up server side rendering, please ensure that this library is only initiated on the client side. 
+- Example setup for an [Etherum Dapp](https://github.com/Moesif/moesif-ethereum-js-example).
+
 ## Credits for moesif-browser-js
 
 Some of the build scripts and directory structure is based on Mixpanel's Javascript Client Library,
