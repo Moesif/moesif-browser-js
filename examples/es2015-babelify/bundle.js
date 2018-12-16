@@ -14,7 +14,7 @@ _srcLoaderModule2['default'].init({
 
 _srcLoaderModule2['default'].start();
 
-},{"../../src/loader-module":4}],2:[function(require,module,exports){
+},{"../../src/loader-module":5}],2:[function(require,module,exports){
 /**
  * Created by Xingheng on 1/31/17.
  */
@@ -206,7 +206,221 @@ function convertToFullUrl(url) {
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
-},{"./utils":7}],3:[function(require,module,exports){
+},{"./utils":8}],3:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
+/**
+ * @param {*} buffer
+ * this checks the buffer and
+ * returns something to start building the response or request model
+ * with body filled in.
+ */
+function processBodyAndInitializedModel(buffer) {
+  if (!buffer) return {};
+  _utils.console.log('about to decode buffer');
+  _utils.console.log(buffer);
+  _utils.console.log(buffer.byteLength);
+
+  if (buffer.byteLength <= 0) {
+    // empty body.
+    return {};
+  }
+
+  try {
+    var decoder = new TextDecoder('utf-8');
+    var text = decoder.decode(buffer);
+
+    try {
+      return { 'body': _utils._.JSONDecode(text) };
+    } catch (err) {
+      _utils.console.error(err);
+      return {
+        'transfer_encoding': 'base64',
+        'body': _utils._.base64Encode(text)
+      };
+    }
+  } catch (err) {
+    _utils.console.error(err);
+    _utils.console.log(buffer);
+    return {
+      'transfer_encoding': 'base64',
+      'body': 'can not be decoded'
+    };
+  }
+}
+
+/**
+ *
+ * @param {*} headers
+ * headers must be a Headers object.
+ */
+function parseHeaders(headers) {
+  var result = {};
+  _utils.console.log('parseheaders is called');
+
+  var entries = headers.entries();
+
+  var entry = entries.next();
+  while (!entry.done) {
+    _utils.console.log(entry.value); // 1 3 5 7 9
+    result[entry.value[0]] = entry.value[1];
+
+    entry = entries.next();
+  }
+
+  // for (var pair of headers.entries()) {
+  //   result[pair[0]] = pair[1];
+  // }
+
+  return result;
+}
+
+function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
+  try {
+    setTimeout(function () {
+      _utils.console.log('interception is here.');
+      _utils.console.log(savedRequest);
+      _utils.console.log(savedResponse);
+      if (savedRequest && savedResponse) {
+        // try to exract out information:
+        // var reqHeaders = {};
+        // var resHeaders = {};
+
+        // for (var pair of savedRequest.headers.entries()) {
+        //   reqHeaders[pair[0]] = pair[1];
+        // }
+
+        // for (var pair2 of savedResponse.headers.entries()) {
+        //   resHeaders[pair2[0]] = pair2[1];
+        // }
+        _utils.console.log('inside if statement.');
+        try {
+          Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function (bodies) {
+            _utils.console.log('processing bodies');
+            var processedBodies = bodies.map(processBodyAndInitializedModel);
+
+            var requestModel = Object.assign(processedBodies[0], {
+              'uri': savedRequest.url,
+              'verb': savedRequest.method,
+              'time': startTime,
+              'headers': parseHeaders(savedRequest.headers)
+            });
+
+            var responseModel = Object.assign(processedBodies[1], {
+              'status': savedResponse.status,
+              'time': endTime,
+              'headers': parseHeaders(savedResponse.headers)
+            });
+
+            _utils.console.log(requestModel);
+            _utils.console.log(responseModel);
+
+            var event = {
+              'request': requestModel,
+              'response': responseModel
+            };
+
+            recorder(event);
+          });
+        } catch (err) {
+          _utils.console.log('error processing body');
+        }
+      } else {
+        _utils.console.log('savedRequest');
+      }
+    }, 50);
+  } catch (err) {
+    _utils.console.error('error processing saved fetch request and response, but move on anyways.');
+    _utils.console.log(err);
+  }
+}
+
+function interceptor(recorder, fetch, arg1, arg2) {
+  _utils.console.log('fetch interceptor is called');
+
+  var savedRequest = null;
+
+  try {
+    savedRequest = new Request(arg1, arg2);
+  } catch (err) {
+    // for internal errors only.
+  }
+  var startTime = new Date().toISOString();
+  var endTime = null;
+
+  var promise = null;
+  // promise = Promise.resolve([arg1, arg2]);
+
+  // reigster the fetch call.
+  // promise = promise.then(function(ar1, ar2) {
+  //   return fetch(ar1, ar2);
+  // });
+
+  _utils.console.log('about to perform fetch.');
+  promise = fetch(arg1, arg2);
+
+  var savedResponse = null;
+  // add handlers for response.
+  promise = promise.then(function (response) {
+    //
+    savedResponse = response.clone();
+    endTime = new Date().toISOString();
+
+    processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder);
+
+    return response;
+  });
+
+  return promise;
+}
+
+// var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+
+function patch(recorder, env) {
+  var myenv = env || window || self;
+
+  if (myenv['fetch']) {
+    _utils.console.log('found fetch method.');
+    if (!myenv['fetch']['polyfill']) {
+      // basically, if it is polyfill, it means
+      // that it is using XMLhttpRequest underneath,
+      // then no need to patch fetch.
+      var oldFetch = myenv['fetch'];
+
+      _utils.console.log('fetch is not polyfilled so instrumenting it');
+
+      myenv['fetch'] = (function (fetch) {
+        return function (arg1, arg2) {
+          return interceptor(recorder, fetch, arg1, arg2);
+        };
+      })(myenv['fetch']);
+
+      var unpatch = function unpatch() {
+        myenv['fetch'] = oldFetch;
+      };
+
+      return unpatch;
+    } else {
+      // should not patch if it is polyfilled.
+      // since it would duplicate the data.
+      _utils.console.log('skip patching fetch since it is polyfilled');
+      return null;
+    }
+  } else {
+    _utils.console.log('there is no fetch found');
+  }
+}
+
+exports['default'] = patch;
+module.exports = exports['default'];
+
+},{"./utils":8}],4:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -214,13 +428,13 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.3.0'
+    LIB_VERSION: '1.4.0'
 };
 
 exports['default'] = Config;
 module.exports = exports['default'];
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 /* eslint camelcase: "off" */
 'use strict';
 
@@ -235,7 +449,7 @@ var moesif = (0, _moesifCore.init_as_module)();
 exports['default'] = moesif;
 module.exports = exports['default'];
 
-},{"./moesif-core":5}],5:[function(require,module,exports){
+},{"./moesif-core":6}],6:[function(require,module,exports){
 /* eslint camelcase: "off" */
 'use strict';
 
@@ -293,7 +507,7 @@ function init_as_module() {
   return (0, _moesif2['default'])();
 }
 
-},{"./moesif":6}],6:[function(require,module,exports){
+},{"./moesif":7}],7:[function(require,module,exports){
 /**
  * Created by Xingheng on 2/1/17.
  */
@@ -315,6 +529,10 @@ var _capture2 = _interopRequireDefault(_capture);
 var _web3capture = require('./web3capture');
 
 var _web3capture2 = _interopRequireDefault(_web3capture);
+
+var _captureFetch = require('./captureFetch');
+
+var _captureFetch2 = _interopRequireDefault(_captureFetch);
 
 var _config = require('./config');
 
@@ -457,6 +675,7 @@ exports['default'] = function () {
       ops.callback = options['callback'];
       ops.applicationId = options['applicationId'];
       ops.apiVersion = options['apiVersion'];
+      ops.disableFetch = options['disableFetch'];
 
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
@@ -478,6 +697,11 @@ exports['default'] = function () {
 
       _utils.console.log('moesif starting');
       this._stopRecording = (0, _capture2['default'])(recorder);
+
+      if (!this._options.disableFetch) {
+        _utils.console.log('also instrumenting fetch API');
+        this._stopFetchRecording = (0, _captureFetch2['default'])(recorder);
+      }
       this['useWeb3'](passedInWeb3);
       // if (passedInWeb3) {
       //   this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, _self.recordEvent, this._options);
@@ -582,13 +806,17 @@ exports['default'] = function () {
         this._stopWeb3Recording();
         this._stopWeb3Recording = null;
       }
+      if (this._stopFetchRecording) {
+        this._stopFetchRecording();
+        this._stopFetchRecording = null;
+      }
     }
   };
 };
 
 module.exports = exports['default'];
 
-},{"./capture":2,"./config":3,"./utils":7,"./web3capture":8}],7:[function(require,module,exports){
+},{"./capture":2,"./captureFetch":3,"./config":4,"./utils":8,"./web3capture":9}],8:[function(require,module,exports){
 /* eslint camelcase: "off", eqeqeq: "off" */
 'use strict';
 
@@ -2071,7 +2299,7 @@ exports._ = _;
 exports.userAgent = userAgent;
 exports.console = console;
 
-},{"./config":3}],8:[function(require,module,exports){
+},{"./config":4}],9:[function(require,module,exports){
 /**
  * Created by Xingheng on 1/31/17.
  */
@@ -2246,4 +2474,4 @@ function captureWeb3Requests(myWeb3, recorder, options) {
 exports['default'] = captureWeb3Requests;
 module.exports = exports['default'];
 
-},{"./utils":7}]},{},[1]);
+},{"./utils":8}]},{},[1]);

@@ -30,7 +30,7 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 
 
 ```html
-<script src="//unpkg.com/moesif-browser-js@1.3.0/moesif.min.js"></script>
+<script src="//unpkg.com/moesif-browser-js@1.4.0/moesif.min.js"></script>
 <script type="text/javascript">
 var options = {
   applicationId: 'Your Application Id'
@@ -50,9 +50,9 @@ It will attach a global `moesif` object. You can access it either via `moesif` o
 
 ### Alternative installation via NPM
 
-This SDK is also available as a [package on NPM](https://www.npmjs.com/package/moesif-browser-js). 
+This SDK is also available as a [package on NPM](https://www.npmjs.com/package/moesif-browser-js).
 The moesif-browser-js SDK is indended for running on the client side. For capturing API calls on the server side, there is a separate [moesif-express SDK](https://www.npmjs.com/package/moesif-express) available on NPM.
- 
+
 To install into a project using NPM with a front-end packager such as
 [Browserify](http://browserify.org/) or [Webpack](https://webpack.github.io/):
 
@@ -286,9 +286,14 @@ moesif.init(options);
 
 ```
 
+#### disableFetch, boolean, optional, default false.
+
+Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
+Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
+
 ## Examples
 
-- Example setup for [react-boilerplate](https://github.com/Moesif/moesif-react-boilerplate-example). For React apps, if you set up server side rendering, please ensure that this library is only initiated on the client side. 
+- Example setup for [react-boilerplate](https://github.com/Moesif/moesif-react-boilerplate-example). For React apps, if you set up server side rendering, please ensure that this library is only initiated on the client side.
 - Example setup for an [Etherum Dapp](https://github.com/Moesif/moesif-ethereum-js-example).
 
 ## Credits for moesif-browser-js

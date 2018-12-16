@@ -5,6 +5,7 @@
 import { _, console } from './utils';
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
+import patchFetchWithCapture from './captureFetch';
 import Config from './config';
 
 var MOESIF_CONSTANTS = {
@@ -145,6 +146,7 @@ export default function () {
       ops.callback = options['callback'];
       ops.applicationId = options['applicationId'];
       ops.apiVersion = options['apiVersion'];
+      ops.disableFetch = options['disableFetch'];
 
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
@@ -167,6 +169,11 @@ export default function () {
 
       console.log('moesif starting');
       this._stopRecording = patchAjaxWithCapture(recorder);
+
+      if (!this._options.disableFetch) {
+        console.log('also instrumenting fetch API');
+        this._stopFetchRecording = patchFetchWithCapture(recorder);
+      }
       this['useWeb3'](passedInWeb3);
       // if (passedInWeb3) {
       //   this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, _self.recordEvent, this._options);
@@ -270,6 +277,10 @@ export default function () {
       if (this._stopWeb3Recording) {
         this._stopWeb3Recording();
         this._stopWeb3Recording = null;
+      }
+      if (this._stopFetchRecording) {
+        this._stopFetchRecording();
+        this._stopFetchRecording = null;
       }
     }
   };

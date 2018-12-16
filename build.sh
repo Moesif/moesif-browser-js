@@ -12,7 +12,7 @@ if [ -z "$1" ]; then
 else
     COMPILER=$1
 fi
-java -jar $COMPILER --js moesif.js --js_output_file moesif.min.js --compilation_level ADVANCED_OPTIMIZATIONS --output_wrapper "(function() {
+java -jar $COMPILER --js moesif.js --js_output_file moesif.min.js --compilation_level SIMPLE_OPTIMIZATIONS --output_wrapper "(function() {
 %output%
 })();"
 
