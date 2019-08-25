@@ -5,13 +5,7 @@
 import { _, console } from './utils';
 
 
-var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
-
 function computeUrl(provider) {
-  // if (!provider) {
-  //   return HTTP_PROTOCOL + window.location.host + '/';
-  // }
-
   if (provider && provider.host) {
     return provider.host;
   }

@@ -5,7 +5,7 @@
 import { _, console } from './utils';
 
 
-var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
+var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
 /**
  * @param recorder

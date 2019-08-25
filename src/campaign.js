@@ -4,7 +4,7 @@ import getReferrer from './referrer';
 import getUtm from './utm';
 
 function _getUrlParams() {
-  return location.search;
+  return location && location.search;
 }
 
 function getGclid(urlParams) {
