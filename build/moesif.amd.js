@@ -2103,7 +2103,7 @@ define(function () { 'use strict';
 
         return result;
       } catch (err) {
-        console.warn(err);
+        console.error(err);
       }
     }
 

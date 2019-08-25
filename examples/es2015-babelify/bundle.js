@@ -69,7 +69,7 @@ function getCampaignData(opt) {
 
     return result;
   } catch (err) {
-    _utils.console.warn(err);
+    _utils.console.error(err);
   }
 }
 

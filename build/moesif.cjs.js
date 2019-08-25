@@ -2103,7 +2103,7 @@ function getCampaignData(opt) {
 
     return result;
   } catch (err) {
-    console.warn(err);
+    console.error(err);
   }
 }
 
