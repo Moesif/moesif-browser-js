@@ -64,8 +64,8 @@
 	}(this, function () { 'use strict';
 
 	    var Config = {
-	        DEBUG: false,
-	        LIB_VERSION: '1.4.0'
+	        DEBUG: true,
+	        LIB_VERSION: '1.5.0'
 	    };
 
 	    // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -183,6 +183,10 @@
 	                obj[func] = _.bind(obj[func], obj);
 	            }
 	        }
+	    };
+
+	    _.isEmptyString = function isEmptyString(str) {
+	      return (!str || str.length === 0);
 	    };
 
 	    /**
@@ -971,9 +975,17 @@
 	        return tmp_arr.join(arg_separator);
 	    };
 
+	    _.getQueryParamByName = function(name, query) {
+	      // expects a name
+	      // and a query string. aka location part.
+	      name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+	      var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
+	      var results = regex.exec(query);
+	      return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, " "));
+	    };
+
 	    _.getQueryParam = function(url, param) {
 	        // Expects a raw URL
-
 	        param = param.replace(/[\[]/, '\\\[').replace(/[\]]/, '\\\]');
 	        var regexS = '[\\?&]' + param + '=([^&#]*)',
 	            regex = new RegExp(regexS),
@@ -1528,6 +1540,7 @@
 	    _['JSONDecode']         = _.JSONDecode;
 	    _['isBlockedUA']        = _.isBlockedUA;
 	    _['isEmptyObject']      = _.isEmptyObject;
+	    _['isEmptyString']      = _.isEmptyString;
 	    _['each']               = _.each;
 	    _['info']               = _.info;
 	    _['info']['device']     = _.info.device;
@@ -2034,13 +2047,134 @@
 	      }
 	    }
 
+	    function _getReferrerStr() {
+	      return document.referrer;
+	    }
+
+	    function _getReferringDomain(referrer) {
+	      if (_.isEmptyString(referrer)) {
+	        return null;
+	      }
+	      var parts = referrer.split('/');
+	      if (parts.length >= 3) {
+	        return parts[2];
+	      }
+	      return null;
+	    }
+
+	    function getReferrer() {
+	      var referrer = _getReferrerStr();
+
+	      if (_.isEmptyString(referrer)) {
+	        return;
+	      }
+
+	      var referrerInfo = {
+	        'referrer': referrer,
+	        'referring_domain': _getReferringDomain(referrer)
+	      };
+
+	      return referrerInfo;
+	    }
+
+	    var Constants = {  // UTM Params
+	      UTM_SOURCE: 'utm_source',
+	      UTM_MEDIUM: 'utm_medium',
+	      UTM_CAMPAIGN: 'utm_campaign',
+	      UTM_TERM: 'utm_term',
+	      UTM_CONTENT: 'utm_content'
+	    };
+
+	    function _getUrlParams$1() {
+	      return location.search;
+	    }
+
+	    function getUtmData(rawCookie, query) {
+	      // Translate the utmz cookie format into url query string format.
+	      var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
+
+	      console.log('cookie');
+	      console.log(cookie);
+
+	      var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
+	        return _.getQueryParamByName(queryName, query) ||
+	               _.getQueryParamByName(cookieName, cookie);
+	      };
+
+	      var utmSource = fetchParam(Constants.UTM_SOURCE, query, 'utmcsr', cookie);
+	      var utmMedium = fetchParam(Constants.UTM_MEDIUM, query, 'utmcmd', cookie);
+	      var utmCampaign = fetchParam(Constants.UTM_CAMPAIGN, query, 'utmccn', cookie);
+	      var utmTerm = fetchParam(Constants.UTM_TERM, query, 'utmctr', cookie);
+	      var utmContent = fetchParam(Constants.UTM_CONTENT, query, 'utmcct', cookie);
+
+	      var utmData = {};
+	      var addIfNotNull = function addIfNotNull(key, value) {
+	        if (!_.isEmptyString(value)) {
+	          utmData[key] = value;
+	        }
+	      };
+
+	      addIfNotNull(Constants.UTM_SOURCE, utmSource);
+	      addIfNotNull(Constants.UTM_MEDIUM, utmMedium);
+	      addIfNotNull(Constants.UTM_CAMPAIGN, utmCampaign);
+	      addIfNotNull(Constants.UTM_TERM, utmTerm);
+	      addIfNotNull(Constants.UTM_CONTENT, utmContent);
+
+	      return utmData;
+	    }
+
+	    function getUtm(queryParams, cookieParams) {
+	      queryParams = _getUrlParams$1();
+	      cookieParams = _.cookie.get('__utmz');
+	      var utmProperties = getUtmData(cookieParams, queryParams);
+	      return utmProperties;
+	    }
+
+	    function _getUrlParams() {
+	      return location.search;
+	    }
+
+	    function getGclid(urlParams) {
+	      var gclid = _.getQueryParamByName('gclid', urlParams);
+	      if (_.isEmptyString(gclid)) {
+	        return;
+	      }
+	      return gclid;
+	    }
+
+	    function getCampaignData(opt) {
+	      var result = {};
+
+	      if(!opt.disableUtm) {
+	        result = getUtm() || {};
+	      }
+
+	      if (!opt.disableReferer) {
+	        var referrer = getReferrer();
+	        if (referrer) {
+	          result['referrer'] = referrer['referrer'];
+	          result['referring_domain'] = referrer['referring_domain'];
+	        }
+	      }
+	      if (!opt.disableRGclid) {
+	        var gclid = getGclid(_getUrlParams());
+	        if (gclid) {
+	          result['gclid'] = gclid;
+	        }
+	      }
+
+	      return result;
+	    }
+
 	    var MOESIF_CONSTANTS = {
 	      //The base Uri for API calls
 	      HOST: 'api.moesif.net',
 	      EVENT_ENDPOINT: '/v1/events',
 	      USER_ENDPOINT: '/v1/users',
+	      COMPANY_ENDPOINT: '/v1/companies',
 	      EVENT_BATCH_ENDPOINT: '/v1/events/batch',
 	      STORED_USER_ID: 'moesif_stored_user_id',
+	      STORED_COMPANY_ID: 'moesif_stored_company_id',
 	      STORED_SESSION_ID: 'moesif_stored_session_id'
 	    };
 
@@ -2128,6 +2262,33 @@
 	        xmlhttp.send(_.JSONEncode(userProfile));
 	      }
 
+	      function updateCompany(companyProfile, token, debug, callback) {
+	        var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+	        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
+	        xmlhttp.setRequestHeader('Content-Type', 'application/json');
+	        xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+	        xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+	        xmlhttp.onreadystatechange = function () {
+	          if (xmlhttp.readyState === 4) {
+	            if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
+	              if (debug) {
+	                console.log('update company to moesif successfully: ' + companyProfile['company_id']);
+	              }
+	            } else {
+	              console.log('update company to moesif failed ' + companyProfile['company_id']);
+	              if (debug) {
+	                console.error(xmlhttp.statusText);
+	              }
+	              if (callback && _.isFunction(callback)) {
+	                callback(new Error('can not update company to moesif'), null, companyProfile);
+	              }
+	            }
+	          }
+	        };
+	        xmlhttp.send(_.JSONEncode(companyProfile));
+	      }
+
+
 	      return {
 	        'init': function (options) {
 
@@ -2155,9 +2316,16 @@
 	          ops.apiVersion = options['apiVersion'];
 	          ops.disableFetch = options['disableFetch'];
 
+	          ops.disableReferrer = options['disableReferrer'];
+	          ops.disableGclid = options['disableGclid'];
+	          ops.disableUtm = options['disableUtm'];
+
 	          this._options = ops;
 	          this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
 	          this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+
+	          this._campaign = getCampaignData(ops);
+
 	          console.log('moesif initiated');
 	          return this;
 	        },
@@ -2220,15 +2388,44 @@
 	          if (!(this._options && this._options.applicationId)) {
 	            throw new Error('Init needs to be called with a valid application Id before calling identify User.');
 	          }
-	          if(metadata) {
-	            var userObject = {
-	              'user_id': userId,
-	              'session_token': this._session,
-	              'metadata': metadata
-	            };
-	            updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
+	          var userObject = {
+	            'user_id': userId
+	          };
+
+	          if (metadata) {
+	            userObject['metadata'] = metadata;
 	          }
+	          if (this._session) {
+	            userObject['session_token'] = this._session;
+	          }
+	          if (this._campaign) {
+	            userObject['campaign'] = this._campaign;
+	          }
+
+	          updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
 	          localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+	        },
+	        'identifyCompany': function (companyId, metadata) {
+	          this._companyId = companyId;
+	          if (!(this._options && this._options.applicationId)) {
+	            throw new Error('Init needs to be called with a valid application Id before calling identify User.');
+	          }
+	          var companyObject = {
+	            'company_id': companyId
+	          };
+
+	          if (metadata) {
+	            companyObject['metadata'] = metadata;
+	          }
+	          if (this._session) {
+	            companyObject['session_token'] = this._session;
+	          }
+	          if (this._campaign) {
+	            companyObject['campaign'] = this._campaign;
+	          }
+
+	          updateCompany(companyObject, this._options.applicationId, this._options.debug, this._options.callback);
+	          localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
 	        },
 	        'identifySession': function (session) {
 	          this._session = session;
@@ -2240,6 +2437,9 @@
 	          var logData = Object.assign({}, event);
 	          if (_self._getUserId()) {
 	            logData['user_id'] = _self._getUserId();
+	          }
+	          if (_self._getCompanyId()) {
+	            logData['company_id'] = _self._getCompanyId();
 	          }
 	          if (_self._getSession()) {
 	            logData['session_token'] = _self._getSession();
@@ -2272,6 +2472,9 @@
 	        },
 	        _getUserId: function () {
 	          return this._userId;
+	        },
+	        _getCompanyId: function() {
+	          return this._companyId;
 	        },
 	        _getSession: function () {
 	          return this._session;

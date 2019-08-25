@@ -120,6 +120,10 @@ _.bind_instance_methods = function(obj) {
     }
 };
 
+_.isEmptyString = function isEmptyString(str) {
+  return (!str || str.length === 0);
+};
+
 /**
  * @param {*=} obj
  * @param {function(...[*])=} iterator
@@ -906,9 +910,17 @@ _.HTTPBuildQuery = function(formdata, arg_separator) {
     return tmp_arr.join(arg_separator);
 };
 
+_.getQueryParamByName = function(name, query) {
+  // expects a name
+  // and a query string. aka location part.
+  name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+  var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+  var results = regex.exec(query);
+  return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
+};
+
 _.getQueryParam = function(url, param) {
     // Expects a raw URL
-
     param = param.replace(/[\[]/, '\\\[').replace(/[\]]/, '\\\]');
     var regexS = '[\\?&]' + param + '=([^&#]*)',
         regex = new RegExp(regexS),
@@ -1463,6 +1475,7 @@ _['JSONEncode']         = _.JSONEncode;
 _['JSONDecode']         = _.JSONDecode;
 _['isBlockedUA']        = _.isBlockedUA;
 _['isEmptyObject']      = _.isEmptyObject;
+_['isEmptyString']      = _.isEmptyString;
 _['each']               = _.each;
 _['info']               = _.info;
 _['info']['device']     = _.info.device;
