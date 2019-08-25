@@ -6,6 +6,7 @@ import { _, console } from './utils';
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './captureFetch';
+import getCampaignData from './campaign';
 import Config from './config';
 
 var MOESIF_CONSTANTS = {
@@ -13,8 +14,10 @@ var MOESIF_CONSTANTS = {
   HOST: 'api.moesif.net',
   EVENT_ENDPOINT: '/v1/events',
   USER_ENDPOINT: '/v1/users',
+  COMPANY_ENDPOINT: '/v1/companies',
   EVENT_BATCH_ENDPOINT: '/v1/events/batch',
   STORED_USER_ID: 'moesif_stored_user_id',
+  STORED_COMPANY_ID: 'moesif_stored_company_id',
   STORED_SESSION_ID: 'moesif_stored_session_id'
 };
 
@@ -121,6 +124,33 @@ export default function () {
     xmlhttp.send(_.JSONEncode(userProfile));
   }
 
+  function updateCompany(companyProfile, token, debug, callback) {
+    var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
+    xmlhttp.setRequestHeader('Content-Type', 'application/json');
+    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+    xmlhttp.onreadystatechange = function () {
+      if (xmlhttp.readyState === 4) {
+        if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
+          if (debug) {
+            console.log('update company to moesif successfully: ' + companyProfile['company_id']);
+          }
+        } else {
+          console.log('update company to moesif failed ' + companyProfile['company_id']);
+          if (debug) {
+            console.error(xmlhttp.statusText);
+          }
+          if (callback && _.isFunction(callback)) {
+            callback(new Error('can not update company to moesif'), null, companyProfile);
+          }
+        }
+      }
+    };
+    xmlhttp.send(_.JSONEncode(companyProfile));
+  }
+
+
   return {
     'init': function (options) {
 
@@ -148,9 +178,16 @@ export default function () {
       ops.apiVersion = options['apiVersion'];
       ops.disableFetch = options['disableFetch'];
 
+      ops.disableReferrer = options['disableReferrer'];
+      ops.disableGclid = options['disableGclid'];
+      ops.disableUtm = options['disableUtm'];
+
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
       this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+
+      this._campaign = getCampaignData(ops);
+
       console.log('moesif initiated');
       return this;
     },
@@ -213,15 +250,48 @@ export default function () {
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
       }
-      if(metadata) {
-        var userObject = {
-          'user_id': userId,
-          'session_token': this._session,
-          'metadata': metadata
-        };
-        updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
+      var userObject = {
+        'user_id': userId
+      };
+
+      if (metadata) {
+        userObject['metadata'] = metadata;
       }
+      if (this._session) {
+        userObject['session_token'] = this._session;
+      }
+      if (this._campaign) {
+        userObject['campaign'] = this._campaign;
+      }
+
+      updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
       localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+    },
+    'identifyCompany': function (companyId, metadata, companyDomain) {
+      this._companyId = companyId;
+      if (!(this._options && this._options.applicationId)) {
+        throw new Error('Init needs to be called with a valid application Id before calling identify User.');
+      }
+      var companyObject = {
+        'company_id': companyId
+      };
+
+      if (companyDomain) {
+        companyObject['company_domain'] = companyDomain;
+      }
+
+      if (metadata) {
+        companyObject['metadata'] = metadata;
+      }
+      if (this._session) {
+        companyObject['session_token'] = this._session;
+      }
+      if (this._campaign) {
+        companyObject['campaign'] = this._campaign;
+      }
+
+      updateCompany(companyObject, this._options.applicationId, this._options.debug, this._options.callback);
+      localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
     },
     'identifySession': function (session) {
       this._session = session;
@@ -233,6 +303,9 @@ export default function () {
       var logData = Object.assign({}, event);
       if (_self._getUserId()) {
         logData['user_id'] = _self._getUserId();
+      }
+      if (_self._getCompanyId()) {
+        logData['company_id'] = _self._getCompanyId();
       }
       if (_self._getSession()) {
         logData['session_token'] = _self._getSession();
@@ -265,6 +338,9 @@ export default function () {
     },
     _getUserId: function () {
       return this._userId;
+    },
+    _getCompanyId: function() {
+      return this._companyId;
     },
     _getSession: function () {
       return this._session;

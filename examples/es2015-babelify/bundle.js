@@ -14,7 +14,69 @@ _srcLoaderModule2['default'].init({
 
 _srcLoaderModule2['default'].start();
 
-},{"../../src/loader-module":5}],2:[function(require,module,exports){
+},{"../../src/loader-module":6}],2:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _utils = require('./utils');
+
+var _referrer = require('./referrer');
+
+var _referrer2 = _interopRequireDefault(_referrer);
+
+var _utm = require('./utm');
+
+var _utm2 = _interopRequireDefault(_utm);
+
+function _getUrlParams() {
+  return location.search;
+}
+
+function getGclid(urlParams) {
+  var gclid = _utils._.getQueryParamByName('gclid', urlParams);
+  if (_utils._.isEmptyString(gclid)) {
+    return;
+  }
+  return gclid;
+}
+
+function getCampaignData(opt) {
+  try {
+    var result = {};
+
+    if (!opt.disableUtm) {
+      result = (0, _utm2['default'])() || {};
+    }
+
+    if (!opt.disableReferer) {
+      var referrer = (0, _referrer2['default'])();
+      if (referrer) {
+        result['referrer'] = referrer['referrer'];
+        result['referring_domain'] = referrer['referring_domain'];
+      }
+    }
+    if (!opt.disableRGclid) {
+      var gclid = getGclid(_getUrlParams());
+      if (gclid) {
+        result['gclid'] = gclid;
+      }
+    }
+
+    return result;
+  } catch (err) {
+    _utils.console.error(err);
+  }
+}
+
+exports['default'] = getCampaignData;
+module.exports = exports['default'];
+
+},{"./referrer":9,"./utils":10,"./utm":11}],3:[function(require,module,exports){
 /**
  * Created by Xingheng on 1/31/17.
  */
@@ -206,7 +268,7 @@ function convertToFullUrl(url) {
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
-},{"./utils":8}],3:[function(require,module,exports){
+},{"./utils":10}],4:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -420,7 +482,7 @@ function patch(recorder, env) {
 exports['default'] = patch;
 module.exports = exports['default'];
 
-},{"./utils":8}],4:[function(require,module,exports){
+},{"./utils":10}],5:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -428,13 +490,13 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.4.0'
+    LIB_VERSION: '1.5.0'
 };
 
 exports['default'] = Config;
 module.exports = exports['default'];
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 /* eslint camelcase: "off" */
 'use strict';
 
@@ -449,7 +511,7 @@ var moesif = (0, _moesifCore.init_as_module)();
 exports['default'] = moesif;
 module.exports = exports['default'];
 
-},{"./moesif-core":6}],6:[function(require,module,exports){
+},{"./moesif-core":7}],7:[function(require,module,exports){
 /* eslint camelcase: "off" */
 'use strict';
 
@@ -507,7 +569,7 @@ function init_as_module() {
   return (0, _moesif2['default'])();
 }
 
-},{"./moesif":7}],7:[function(require,module,exports){
+},{"./moesif":8}],8:[function(require,module,exports){
 /**
  * Created by Xingheng on 2/1/17.
  */
@@ -534,6 +596,10 @@ var _captureFetch = require('./captureFetch');
 
 var _captureFetch2 = _interopRequireDefault(_captureFetch);
 
+var _campaign = require('./campaign');
+
+var _campaign2 = _interopRequireDefault(_campaign);
+
 var _config = require('./config');
 
 var _config2 = _interopRequireDefault(_config);
@@ -543,8 +609,10 @@ var MOESIF_CONSTANTS = {
   HOST: 'api.moesif.net',
   EVENT_ENDPOINT: '/v1/events',
   USER_ENDPOINT: '/v1/users',
+  COMPANY_ENDPOINT: '/v1/companies',
   EVENT_BATCH_ENDPOINT: '/v1/events/batch',
   STORED_USER_ID: 'moesif_stored_user_id',
+  STORED_COMPANY_ID: 'moesif_stored_company_id',
   STORED_SESSION_ID: 'moesif_stored_session_id'
 };
 
@@ -650,6 +718,32 @@ exports['default'] = function () {
     xmlhttp.send(_utils._.JSONEncode(userProfile));
   }
 
+  function updateCompany(companyProfile, token, debug, callback) {
+    var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
+    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
+    xmlhttp.setRequestHeader('Content-Type', 'application/json');
+    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
+    xmlhttp.onreadystatechange = function () {
+      if (xmlhttp.readyState === 4) {
+        if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
+          if (debug) {
+            _utils.console.log('update company to moesif successfully: ' + companyProfile['company_id']);
+          }
+        } else {
+          _utils.console.log('update company to moesif failed ' + companyProfile['company_id']);
+          if (debug) {
+            _utils.console.error(xmlhttp.statusText);
+          }
+          if (callback && _utils._.isFunction(callback)) {
+            callback(new Error('can not update company to moesif'), null, companyProfile);
+          }
+        }
+      }
+    };
+    xmlhttp.send(_utils._.JSONEncode(companyProfile));
+  }
+
   return {
     'init': function init(options) {
 
@@ -677,9 +771,16 @@ exports['default'] = function () {
       ops.apiVersion = options['apiVersion'];
       ops.disableFetch = options['disableFetch'];
 
+      ops.disableReferrer = options['disableReferrer'];
+      ops.disableGclid = options['disableGclid'];
+      ops.disableUtm = options['disableUtm'];
+
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
       this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+
+      this._campaign = (0, _campaign2['default'])(ops);
+
       _utils.console.log('moesif initiated');
       return this;
     },
@@ -741,15 +842,48 @@ exports['default'] = function () {
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
       }
+      var userObject = {
+        'user_id': userId
+      };
+
       if (metadata) {
-        var userObject = {
-          'user_id': userId,
-          'session_token': this._session,
-          'metadata': metadata
-        };
-        updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
+        userObject['metadata'] = metadata;
       }
+      if (this._session) {
+        userObject['session_token'] = this._session;
+      }
+      if (this._campaign) {
+        userObject['campaign'] = this._campaign;
+      }
+
+      updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
       localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+    },
+    'identifyCompany': function identifyCompany(companyId, metadata, companyDomain) {
+      this._companyId = companyId;
+      if (!(this._options && this._options.applicationId)) {
+        throw new Error('Init needs to be called with a valid application Id before calling identify User.');
+      }
+      var companyObject = {
+        'company_id': companyId
+      };
+
+      if (companyDomain) {
+        companyObject['company_domain'] = companyDomain;
+      }
+
+      if (metadata) {
+        companyObject['metadata'] = metadata;
+      }
+      if (this._session) {
+        companyObject['session_token'] = this._session;
+      }
+      if (this._campaign) {
+        companyObject['campaign'] = this._campaign;
+      }
+
+      updateCompany(companyObject, this._options.applicationId, this._options.debug, this._options.callback);
+      localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
     },
     'identifySession': function identifySession(session) {
       this._session = session;
@@ -761,6 +895,9 @@ exports['default'] = function () {
       var logData = Object.assign({}, event);
       if (_self._getUserId()) {
         logData['user_id'] = _self._getUserId();
+      }
+      if (_self._getCompanyId()) {
+        logData['company_id'] = _self._getCompanyId();
       }
       if (_self._getSession()) {
         logData['session_token'] = _self._getSession();
@@ -794,6 +931,9 @@ exports['default'] = function () {
     _getUserId: function _getUserId() {
       return this._userId;
     },
+    _getCompanyId: function _getCompanyId() {
+      return this._companyId;
+    },
     _getSession: function _getSession() {
       return this._session;
     },
@@ -816,7 +956,49 @@ exports['default'] = function () {
 
 module.exports = exports['default'];
 
-},{"./capture":2,"./captureFetch":3,"./config":4,"./utils":8,"./web3capture":9}],8:[function(require,module,exports){
+},{"./campaign":2,"./capture":3,"./captureFetch":4,"./config":5,"./utils":10,"./web3capture":12}],9:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
+function _getReferrerStr() {
+  return document.referrer;
+}
+
+function _getReferringDomain(referrer) {
+  if (_utils._.isEmptyString(referrer)) {
+    return null;
+  }
+  var parts = referrer.split('/');
+  if (parts.length >= 3) {
+    return parts[2];
+  }
+  return null;
+}
+
+function getReferrer() {
+  var referrer = _getReferrerStr();
+
+  if (_utils._.isEmptyString(referrer)) {
+    return;
+  }
+
+  var referrerInfo = {
+    'referrer': referrer,
+    'referring_domain': _getReferringDomain(referrer)
+  };
+
+  return referrerInfo;
+}
+
+exports['default'] = getReferrer;
+module.exports = exports['default'];
+
+},{"./utils":10}],10:[function(require,module,exports){
 /* eslint camelcase: "off", eqeqeq: "off" */
 'use strict';
 
@@ -945,6 +1127,10 @@ _.bind_instance_methods = function (obj) {
             obj[func] = _.bind(obj[func], obj);
         }
     }
+};
+
+_.isEmptyString = function isEmptyString(str) {
+    return !str || str.length === 0;
 };
 
 /**
@@ -1731,9 +1917,17 @@ _.HTTPBuildQuery = function (formdata, arg_separator) {
     return tmp_arr.join(arg_separator);
 };
 
+_.getQueryParamByName = function (name, query) {
+    // expects a name
+    // and a query string. aka location part.
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    var results = regex.exec(query);
+    return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
+};
+
 _.getQueryParam = function (url, param) {
     // Expects a raw URL
-
     param = param.replace(/[\[]/, '\\\[').replace(/[\]]/, '\\\]');
     var regexS = '[\\?&]' + param + '=([^&#]*)',
         regex = new RegExp(regexS),
@@ -2289,6 +2483,7 @@ _['JSONEncode'] = _.JSONEncode;
 _['JSONDecode'] = _.JSONDecode;
 _['isBlockedUA'] = _.isBlockedUA;
 _['isEmptyObject'] = _.isEmptyObject;
+_['isEmptyString'] = _.isEmptyString;
 _['each'] = _.each;
 _['info'] = _.info;
 _['info']['device'] = _.info.device;
@@ -2299,7 +2494,71 @@ exports._ = _;
 exports.userAgent = userAgent;
 exports.console = console;
 
-},{"./config":4}],9:[function(require,module,exports){
+},{"./config":5}],11:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
+var Constants = { // UTM Params
+  UTM_SOURCE: 'utm_source',
+  UTM_MEDIUM: 'utm_medium',
+  UTM_CAMPAIGN: 'utm_campaign',
+  UTM_TERM: 'utm_term',
+  UTM_CONTENT: 'utm_content'
+};
+
+function _getUrlParams() {
+  return location.search;
+}
+
+function getUtmData(rawCookie, query) {
+  // Translate the utmz cookie format into url query string format.
+  var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
+
+  _utils.console.log('cookie');
+  _utils.console.log(cookie);
+
+  var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
+    return _utils._.getQueryParamByName(queryName, query) || _utils._.getQueryParamByName(cookieName, cookie);
+  };
+
+  var utmSource = fetchParam(Constants.UTM_SOURCE, query, 'utmcsr', cookie);
+  var utmMedium = fetchParam(Constants.UTM_MEDIUM, query, 'utmcmd', cookie);
+  var utmCampaign = fetchParam(Constants.UTM_CAMPAIGN, query, 'utmccn', cookie);
+  var utmTerm = fetchParam(Constants.UTM_TERM, query, 'utmctr', cookie);
+  var utmContent = fetchParam(Constants.UTM_CONTENT, query, 'utmcct', cookie);
+
+  var utmData = {};
+  var addIfNotNull = function addIfNotNull(key, value) {
+    if (!_utils._.isEmptyString(value)) {
+      utmData[key] = value;
+    }
+  };
+
+  addIfNotNull(Constants.UTM_SOURCE, utmSource);
+  addIfNotNull(Constants.UTM_MEDIUM, utmMedium);
+  addIfNotNull(Constants.UTM_CAMPAIGN, utmCampaign);
+  addIfNotNull(Constants.UTM_TERM, utmTerm);
+  addIfNotNull(Constants.UTM_CONTENT, utmContent);
+
+  return utmData;
+}
+
+function getUtm(queryParams, cookieParams) {
+  queryParams = _getUrlParams();
+  cookieParams = _utils._.cookie.get('__utmz');
+  var utmProperties = getUtmData(cookieParams, queryParams);
+  return utmProperties;
+}
+
+exports['default'] = getUtm;
+module.exports = exports['default'];
+
+},{"./utils":10}],12:[function(require,module,exports){
 /**
  * Created by Xingheng on 1/31/17.
  */
@@ -2474,4 +2733,4 @@ function captureWeb3Requests(myWeb3, recorder, options) {
 exports['default'] = captureWeb3Requests;
 module.exports = exports['default'];
 
-},{"./utils":8}]},{},[1]);
+},{"./utils":10}]},{},[1]);
