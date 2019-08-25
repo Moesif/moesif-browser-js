@@ -64,7 +64,7 @@
 	}(this, function () { 'use strict';
 
 	    var Config = {
-	        DEBUG: true,
+	        DEBUG: false,
 	        LIB_VERSION: '1.5.0'
 	    };
 
@@ -2143,27 +2143,31 @@
 	    }
 
 	    function getCampaignData(opt) {
-	      var result = {};
+	      try {
+	        var result = {};
 
-	      if(!opt.disableUtm) {
-	        result = getUtm() || {};
-	      }
-
-	      if (!opt.disableReferer) {
-	        var referrer = getReferrer();
-	        if (referrer) {
-	          result['referrer'] = referrer['referrer'];
-	          result['referring_domain'] = referrer['referring_domain'];
+	        if (!opt.disableUtm) {
+	          result = getUtm() || {};
 	        }
-	      }
-	      if (!opt.disableRGclid) {
-	        var gclid = getGclid(_getUrlParams());
-	        if (gclid) {
-	          result['gclid'] = gclid;
-	        }
-	      }
 
-	      return result;
+	        if (!opt.disableReferer) {
+	          var referrer = getReferrer();
+	          if (referrer) {
+	            result['referrer'] = referrer['referrer'];
+	            result['referring_domain'] = referrer['referring_domain'];
+	          }
+	        }
+	        if (!opt.disableRGclid) {
+	          var gclid = getGclid(_getUrlParams());
+	          if (gclid) {
+	            result['gclid'] = gclid;
+	          }
+	        }
+
+	        return result;
+	      } catch (err) {
+	        console.warn(err);
+	      }
 	    }
 
 	    var MOESIF_CONSTANTS = {
@@ -2405,7 +2409,7 @@
 	          updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
 	          localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
 	        },
-	        'identifyCompany': function (companyId, metadata) {
+	        'identifyCompany': function (companyId, metadata, companyDomain) {
 	          this._companyId = companyId;
 	          if (!(this._options && this._options.applicationId)) {
 	            throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -2413,6 +2417,10 @@
 	          var companyObject = {
 	            'company_id': companyId
 	          };
+
+	          if (companyDomain) {
+	            companyObject['company_domain'] = companyDomain;
+	          }
 
 	          if (metadata) {
 	            companyObject['metadata'] = metadata;

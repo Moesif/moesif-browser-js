@@ -16,28 +16,31 @@ function getGclid(urlParams) {
 }
 
 function getCampaignData(opt) {
-  var result = {};
+  try {
+    var result = {};
 
-  if(!opt.disableUtm) {
-    result = getUtm() || {};
-  }
-
-  if (!opt.disableReferer) {
-    var referrer = getReferrer();
-    if (referrer) {
-      result['referrer'] = referrer['referrer'];
-      result['referring_domain'] = referrer['referring_domain'];
+    if (!opt.disableUtm) {
+      result = getUtm() || {};
     }
-  }
-  if (!opt.disableRGclid) {
-    var gclid = getGclid(_getUrlParams());
-    if (gclid) {
-      result['gclid'] = gclid;
-    }
-  }
 
-  return result;
+    if (!opt.disableReferer) {
+      var referrer = getReferrer();
+      if (referrer) {
+        result['referrer'] = referrer['referrer'];
+        result['referring_domain'] = referrer['referring_domain'];
+      }
+    }
+    if (!opt.disableRGclid) {
+      var gclid = getGclid(_getUrlParams());
+      if (gclid) {
+        result['gclid'] = gclid;
+      }
+    }
+
+    return result;
+  } catch (err) {
+    console.warn(err);
+  }
 }
-
 
 export default getCampaignData;

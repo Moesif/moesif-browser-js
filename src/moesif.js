@@ -267,7 +267,7 @@ export default function () {
       updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
       localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
     },
-    'identifyCompany': function (companyId, metadata) {
+    'identifyCompany': function (companyId, metadata, companyDomain) {
       this._companyId = companyId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -275,6 +275,10 @@ export default function () {
       var companyObject = {
         'company_id': companyId
       };
+
+      if (companyDomain) {
+        companyObject['company_domain'] = companyDomain;
+      }
 
       if (metadata) {
         companyObject['metadata'] = metadata;
