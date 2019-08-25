@@ -7,15 +7,15 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-This SDK is a browser side middleware that captures AJAX API calls and user context and sends to [Moesif's](https://www.moesif.com) API analytics service.
+This SDK is a browser side SDK that captures AJAX API calls and user context and sends to [Moesif's](https://www.moesif.com) API analytics service.
 
-_If you're using a Moesif server SDK to instrument your APIs serverside, you can use moesif-browser-js to collect additional customer context like email, sign up date, and web attribution._
+_If you're already using a [Moesif server SDK](https://www.moesif.com/docs/server-integration/) to instrument your APIs, you can use this SDK in conjunction with the server SDK to collect customer context like email, sign up date, and web attribution via `identifyUser()` and `identifyCompany()` methods._
 
-This SDK can log API calls to:
+When you call `start()`, this SDK will log API calls to:
 
 - Your own APIs (such as APIs powering your Single Page Apps)
 - 3rd party APIs (such as to Stripe and Twilio)
-- Blockchains (such as transactions against your Ethereum Smart Contracts)
+- Decentralized APIs such as DApps communicating with Ethereum Web3/interactions with smart contracts
 
 It has native support for RESTful, GraphQL, Ethereum Web3, and JSON-RPC APIs.
 
@@ -37,17 +37,16 @@ and then clicking _Installation_.
 ```html
 <script src="//unpkg.com/moesif-browser-js@^1/moesif.min.js"></script>
 <script type="text/javascript">
-var options = {
+// Initialize the SDK. Must be called before any other methods
+moesif.init({
   applicationId: 'Your Moesif Application Id'
-  // add other option here.
-};
+  // add other option here
+});
 
-moesif.init(options);
-
-// Start capturing AJAX API Calls.
+// Start capturing AJAX API Calls
 moesif.start();
 
-// Optionally, when the user logs in, identify user with Moesif
+// Identify the user with Moesif such as when user logs in
 moesif.identifyUser('12345');
 </script>
 ```
@@ -67,32 +66,34 @@ To install into a project using NPM with a front-end packager such as
 npm install --save moesif-browser-js
 ```
 
-You can then require the lib like a standard Node.js module:
+You can then require the lib like a standard NPM module:
 
 ```javascript
 var moesif = require('moesif-browser-js');
 
-var options = {
+// Initialize the SDK. Must be called before any other methods
+moesif.init({
   applicationId: 'Your Moesif Application Id'
-  // add other option here.
-};
+  // add other option here
+});
 
-moesif.init(options);
-
-// Start capturing AJAX API Calls.
+// Start capturing AJAX API Calls
 moesif.start();
 
-// Optionally, when the user logs in, identify user with Moesif
+// Identify the user with Moesif such as when user logs in
 moesif.identifyUser('12345');
-
 ```
 
-With the `require` method, the `moesif` object is not attached to the global scope.
+With the `require` method, the `moesif` object is not attached to any global scope, but you can attach to the global window object easily:
+
+```javascript
+window.moesif = moesif;
+```
 
 ## List of Methods on the `moesif` Object
 
 #### init, (obj) => null
-Initialize the SDK with your Application Id and other options. This will also capture and store locally campaign information like UTM parameters. 
+Initialize the SDK with your Application Id and any other options. On init, the SDK will capture initial user context like UTM parameters and referrer info. Must be called before any other methods like `start()` or `identifyUser`.
 
 ```
 var options = {
@@ -109,7 +110,7 @@ moesif.init(options);
 moesif.start()
 ```
 
-Starts the capturing AJAX API calls. Should not be called before init.
+Call `start` when you want to start logging AJAX API calls.
 
 
 #### stop, () => null
@@ -118,16 +119,13 @@ Starts the capturing AJAX API calls. Should not be called before init.
 moesif.stop()
 ```
 
-Stops the capturing. It is optional to call this, because if the browser is closed, the recording will stop.
-The main use case is that to suspend the recording temporarily due to some event. Call `start` again to restart.
+Stops logging API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed.
+If you want more control, you can call `stop` directly. Call `start` again to restart logging.
 
 #### identifyUser, (string, object) => null
 
-Identify the user with Moesif such as when a user logs into your app and you have a persistent userId.
-You can also send custom metadata such as the customer's name and email. 
-
-Identifies the user if you have the userId. This is highly recommended. Even though we can auto
-detect userIds but this helps tie all the events to the userId, and make it more easily searchable.
+Identify the user with Moesif with a user id such as when a user logs into your app.
+You can also add custom metadata containing fields like the customer's name and email as the second argument.
 
 ```javascript
 // When the user logs in and you have their unique userId, call identifyUser()
@@ -146,9 +144,10 @@ moesif.identifyUser('12345', {
 });
 ```
 
-#### identifyCompany, (string, object) => null
-Like identifyUser. If you're a B2B company, you can track companies or accounts in addition to users. 
-You can include company traits like company domain or plan information.
+#### identifyCompany, (string, object, string) => null
+Like `identifyUser`, but for tracking companies or accounts. Recommended for B2B companies.
+Optionally, you can add custom metadata as the second argument, and a company domain as the third argument.
+If set, company domain is used by Moesif to enrich your company data.
 
 ```javascript
 // When the company logs in and you have their companyId or accountId, call identifyCompany()
@@ -156,20 +155,20 @@ moesif.identifyCompany('67890');
 
 // Optionally, you can also send custom metadata like company domain and plan details
 moesif.identifyCompany('67890', {
-  company_domain: "acmeinc.com",
-  alexa_ranking: 500,
-  plan_name: "free"
-  number_field: 123,
-  object_field: {
-    field_a: "value_a",
-    field_b: "value_b"
-  }
-});
+    alexa_ranking: 500,
+    plan_name: 'free'
+    number_field: 123,
+    object_field: {
+      field_a: 'value_a',
+      field_b: 'value_b'
+    }
+  }, 'acmeinc.com');
 ```
 
 #### identifySession, (string) => null
 
 If you have a specific session token you want to track, you can pass to Moesif.
+Once called, the new session token will be used until `identifySession` is called again.
 
 ```javascript
 moesif.identifySession('d23xdefc3ijhcv93hf4h38f90h43f');
@@ -184,15 +183,13 @@ in, it will try to restart capturing using the global `web3` object. Return `tru
 moesif.useWeb3(myWeb3Object)
 ```
 
-
 ## Configuration options
 
-The `options` is an object that is passed into the SDK's init method.
+The `options` is an object that is passed into the SDK's `init` method.
 
 #### applicationId - string, required
 
-This is a token that is obtained from your Moesif account. This token can be safely used on the
-client side.
+This is the collector API key that is obtained from your Moesif account. Collector Application Id's are write-only keys and can be safely used on the client side.
 
 #### skip, (event) => boolean, optional
 
