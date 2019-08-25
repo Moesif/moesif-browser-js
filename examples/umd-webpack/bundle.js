@@ -1547,7 +1547,7 @@
 	    _['info']['browser']    = _.info.browser;
 	    _['info']['properties'] = _.info.properties;
 
-	    var HTTP_PROTOCOL$1 = (('https:' === document.location.protocol) ? 'https://' : 'http://');
+	    var HTTP_PROTOCOL$1 = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
 	    /**
 	     * @param recorder
@@ -1687,10 +1687,6 @@
 	    }
 
 	    function computeUrl(provider) {
-	      // if (!provider) {
-	      //   return HTTP_PROTOCOL + window.location.host + '/';
-	      // }
-
 	      if (provider && provider.host) {
 	        return provider.host;
 	      }
@@ -2048,7 +2044,7 @@
 	    }
 
 	    function _getReferrerStr() {
-	      return document.referrer;
+	      return document && document.referrer;
 	    }
 
 	    function _getReferringDomain(referrer) {
@@ -2086,7 +2082,7 @@
 	    };
 
 	    function _getUrlParams$1() {
-	      return location.search;
+	      return location && location.search;
 	    }
 
 	    function getUtmData(rawCookie, query) {
@@ -2131,7 +2127,7 @@
 	    }
 
 	    function _getUrlParams() {
-	      return location.search;
+	      return location && location.search;
 	    }
 
 	    function getGclid(urlParams) {
@@ -2182,7 +2178,7 @@
 	      STORED_SESSION_ID: 'moesif_stored_session_id'
 	    };
 
-	    var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
+	    var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
 	    function isMoesif(event) {
 	      return event['request']['headers']['X-Moesif-SDK'];
@@ -2295,6 +2291,10 @@
 
 	      return {
 	        'init': function (options) {
+
+	          if (!window) {
+	            console.critical('Warning, this library need to be initiated on the client side');
+	          }
 
 	          ensureValidOptions(options);
 	          var ops = {};

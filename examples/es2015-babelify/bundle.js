@@ -34,7 +34,7 @@ var _utm = require('./utm');
 var _utm2 = _interopRequireDefault(_utm);
 
 function _getUrlParams() {
-  return location.search;
+  return location && location.search;
 }
 
 function getGclid(urlParams) {
@@ -89,7 +89,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _utils = require('./utils');
 
-var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
+var HTTP_PROTOCOL = 'http:' === (document && document.location.protocol) ? 'http://' : 'https://';
 
 /**
  * @param recorder
@@ -616,7 +616,7 @@ var MOESIF_CONSTANTS = {
   STORED_SESSION_ID: 'moesif_stored_session_id'
 };
 
-var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
+var HTTP_PROTOCOL = 'http:' === (document && document.location.protocol) ? 'http://' : 'https://';
 
 // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
 // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
@@ -746,6 +746,10 @@ exports['default'] = function () {
 
   return {
     'init': function init(options) {
+
+      if (!window) {
+        _utils.console.critical('Warning, this library need to be initiated on the client side');
+      }
 
       ensureValidOptions(options);
       var ops = {};
@@ -966,7 +970,7 @@ Object.defineProperty(exports, '__esModule', {
 var _utils = require('./utils');
 
 function _getReferrerStr() {
-  return document.referrer;
+  return document && document.referrer;
 }
 
 function _getReferringDomain(referrer) {
@@ -2512,7 +2516,7 @@ var Constants = { // UTM Params
 };
 
 function _getUrlParams() {
-  return location.search;
+  return location && location.search;
 }
 
 function getUtmData(rawCookie, query) {
@@ -2571,13 +2575,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _utils = require('./utils');
 
-var HTTP_PROTOCOL = 'https:' === document.location.protocol ? 'https://' : 'http://';
-
 function computeUrl(provider) {
-  // if (!provider) {
-  //   return HTTP_PROTOCOL + window.location.host + '/';
-  // }
-
   if (provider && provider.host) {
     return provider.host;
   }
