@@ -21,7 +21,7 @@ var MOESIF_CONSTANTS = {
   STORED_SESSION_ID: 'moesif_stored_session_id'
 };
 
-var HTTP_PROTOCOL = (('https:' === document.location.protocol) ? 'https://' : 'http://');
+var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
 // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
 // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
@@ -153,6 +153,10 @@ export default function () {
 
   return {
     'init': function (options) {
+
+      if (!window) {
+        console.critical('Warning, this library need to be initiated on the client side');
+      }
 
       ensureValidOptions(options);
       var ops = {};

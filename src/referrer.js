@@ -1,7 +1,7 @@
 import { _, console } from './utils';
 
 function _getReferrerStr() {
-  return document.referrer;
+  return document && document.referrer;
 }
 
 function _getReferringDomain(referrer) {

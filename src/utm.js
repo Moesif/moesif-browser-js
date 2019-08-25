@@ -10,7 +10,7 @@ var Constants = {  // UTM Params
 };
 
 function _getUrlParams() {
-  return location.search;
+  return location && location.search;
 }
 
 function getUtmData(rawCookie, query) {
