@@ -25,13 +25,20 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 
 ## How to install
 
+Your Moesif Application Id can be found in the [_Moesif Portal_](https://www.moesif.com/).
+After signing up for a Moesif account, your Moesif Application Id will be displayed during the onboarding steps. 
+
+You can always find your Moesif Application Id at any time by logging 
+into the [_Moesif Portal_](https://www.moesif.com/), click on the top right menu,
+and then clicking _Installation_.
+
 ### Using CDN to load the library
 
 ```html
 <script src="//unpkg.com/moesif-browser-js@^1/moesif.min.js"></script>
 <script type="text/javascript">
 var options = {
-  applicationId: 'Your Application Id'
+  applicationId: 'Your Moesif Application Id'
   // add other option here.
 };
 
@@ -66,7 +73,7 @@ You can then require the lib like a standard Node.js module:
 var moesif = require('moesif-browser-js');
 
 var options = {
-  applicationId: 'Your Application Id'
+  applicationId: 'Your Moesif Application Id'
   // add other option here.
 };
 
@@ -89,7 +96,7 @@ Initialize the SDK with your Application Id and other options. This will also ca
 
 ```
 var options = {
-  applicationId: 'your applicationId'
+  applicationId: 'Your Moesif Application Id'
 };
 
 moesif.init(options);
@@ -207,7 +214,7 @@ full options example:
 ```javascript
 
 var options = {
-  applicationId: 'your application id',
+  applicationId: 'Your Moesif Application Id',
   skip: function(event) {
     if (event.request.uri.includes('google')) {
       return true;
