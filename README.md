@@ -7,11 +7,11 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-This SDK is a browser side middleware that automatically
-captures _outgoing_ API/AJAX calls and sends to [Moesif's](https://www.moesif.com)
-AI-powered API analytics service.
+This SDK is a browser side middleware that captures AJAX API calls and user context and sends to [Moesif's](https://www.moesif.com) API analytics service.
 
-This SDK can be configured to log API calls to:
+_If you're using a Moesif server SDK to instrument your APIs serverside, you can use moesif-browser-js to collect additional customer context like email, sign up date, and web attribution._
+
+This SDK can log API calls to:
 
 - Your own APIs (such as APIs powering your Single Page Apps)
 - 3rd party APIs (such as to Stripe and Twilio)
@@ -25,23 +25,23 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 
 ## How to install
 
-
 ### Using CDN to load the library
 
-
 ```html
-<script src="//unpkg.com/moesif-browser-js@1.4.0/moesif.min.js"></script>
+<script src="//unpkg.com/moesif-browser-js@^1/moesif.min.js"></script>
 <script type="text/javascript">
 var options = {
   applicationId: 'Your Application Id'
   // add other option here.
 };
 
-// for options see below.
 moesif.init(options);
 
-// this starts the capturing of the data.
+// Start capturing AJAX API Calls.
 moesif.start();
+
+// Optionally, when the user logs in, identify user with Moesif
+moesif.identifyUser('12345');
 </script>
 ```
 
@@ -51,7 +51,7 @@ It will attach a global `moesif` object. You can access it either via `moesif` o
 ### Alternative installation via NPM
 
 This SDK is also available as a [package on NPM](https://www.npmjs.com/package/moesif-browser-js).
-The moesif-browser-js SDK is indended for running on the client side. For capturing API calls on the server side, there is a separate [moesif-express SDK](https://www.npmjs.com/package/moesif-express) available on NPM.
+The moesif-browser-js SDK is indended for running on the client side. For instrumneting APIs on the server side, there is a separate SDK, [moesif-express](https://www.npmjs.com/package/moesif-express) available on NPM.
 
 To install into a project using NPM with a front-end packager such as
 [Browserify](http://browserify.org/) or [Webpack](https://webpack.github.io/):
@@ -70,20 +70,173 @@ var options = {
   // add other option here.
 };
 
-// for options see below.
 moesif.init(options);
 
-// this starts the capturing of the data.
+// Start capturing AJAX API Calls.
 moesif.start();
 
-// when the user logs in your system you can tie all the event to a particular user.
-
-moesif.identifyUser('your unique userId');
+// Optionally, when the user logs in, identify user with Moesif
+moesif.identifyUser('12345');
 
 ```
 
 With the `require` method, the `moesif` object is not attached to the global scope.
 
+## List of Methods on the `moesif` Object
+
+#### init, (obj) => null
+Initialize the SDK with your Application Id and other options. This will also capture and store locally campaign information like UTM parameters. 
+
+```
+var options = {
+  applicationId: 'your applicationId'
+};
+
+moesif.init(options);
+
+```
+
+#### start, () => null
+
+```
+moesif.start()
+```
+
+Starts the capturing AJAX API calls. Should not be called before init.
+
+
+#### stop, () => null
+
+```
+moesif.stop()
+```
+
+Stops the capturing. It is optional to call this, because if the browser is closed, the recording will stop.
+The main use case is that to suspend the recording temporarily due to some event. Call `start` again to restart.
+
+#### identifyUser, (string, object) => null
+
+Identify the user with Moesif such as when a user logs into your app and you have a persistent userId.
+You can also send custom metadata such as the customer's name and email. 
+
+Identifies the user if you have the userId. This is highly recommended. Even though we can auto
+detect userIds but this helps tie all the events to the userId, and make it more easily searchable.
+
+```javascript
+// When the user logs in and you have their unique userId, call identifyUser()
+moesif.identifyUser('12345');
+
+// Optionally, you can also send custom metadata like customer email and name
+moesif.identifyUser('12345', {
+  email: "johndoe@acmeinc.com",
+  title: "software engineer",
+  string_field: "some string"
+  number_field: 123,
+  object_field: {
+    field_a: "value_a",
+    field_b: "value_b"
+  }
+});
+```
+
+#### identifyCompany, (string, object) => null
+Like identifyUser. If you're a B2B company, you can track companies or accounts in addition to users. 
+You can include company traits like company domain or plan information.
+
+```javascript
+// When the company logs in and you have their companyId or accountId, call identifyCompany()
+moesif.identifyCompany('67890');
+
+// Optionally, you can also send custom metadata like company domain and plan details
+moesif.identifyCompany('67890', {
+  company_domain: "acmeinc.com",
+  alexa_ranking: 500,
+  plan_name: "free"
+  number_field: 123,
+  object_field: {
+    field_a: "value_a",
+    field_b: "value_b"
+  }
+});
+```
+
+#### identifySession, (string) => null
+
+If you have a specific session token you want to track, you can pass to Moesif.
+
+```javascript
+moesif.identifySession('d23xdefc3ijhcv93hf4h38f90h43f');
+```
+
+#### useWeb3, (web3) => boolean
+
+Sets the web3 JSON-RPC to use the web3 object passed in. If no argument is passed
+in, it will try to restart capturing using the global `web3` object. Return `true` if successful.
+
+```javascript
+moesif.useWeb3(myWeb3Object)
+```
+
+
+## Configuration options
+
+The `options` is an object that is passed into the SDK's init method.
+
+#### applicationId - string, required
+
+This is a token that is obtained from your Moesif account. This token can be safely used on the
+client side.
+
+#### skip, (event) => boolean, optional
+
+Optional function that to determine on if a particular event should be skipped logging.
+The parameter passed in is an event model. [Detail on the event model here](https://www.moesif.com/docs/api#create-an-event).
+
+#### maskContent, (event) => event, optional
+
+Optional function that let you mask any sensitive data in the event model, and then return
+the masked event. Important that do not remove required fields in the event model. See the spec
+on the event model to see what is required.
+
+#### getMetadata, (event) => object, optional
+
+Optional function that allow you to append arbitrary JSON metadata to API calls before being logged to Moesif. 
+
+full options example:
+
+```javascript
+
+var options = {
+  applicationId: 'your application id',
+  skip: function(event) {
+    if (event.request.uri.includes('google')) {
+      return true;
+    }
+    return false;
+  },
+  maskContent: function(event) {
+    if (event.request.headers['secret']) {
+      event.request.headers['secret'] = '';
+    }
+    return event;
+  },
+  getMetadata: function(event) {
+    if (event.request.uri.includes('stripe')) {
+      return {
+        type: 'payment'
+      };
+    }
+  }
+};
+
+moesif.init(options);
+
+```
+
+#### disableFetch, boolean, optional, default false.
+
+Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
+Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
 
 ## Ethereum dApp support
 
@@ -141,155 +294,6 @@ As an example:
   }
 }
 ```
-
-## List of Methods on the `moesif` Object
-
-#### init, (obj) => null
-
-```
-var options = {
-  applicationId: 'your applicationId'
-};
-
-moesif.init(options);
-
-```
-
-Initializes the moesif object with applicationId and other options. See the full list of options
-in the next section. Call this before calling `start()`.
-
-#### start
-
-```
-moesif.start()
-```
-
-Starts the capturing. Should not be called before init.
-
-#### stop, () => null
-
-```
-moesif.stop()
-```
-
-Stops the capturing. It is optional to call this, because if the browser is closed, the recording will stop.
-The main use case is that to suspend the recording temporarily due to some event. Call `start` again to restart.
-
-
-#### useWeb3, (web3) => boolean
-
-```
-moesif.useWeb3(myWeb3Object)
-
-```
-
-Reset the web3 JSON-RPC capturing using the web3 object passed in. If no argument is passed
-in, it will try to restart capturing using the global `web3` object. Return `true` if successful.
-
-#### identifyUser, (string, object) => null
-
-```
-
-moesif.identifyUser('your user id');
-```
-or
-
-```javascript
-
-var userMetadata = {
-  email: 'user@usergmail.com',
-  customdata1: 'data1'
-}
-
-moesif.identifyUser('your user id', userMetadata);
-```
-
-Identifies the user if you have the userId. This is highly recommended. Even though we can auto
-detect userIds but this helps tie all the events to the userId, and make it more easily searchable.
-
-Best place to trigger this is when user logs in or signs up.
-
-You can also pass in optional profile data for the user. The `userMetadata` can by any valid Json.
-If present, Moesif will detect special metadata fields like:
-
-- email
-- name
-- first_name
-- last_name
-- phone
-- photo_url
-
-#### identifySession, (string) => null
-
-```
-moesif.identifySession('your sessionId');
-```
-
-
-## Configuration options
-
-The `options` is an object that is passed into moesif's init method.
-
-#### applicationId - string, required
-
-This is a token that is obtained from your moesif account. This token can be safely used on the
-client side.
-
-
-#### skip, (event) => boolean, optional
-
-Optional function that to determine on if a particular event should be skipped logging.
-The parameter passed in is an event model. [Detail on the event model here](https://www.moesif.com/docs/api#create-an-event).
-
-#### maskContent, (event) => event, optional
-
-Optional function that let you mask any sensitive data in the event model, and then return
-the masked event. Important that do not remove required fields in the event model. See the spec
-on the event model to see what is required.
-
-#### getMetadata, (event) => object, optional
-
-Optional function that allow you to add metadata to the event. The metadata can be any JSON object.
-
-#### getTags, (event) => string, optional
-
-This that allow you to add tags to the event. Will be deprecated, use getMetadata instead.
-
-full options example:
-
-```javascript
-
-var options = {
-  applicationId: 'your application id',
-  skip: function(event) {
-    if (event.request.uri.includes('google')) {
-      return true;
-    }
-    return false;
-  },
-  maskContent: function(event) {
-    if (event.request.headers['secret']) {
-      event.request.headers['secret'] = '';
-    }
-    return event;
-  },
-  getMetadata: function(event) {
-    if (event.request.uri.includes('stripe')) {
-      return {
-        type: 'payment'
-      };
-    }
-  }
-};
-
-moesif.init(options);
-
-```
-
-#### disableFetch, boolean, optional, default false.
-
-Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
-Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
 
 ## Examples
 
