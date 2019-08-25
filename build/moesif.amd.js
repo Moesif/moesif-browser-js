@@ -915,10 +915,10 @@ define(function () { 'use strict';
     _.getQueryParamByName = function(name, query) {
       // expects a name
       // and a query string. aka location part.
-      name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
-      var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
+      name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+      var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
       var results = regex.exec(query);
-      return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, " "));
+      return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
     };
 
     _.getQueryParam = function(url, param) {
