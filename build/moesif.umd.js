@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.5.1'
+        LIB_VERSION: '1.5.2'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -2268,6 +2268,7 @@
           this._options = ops;
           this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
           this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+          this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
 
           this._campaign = getCampaignData(ops);
 
