@@ -490,7 +490,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.5.1'
+    LIB_VERSION: '1.5.2'
 };
 
 exports['default'] = Config;
@@ -782,6 +782,7 @@ exports['default'] = function () {
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
       this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+      this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
 
       this._campaign = (0, _campaign2['default'])(ops);
 

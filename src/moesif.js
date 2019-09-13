@@ -189,6 +189,7 @@ export default function () {
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
       this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+      this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
 
       this._campaign = getCampaignData(ops);
 
