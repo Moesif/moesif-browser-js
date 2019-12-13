@@ -3,7 +3,7 @@
 
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.5.2'
+    LIB_VERSION: '1.5.3'
 };
 
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -2343,6 +2343,9 @@ function moesifCreator () {
       }
       if (this._campaign) {
         userObject['campaign'] = this._campaign;
+      }
+      if (this._companyId) {
+        userObject['company_id'] = this._companyId;
       }
 
       updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);

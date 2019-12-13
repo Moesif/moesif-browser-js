@@ -268,6 +268,9 @@ export default function () {
       if (this._campaign) {
         userObject['campaign'] = this._campaign;
       }
+      if (this._companyId) {
+        userObject['company_id'] = this._companyId;
+      }
 
       updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
       localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
