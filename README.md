@@ -7,30 +7,19 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-This SDK is a browser side SDK that captures AJAX API calls and user context and sends to [Moesif's](https://www.moesif.com) API analytics service.
+The Moesif browser SDK enables you to track users and their API activity and send to [Moesif's](https://www.moesif.com) API analytics service.
 
-_If you're already using a [Moesif server SDK](https://www.moesif.com/docs/server-integration/) to instrument your APIs, you can use this SDK in conjunction with the server SDK to collect customer context like email, sign up date, and web attribution via `identifyUser()` and `identifyCompany()` methods._
+_This SDK can be used in conjunction with a [Moesif server SDK](https://www.moesif.com/implementation) to map out the entire customer journey from from acquisition to first API call._
 
-When you call `start()`, this SDK will log API calls to:
+The SDK automatically pulls useful data from a user's device including any marketing attribution, device type, and location information. They are added to a user and/or company profile in Moesif. You can add additional properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods. 
 
-- Your own APIs (such as APIs powering your Single Page Apps)
-- 3rd party APIs (such as to Stripe and Twilio)
-- Decentralized APIs such as DApps communicating with Ethereum Web3/interactions with smart contracts
-
-It has native support for RESTful, GraphQL, Ethereum Web3, and JSON-RPC APIs.
+This SDK can also log outgoing AJAX API calls to third party services or your own APIs with the `start()` method. API logging has native support for RESTful, GraphQL, Ethereum Web3, JSON-RPC, and other APIs
 
 Full documentation on Moesif integration is available [here](https://www.moesif.com/docs).
 
 [Source Code on GitHub](https://github.com/moesif/moesif-browser-js)
 
 ## How to install
-
-Your Moesif Application Id can be found in the [_Moesif Portal_](https://www.moesif.com/).
-After signing up for a Moesif account, your Moesif Application Id will be displayed during the onboarding steps. 
-
-You can always find your Moesif Application Id at any time by logging 
-into the [_Moesif Portal_](https://www.moesif.com/), click on the top right menu,
-and then clicking _Installation_.
 
 ### Using CDN to load the library
 
@@ -43,7 +32,7 @@ moesif.init({
   // add other option here
 });
 
-// Start capturing AJAX API Calls
+// Optionally, start logging AJAX API Calls
 moesif.start();
 
 // Identify the user with Moesif such as when user logs in
@@ -77,7 +66,7 @@ moesif.init({
   // add other option here
 });
 
-// Start capturing AJAX API Calls
+// Optionally, start logging AJAX API Calls
 moesif.start();
 
 // Identify the user with Moesif such as when user logs in
@@ -90,10 +79,56 @@ With the `require` method, the `moesif` object is not attached to any global sco
 window.moesif = moesif;
 ```
 
+Your Moesif Application Id will be displayed during the onboarding steps when signing up for [Moesif](https://www.moesif.com/) You can always find your Moesif Application Id at any time by logging 
+into the [_Moesif Portal_](https://www.moesif.com/), go to top right menu,
+and then clicking _Installation_.
+
+## How to use
+
+### Storing user metadata
+
+While optional, in addition to identifying the user id, you can also pass in user demographic and other info as a custom object.
+
+```javascript
+moesif.identifyUser('12345', {
+  email: 'john@acmeinc.com',
+  firstName: 'John',
+  lastName: 'Doe',
+  title: 'Software Engineer',
+  salesInfo: {
+      stage: 'Customer',
+      lifetimeValue: 24000,
+      accountOwner: 'mary@contoso.com',
+  },
+});
+```
+
+### Storing company metadata
+
+A user can be linked to a company which can be helpful to track account level usage if your are a B2B company. 
+
+```javascript
+// Only the first argument is a string containing the company id. This is the only required field. 
+// The second argument is a object used to store a company info like plan, MRR, and company demographics.
+// The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.  
+metadata = {
+  orgName: 'Acme, Inc',
+  planName: 'Free Plan',
+  dealStage: 'Lead',
+  mrr: 24000,
+  demographics: {
+    alexaRanking: 500000,
+    employeeCount: 47
+  }
+};
+
+moesif.identifyCompany('67890', metadata, 'acmeinc.com');
+```
+
 ## List of Methods on the `moesif` Object
 
 #### init, (obj) => null
-Initialize the SDK with your Application Id and any other options. On init, the SDK will capture initial user context like UTM parameters and referrer info. Must be called before any other methods like `start()` or `identifyUser`.
+Initialize the SDK with your Application Id and any other options. On initialization, the SDK will capture initial user context like device and attribution information. Must be called before any other methods like `start()` or `identifyUser`.
 
 ```
 var options = {
@@ -110,8 +145,11 @@ moesif.init(options);
 moesif.start()
 ```
 
-Call `start` when you want to start logging AJAX API calls.
+When you call `start()`, this SDK will log API calls to:
 
+- Your own APIs (such as an API powering your Single Page App)
+- 3rd party APIs (such as to Stripe and Twilio)
+- Decentralized APIs such as DApps communicating with Ethereum Web3/interactions with smart contracts
 
 #### stop, () => null
 
@@ -119,56 +157,55 @@ Call `start` when you want to start logging AJAX API calls.
 moesif.stop()
 ```
 
-Stops logging API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed.
-If you want more control, you can call `stop` directly. Call `start` again to restart logging.
+Stops logging API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed. However, you can call `stop` directly if you want more control. Call `start` again to restart logging.
 
 #### identifyUser, (string, object) => null
 
-Identify the user with Moesif with a user id such as when a user logs into your app.
+When a user logs into your website and you have their user id, identify the user with your userId.
 You can also add custom metadata containing fields like the customer's name and email as the second argument.
 
 ```javascript
-// When the user logs in and you have their unique userId, call identifyUser()
-moesif.identifyUser('12345');
-
-// Optionally, you can also send custom metadata like customer email and name
 moesif.identifyUser('12345', {
-  email: "johndoe@acmeinc.com",
-  title: "software engineer",
-  string_field: "some string"
-  number_field: 123,
-  object_field: {
-    field_a: "value_a",
-    field_b: "value_b"
-  }
+  email: 'john@acmeinc.com',
+  firstName: 'John',
+  lastName: 'Doe',
+  title: 'Software Engineer',
+  salesInfo: {
+      stage: 'Customer',
+      lifetimeValue: 24000,
+      accountOwner: 'mary@contoso.com',
+  },
 });
 ```
 
 #### identifyCompany, (string, object, string) => null
-Like `identifyUser`, but for tracking companies or accounts. Recommended for B2B companies.
-Optionally, you can add custom metadata as the second argument, and a company domain as the third argument.
-If set, company domain is used by Moesif to enrich your company data.
+Similar to `identifyUser`, but for tracking companies which is recommended for B2B companies.
+You can use both `identifyUser` and `identifyCompany` or just one. If both are used, the user is linked as a member of the company.
+
+Only the first argument is a string containing the company id. This is the only required field. 
+The second argument is a object used to store a company info like plan, MRR, and company demographics.
+The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.  
 
 ```javascript
-// When the company logs in and you have their companyId or accountId, call identifyCompany()
-moesif.identifyCompany('67890');
+metadata = {
+  orgName: 'Acme, Inc',
+  planName: 'Free Plan',
+  dealStage: 'Lead',
+  mrr: 24000,
+  demographics: {
+    alexaRanking: 500000,
+    employeeCount: 47
+  }
+};
 
-// Optionally, you can also send custom metadata like company domain and plan details
-moesif.identifyCompany('67890', {
-    alexa_ranking: 500,
-    plan_name: 'free'
-    number_field: 123,
-    object_field: {
-      field_a: 'value_a',
-      field_b: 'value_b'
-    }
-  }, 'acmeinc.com');
+moesif.identifyCompany('67890', metadata, 'acmeinc.com');
 ```
 
 #### identifySession, (string) => null
 
-If you have a specific session token you want to track, you can pass to Moesif.
-Once called, the new session token will be used until `identifySession` is called again.
+The Moesif SDK wil track sessions automatically, but if you have a specific session token you want to track, you can pass to Moesif directly.
+
+The new session token will continue to be used until `identifySession` is called again.
 
 ```javascript
 moesif.identifySession('d23xdefc3ijhcv93hf4h38f90h43f');
