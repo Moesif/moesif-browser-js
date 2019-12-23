@@ -279,29 +279,23 @@ moesif.init(options);
 Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
 Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
 
-## Ethereum dApp support
+## Ethereum DApp support
 
-DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API.
-For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js) which Moesif supports natively.
+DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API like any other Single Page App. For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js) which Moesif supports natively.
 
-Moesif can capture the API call data directly from the client
-side with `moesif-browser-js` which in turn can be used for debugging and monitoring issues, and alert you of anomalies.
+Moesif will capture interactions with the Ethereum blockchain just like any other API to undersand usage and monitor for any issues affecting your Dapp. Because this data is binary, there are additional set up steps needed to convert these API interactions into something human readable. [Checkout Moesif's Ethereum Web3 documentation for more info](https://www.moesif.com/docs/platform/ethereum-web3/).
 
-Review the [tutorial for building an Ethereum DApp with Integrated Web3 Monitoring](https://www.moesif.com/blog/blockchain/ethereum/Tutorial-for-building-Ethereum-Dapp-with-Integrated-Error-Monitoring/).
-
-[Please also checkout this document on how Moesif supports decentralized apps built on top of Ethereum Web3 and JSON-RPCs.](https://www.moesif.com/docs/platform/ethereum-web3/)
+There is also a tutorial available on [Building an Ethereum DApp with Integrated Web3 Monitoring](https://www.moesif.com/blog/blockchain/ethereum/Tutorial-for-building-Ethereum-Dapp-with-Integrated-Error-Monitoring/).
 
 ### Web3 object
 
 Many Dapp clients such as the [Metamask](https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn?hl=en) extension and [Mist Browser](https://github.com/ethereum/mist), will inject a `web3` object directly in the browser's global scope.
 
-The default `moesif-browser-js` config will automatically instrument the injected web3 object and capture outgoing API transactions to
-the Ethereum network.
+The default `moesif-browser-js` config will automatically instrument the injected web3 object and capture outgoing API transactions to the Ethereum network.
 
-For advanced scenarios where your code uses a different web3 object than the one injected, then you should call `moesif.useWeb3(myWeb3);`
-This insures the correct web3 instance is instrumented.
+For advanced scenarios where your code uses a different `web3` object than the default one, you can call `moesif.useWeb3(myWeb3)` to ensure the correct web3 instance is instrumented.
 
-This can happen if you let users modify the selected web3 provider or change their network.
+The web3 object can change if you let users modify the selected web3 provider or change their network. An example is below:
 
 ```javascript
 if (typeof web3 !== 'undefined') {
