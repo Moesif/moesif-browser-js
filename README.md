@@ -7,13 +7,11 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-The Moesif browser SDK enables you to track users and their API activity and send to [Moesif's](https://www.moesif.com) API analytics service.
+The Moesif browser SDK enables you to track user behavior and their UI actions and send to [Moesif's](https://www.moesif.com) API analytics service. This SDK can be used in conjunction with a [Moesif server SDK](https://www.moesif.com/implementation) to track API usage. This enables you to measure the entire customer journey from from _clicked sign up_ to _made first API call._
 
-_This SDK can be used in conjunction with a [Moesif server SDK](https://www.moesif.com/implementation) to map out the entire customer journey from from acquisition to first API call._
+The SDK also pulls useful data from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
-The SDK automatically pulls useful data from a user's device including any marketing attribution, device type, and location information. They are added to a user and/or company profile in Moesif. You can add additional properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
-
-This SDK can also log outgoing AJAX API calls to third party services or your own APIs with the `start()` method. API logging has native support for RESTful, GraphQL, Ethereum Web3, JSON-RPC, and other APIs
+If required, this SDK can also log outgoing AJAX API calls to third party APIs with the `start()` method. API logging has native support for RESTful, GraphQL, Ethereum Web3, JSON-RPC, and other APIs
 
 Full documentation on Moesif integration is available [here](https://www.moesif.com/docs).
 
@@ -37,6 +35,11 @@ moesif.start();
 
 // Identify the user with Moesif such as when user logs in
 moesif.identifyUser('12345');
+  
+// Log UI actions like clicked sign up  
+moesif.track('clicked_sign_up', {
+  button_label: 'Get Started'
+});  
 </script>
 ```
 
@@ -71,6 +74,11 @@ moesif.start();
 
 // Identify the user with Moesif such as when user logs in
 moesif.identifyUser('12345');
+  
+// Log UI actions like clicked sign up  
+moesif.track('clicked_sign_up', {
+  button_label: 'Get Started'
+});  
 ```
 
 With the `require` method, the `moesif` object is not attached to any global scope, but you can attach to the global window object easily:
@@ -139,26 +147,6 @@ moesif.init(options);
 
 ```
 
-#### start, () => null
-
-```
-moesif.start()
-```
-
-When you call `start()`, this SDK will log API calls to:
-
-- Your own APIs (such as an API powering your Single Page App)
-- 3rd party APIs (such as to Stripe and Twilio)
-- Decentralized APIs such as DApps communicating with Ethereum Web3/interactions with smart contracts
-
-#### stop, () => null
-
-```
-moesif.stop()
-```
-
-Stops logging API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed. However, you can call `stop` directly if you want more control. Call `start` again to restart logging.
-
 #### identifyUser, (string, object) => null
 
 When a user logs into your website and you have their user id, identify the user with your userId.
@@ -213,13 +201,33 @@ moesif.identifySession('d23xdefc3ijhcv93hf4h38f90h43f');
 
 #### track, (string, object) => null
 
-Track UI actions. By tracking UI actions.  First argument is an action name, which is required. Second parameter is an optional metadata object related to this action event.
+Track UI actions such as "clicked sign up" or "made a purchase". By tracking UI actions in addition to API usage via one of the [Moesif server SDKs](https://www.moesif.com/implementation), you'll be able to understand the entire customer journey from customer sign up to first API call.  First argument is an action name as a string, which is required. Second parameter is an optional metadata object related to this action event.
 
 ```
-moesif.track('clicked_button', {
-  button_color: 'blue',
+moesif.track('clicked_sign_up', {
+  button_label: 'Get Started'
 });
 ```
+
+#### start, () => null
+
+```
+moesif.start()
+```
+
+When you call `start()`, this SDK will log API calls to:
+
+- Your own APIs (such as an API powering your Single Page App)
+- 3rd party APIs (such as to Stripe and Twilio)
+- Decentralized APIs such as DApps communicating with Ethereum Web3/interactions with smart contracts
+
+#### stop, () => null
+
+```
+moesif.stop()
+```
+
+Stops logging API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed. However, you can call `stop` directly if you want more control. Call `start` again to restart logging.
 
 #### useWeb3, (web3) => boolean
 
