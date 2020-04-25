@@ -41,6 +41,8 @@
     moesif and send to Moesif.
 </p>
 <button id="send">Send an event to placeholder api server</button>
+<br />
+<button id="track">Send tracked UI action</button>
 <script type="text/javascript">
     if ($) {
       console.log('yay, jquery is defined');
@@ -51,6 +53,13 @@
         method: 'GET'
       }).then(function(data) {
         console.log(data);
+      });
+    });
+
+    $( "#track" ).click(function() {
+      console.log('about to start track');
+      moesif.track('button_click', {
+        foo: 'bar'
       });
     });
 </script>

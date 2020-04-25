@@ -1,8 +1,8 @@
 define(function () { 'use strict';
 
     var Config = {
-        DEBUG: false,
-        LIB_VERSION: '1.5.3'
+        DEBUG: true,
+        LIB_VERSION: '1.5.5'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -28,9 +28,9 @@ define(function () { 'use strict';
     var toString = ObjProto.toString;
     var hasOwnProperty = ObjProto.hasOwnProperty;
     var windowConsole = win.console;
-    var navigator = win.navigator;
+    var navigator$1 = win.navigator;
     var document$1 = win.document;
-    var userAgent = navigator.userAgent;
+    var userAgent = navigator$1.userAgent;
     var nativeBind = FuncProto.bind;
     var nativeForEach = ArrayProto.forEach;
     var nativeIndexOf = ArrayProto.indexOf;
@@ -1437,13 +1437,13 @@ define(function () { 'use strict';
         properties: function() {
             return _.extend(_.strip_empty_properties({
                 '$os': _.info.os(),
-                '$browser': _.info.browser(userAgent, navigator.vendor, window.opera),
+                '$browser': _.info.browser(userAgent, navigator$1.vendor, window.opera),
                 '$referrer': document$1.referrer,
                 '$referring_domain': _.info.referringDomain(document$1.referrer),
                 '$device': _.info.device(userAgent)
             }), {
                 '$current_url': window.location.href,
-                '$browser_version': _.info.browserVersion(userAgent, navigator.vendor, window.opera),
+                '$browser_version': _.info.browserVersion(userAgent, navigator$1.vendor, window.opera),
                 '$screen_height': screen.height,
                 '$screen_width': screen.width,
                 'mp_lib': 'web',
@@ -1454,9 +1454,9 @@ define(function () { 'use strict';
         people_properties: function() {
             return _.extend(_.strip_empty_properties({
                 '$os': _.info.os(),
-                '$browser': _.info.browser(userAgent, navigator.vendor, window.opera)
+                '$browser': _.info.browser(userAgent, navigator$1.vendor, window.opera)
             }), {
-                '$browser_version': _.info.browserVersion(userAgent, navigator.vendor, window.opera)
+                '$browser_version': _.info.browserVersion(userAgent, navigator$1.vendor, window.opera)
             });
         },
 
@@ -1464,7 +1464,7 @@ define(function () { 'use strict';
             return _.strip_empty_properties({
                 'mp_page': page,
                 'mp_referrer': document$1.referrer,
-                'mp_browser': _.info.browser(userAgent, navigator.vendor, window.opera),
+                'mp_browser': _.info.browser(userAgent, navigator$1.vendor, window.opera),
                 'mp_platform': _.info.os()
             });
         }
@@ -2107,6 +2107,8 @@ define(function () { 'use strict';
       //The base Uri for API calls
       HOST: 'api.moesif.net',
       EVENT_ENDPOINT: '/v1/events',
+      ACTION_ENDPOINT: '/v1/actions',
+      ACTION_BATCH_ENDPOINT: '/v1/actions/batch',
       USER_ENDPOINT: '/v1/users',
       COMPANY_ENDPOINT: '/v1/companies',
       EVENT_BATCH_ENDPOINT: '/v1/events/batch',
@@ -2173,6 +2175,34 @@ define(function () { 'use strict';
         xmlhttp.send(_.JSONEncode(event));
       }
 
+      function sendAction(action, token, debug, callback) {
+        console.log('actually sending action to moesif' + _.JSONEncode(action) );
+        var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
+        xmlhttp.setRequestHeader('Content-Type', 'application/json');
+        xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+        xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+        xmlhttp.onreadystatechange = function () {
+          if (xmlhttp.readyState === 4) {
+            if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
+              if (debug) {
+                console.log('sent action to moesif successfully: ' + (action && action['action_name']));
+              }
+            } else {
+              console.log('failed to sent action to moesif: '  + (action && action['action_name']));
+              if (debug) {
+                console.error(xmlhttp.statusText);
+              }
+              if (callback && _.isFunction(callback)) {
+                callback(new Error('can not sent to moesif'), event);
+              }
+            }
+          }
+        };
+        xmlhttp.send(_.JSONEncode(action));
+      }
+
+
       function updateUser(userProfile, token, debug, callback) {
         var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
         xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
@@ -2228,7 +2258,6 @@ define(function () { 'use strict';
 
       return {
         'init': function (options) {
-
           if (!window) {
             console.critical('Warning, this library need to be initiated on the client side');
           }
@@ -2379,6 +2408,38 @@ define(function () { 'use strict';
         'identifySession': function (session) {
           this._session = session;
           localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+        },
+        'track': function (actionName, metadata) {
+          var _self = this;
+          if (!actionName) {
+            throw new Error('track name must have action Name defined');
+          }
+
+          var actionObject = {
+            'action_name': actionName
+          };
+
+          if (_self._companyId) {
+            actionObject['company_id'] = _self._companyId;
+          }
+          if (_self._userId) {
+            actionObject['user_id'] = _self._userId;
+          }
+          if (this._session) {
+            actionObject['session_token'] = this._session;
+          }
+
+          actionObject['request'] = {
+            'uri': document.location.href,
+            'verb': 'GET', // for UI events on a current page, the current page verb is always get
+            'user_agent_string': navigator.userAgent
+          };
+
+          if (metadata) {
+            actionObject['metadata'] = metadata;
+          }
+
+          sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
         },
         recordEvent: function(event) {
           var _self = this;

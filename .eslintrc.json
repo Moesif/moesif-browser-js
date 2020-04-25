@@ -24,6 +24,7 @@
             "single"
         ],
         "no-control-regex": "off",
+        "no-useless-escape": "off",
         "semi": [
             "error",
             "always"
