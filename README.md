@@ -11,7 +11,7 @@ The Moesif browser SDK enables you to track users and their API activity and sen
 
 _This SDK can be used in conjunction with a [Moesif server SDK](https://www.moesif.com/implementation) to map out the entire customer journey from from acquisition to first API call._
 
-The SDK automatically pulls useful data from a user's device including any marketing attribution, device type, and location information. They are added to a user and/or company profile in Moesif. You can add additional properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods. 
+The SDK automatically pulls useful data from a user's device including any marketing attribution, device type, and location information. They are added to a user and/or company profile in Moesif. You can add additional properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
 This SDK can also log outgoing AJAX API calls to third party services or your own APIs with the `start()` method. API logging has native support for RESTful, GraphQL, Ethereum Web3, JSON-RPC, and other APIs
 
@@ -79,7 +79,7 @@ With the `require` method, the `moesif` object is not attached to any global sco
 window.moesif = moesif;
 ```
 
-Your Moesif Application Id will be displayed during the onboarding steps when signing up for [Moesif](https://www.moesif.com/) You can always find your Moesif Application Id at any time by logging 
+Your Moesif Application Id will be displayed during the onboarding steps when signing up for [Moesif](https://www.moesif.com/) You can always find your Moesif Application Id at any time by logging
 into the [_Moesif Portal_](https://www.moesif.com/), go to top right menu,
 and then clicking _Installation_.
 
@@ -105,12 +105,12 @@ moesif.identifyUser('12345', {
 
 ### Storing company metadata
 
-A user can be linked to a company which can be helpful to track account level usage if your are a B2B company. 
+A user can be linked to a company which can be helpful to track account level usage if your are a B2B company.
 
 ```javascript
-// Only the first argument is a string containing the company id. This is the only required field. 
+// Only the first argument is a string containing the company id. This is the only required field.
 // The second argument is a object used to store a company info like plan, MRR, and company demographics.
-// The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.  
+// The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.
 metadata = {
   orgName: 'Acme, Inc',
   planName: 'Free Plan',
@@ -182,9 +182,9 @@ moesif.identifyUser('12345', {
 Similar to `identifyUser`, but for tracking companies which is recommended for B2B companies.
 You can use both `identifyUser` and `identifyCompany` or just one. If both are used, the user is linked as a member of the company.
 
-Only the first argument is a string containing the company id. This is the only required field. 
+Only the first argument is a string containing the company id. This is the only required field.
 The second argument is a object used to store a company info like plan, MRR, and company demographics.
-The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.  
+The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.
 
 ```javascript
 metadata = {
@@ -209,6 +209,16 @@ The new session token will continue to be used until `identifySession` is called
 
 ```javascript
 moesif.identifySession('d23xdefc3ijhcv93hf4h38f90h43f');
+```
+
+#### track, (string, object) => null
+
+Track UI actions. By tracking UI actions.  First argument is an action name, which is required. Second parameter is an optional metadata object related to this action event.
+
+```
+moesif.track('clicked_button', {
+  button_color: 'blue',
+});
 ```
 
 #### useWeb3, (web3) => boolean
@@ -241,7 +251,7 @@ on the event model to see what is required.
 
 #### getMetadata, (event) => object, optional
 
-Optional function that allow you to append arbitrary JSON metadata to API calls before being logged to Moesif. 
+Optional function that allow you to append arbitrary JSON metadata to API calls before being logged to Moesif.
 
 full options example:
 

@@ -13,6 +13,8 @@ var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: 'api.moesif.net',
   EVENT_ENDPOINT: '/v1/events',
+  ACTION_ENDPOINT: '/v1/actions',
+  ACTION_BATCH_ENDPOINT: '/v1/actions/batch',
   USER_ENDPOINT: '/v1/users',
   COMPANY_ENDPOINT: '/v1/companies',
   EVENT_BATCH_ENDPOINT: '/v1/events/batch',
@@ -98,6 +100,34 @@ export default function () {
     xmlhttp.send(_.JSONEncode(event));
   }
 
+  function sendAction(action, token, debug, callback) {
+    console.log('actually sending action to moesif' + _.JSONEncode(action) );
+    var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
+    xmlhttp.setRequestHeader('Content-Type', 'application/json');
+    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+    xmlhttp.onreadystatechange = function () {
+      if (xmlhttp.readyState === 4) {
+        if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
+          if (debug) {
+            console.log('sent action to moesif successfully: ' + (action && action['action_name']));
+          }
+        } else {
+          console.log('failed to sent action to moesif: '  + (action && action['action_name']));
+          if (debug) {
+            console.error(xmlhttp.statusText);
+          }
+          if (callback && _.isFunction(callback)) {
+            callback(new Error('can not sent to moesif'), event);
+          }
+        }
+      }
+    };
+    xmlhttp.send(_.JSONEncode(action));
+  }
+
+
   function updateUser(userProfile, token, debug, callback) {
     var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
     xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
@@ -153,7 +183,6 @@ export default function () {
 
   return {
     'init': function (options) {
-
       if (!window) {
         console.critical('Warning, this library need to be initiated on the client side');
       }
@@ -304,6 +333,38 @@ export default function () {
     'identifySession': function (session) {
       this._session = session;
       localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+    },
+    'track': function (actionName, metadata) {
+      var _self = this;
+      if (!actionName) {
+        throw new Error('track name must have action Name defined');
+      }
+
+      var actionObject = {
+        'action_name': actionName
+      };
+
+      if (_self._companyId) {
+        actionObject['company_id'] = _self._companyId;
+      }
+      if (_self._userId) {
+        actionObject['user_id'] = _self._userId;
+      }
+      if (this._session) {
+        actionObject['session_token'] = this._session;
+      }
+
+      actionObject['request'] = {
+        'uri': document.location.href,
+        'verb': 'GET', // for UI events on a current page, the current page verb is always get
+        'user_agent_string': navigator.userAgent
+      };
+
+      if (metadata) {
+        actionObject['metadata'] = metadata;
+      }
+
+      sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
     },
     recordEvent: function(event) {
       var _self = this;
