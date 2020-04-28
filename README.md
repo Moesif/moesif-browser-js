@@ -7,7 +7,7 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-The Moesif browser SDK enables you to track user behavior and their UI actions and send to [Moesif's](https://www.moesif.com) API analytics service. This SDK can be used in conjunction with a [Moesif server SDK](https://www.moesif.com/implementation) to track API usage. This enables you to measure the entire customer journey from from _clicked sign up_ to _made first API call._
+The Moesif browser SDK enables you to track user behavior and their website actions and send to [Moesif's](https://www.moesif.com) API analytics service. This SDK can be used in conjunction with a [Moesif server SDK](https://www.moesif.com/implementation) to monitor API usage. This enables you map out the entire customer journey from from _clicked sign up_ to _made first API call._
 
 The SDK also pulls useful data from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
@@ -201,7 +201,7 @@ moesif.identifySession('d23xdefc3ijhcv93hf4h38f90h43f');
 
 #### track, (string, object) => null
 
-Track UI actions such as "clicked sign up" or "made a purchase". By tracking UI actions in addition to API usage via one of the [Moesif server SDKs](https://www.moesif.com/implementation), you'll be able to understand the entire customer journey from customer sign up to first API call.  First argument is an action name as a string, which is required. Second parameter is an optional metadata object related to this action event.
+Track user actions such as "clicked sign up" or "made a purchase". By tracking user actions in addition to API usage via one of the [Moesif server SDKs](https://www.moesif.com/implementation), you'll be able to understand the entire customer journey from inital sign up to first API call.  First argument is an action name as a string, which is required. Second parameter is an optional metadata object related to this action event. [See API Reference](https://www.moesif.com/docs/api#track-a-user-action)
 
 ```
 moesif.track('clicked_sign_up', {
@@ -249,7 +249,7 @@ This is the collector API key that is obtained from your Moesif account. Collect
 #### skip, (event) => boolean, optional
 
 Optional function that to determine on if a particular event should be skipped logging.
-The parameter passed in is an event model. [Detail on the event model here](https://www.moesif.com/docs/api#create-an-event).
+The parameter passed in is an event model. [See event model](https://www.moesif.com/docs/api#log-an-api-call).
 
 #### maskContent, (event) => event, optional
 
