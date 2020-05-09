@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.5.5'
+        LIB_VERSION: '1.5.6'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
