@@ -2,7 +2,7 @@ define(function () { 'use strict';
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.5.6'
+        LIB_VERSION: '1.5.8'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
