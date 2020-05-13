@@ -2,7 +2,7 @@
  * Created by Xingheng on 2/1/17.
  */
 
-import { _, console } from './utils';
+import { _, console, userAgent } from './utils';
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './captureFetch';
@@ -22,6 +22,29 @@ var MOESIF_CONSTANTS = {
   STORED_COMPANY_ID: 'moesif_stored_company_id',
   STORED_SESSION_ID: 'moesif_stored_session_id'
 };
+
+
+/*
+ * Dynamic... constants? Is that an oxymoron?
+ */
+// http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
+// https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
+var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
+
+// IE<10 does not support cross-origin XHR's but script tags
+// with defer won't block window.onload; ENQUEUE_REQUESTS
+// should only be true for Opera<12
+var ENQUEUE_REQUESTS = !USE_XHR && (userAgent.indexOf('MSIE') === -1) && (userAgent.indexOf('Mozilla') === -1);
+
+// save reference to navigator.sendBeacon so it can be minified
+var sendBeacon = null;
+if (navigator['sendBeacon']) {
+    sendBeacon = function() {
+        // late reference to navigator.sendBeacon to allow patching/spying
+        return navigator['sendBeacon'].apply(navigator, arguments);
+    };
+}
+
 
 var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
@@ -188,6 +211,7 @@ export default function () {
       }
 
       ensureValidOptions(options);
+
       var ops = {};
 
       ops.getTags = options['getTags'] || function () {
@@ -214,6 +238,8 @@ export default function () {
       ops.disableReferrer = options['disableReferrer'];
       ops.disableGclid = options['disableGclid'];
       ops.disableUtm = options['disableUtm'];
+
+      ops.batch = options['batch'] || false;
 
       this._options = ops;
       this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
