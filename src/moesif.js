@@ -99,108 +99,6 @@ function ensureValidOptions(options) {
 export default function () {
   console.log('moesif object creator is called');
 
-  // function sendEvent(event, token, debug, callback) {
-  //   console.log('actually sending to log event ' + _.JSONEncode(event));
-  //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //         if (debug) {
-  //           console.log('sent to moesif successfully: ' + event['request']['uri']);
-  //         }
-  //       } else {
-  //         console.log('failed to sent to moesif: ' + event['request']['uri']);
-  //         if (debug) {
-  //           console.error(xmlhttp.statusText);
-  //         }
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not sent to moesif'), event);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(event));
-  // }
-
-  // function sendAction(action, token, debug, callback) {
-  //   console.log('actually sending action to moesif' + _.JSONEncode(action));
-  //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //         if (debug) {
-  //           console.log('sent action to moesif successfully: ' + (action && action['action_name']));
-  //         }
-  //       } else {
-  //         console.log('failed to sent action to moesif: ' + (action && action['action_name']));
-  //         if (debug) {
-  //           console.error(xmlhttp.statusText);
-  //         }
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not sent to moesif'), event);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(action));
-  // }
-
-  // function updateUser(userProfile, token, debug, callback) {
-  //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //         if (debug) {
-  //           console.log('update user to moesif successfully: ' + userProfile['user_id']);
-  //         }
-  //       } else {
-  //         console.log('update user to moesif failed ' + userProfile['user_id']);
-  //         if (debug) {
-  //           console.error(xmlhttp.statusText);
-  //         }
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not update user to moesif'), null, userProfile);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(userProfile));
-  // }
-
-  // function updateCompany(companyProfile, token, debug, callback) {
-  //   var xmlhttp = new XMLHttpRequest();
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //           console.log('update company to moesif successfully: ' + companyProfile['company_id']);
-  //       } else {
-  //         console.log('update company to moesif failed ' + companyProfile['company_id']);
-  //         console.error(xmlhttp.statusText);
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not update company to moesif'), null, companyProfile);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(companyProfile));
-  // }
-
   return {
     'init': function (options) {
       if (!window) {
@@ -291,27 +189,60 @@ export default function () {
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
         xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+
+        if (options.timeout_ms && typeof xmlhttp.timeout !== 'undefined') {
+          xmlhttp.timeout = options.timeout_ms;
+          var startTime = new Date().getTime();
+        }
         xmlhttp.onreadystatechange = function () {
-          if (xmlhttp.readyState === 4) {
+          if (xmlhttp.readyState === 4) { // XMLHttpRequest.DONE == 4, except in safari 4
             if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-              console.log('sent to moesif successfully: ' + data);
+              if (callback) {
+                var response;
+                try {
+                  response = _.JSONDecode(xmlhttp.responseText);
+                } catch (e) {
+                  console.error(e);
+                  if (options.ignore_json_errors) {
+                    response = xmlhttp.responseText;
+                  } else {
+                    return;
+                  }
+                }
+                callback(response);
+              }
             } else {
-              console.log('failed to sent to moesif: ' + data);
-              console.error(xmlhttp.statusText);
-              if (callback && _.isFunction(callback)) {
-                callback(new Error('can not sent to moesif'), data);
+              var error;
+              if (
+                xmlhttp.timeout &&
+                !xmlhttp.status &&
+                new Date().getTime() - startTime >= xmlhttp.timeout
+              ) {
+                error = 'timeout';
+              } else {
+                error = 'Bad HTTP status: ' + xmlhttp.status + ' ' + xmlhttp.statusText;
+              }
+              console.error(error);
+              if (callback) {
+                callback({ status: 0, error: error, xhr_req: xmlhttp }); // eslint-disable-line camelcase
               }
             }
           }
         };
+
         xmlhttp.send(JSONStringify(data));
       } catch (err) {
         console.error('failed to send event to moesif' + event['request']['uri']);
         console.error(err);
+         if (callback) {
+          callback({status: 0, error: err });
+        }
       }
     },
     initBatching: function () {
       var applicationId = this._options.applicationId;
+
+      console.log('does requestBatch.events exists? ' + this.requestBatchers.events);
 
       if (!this.requestBatchers.events) {
         var batchConfig = {
@@ -326,11 +257,15 @@ export default function () {
           }, this)
         };
 
+        var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+        var actionsBatcher = new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+
         this.requestBatchers = {
-          events: new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig),
-          actions: new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig)
+          events: eventsBatcher,
+          actions: actionsBatcher
         };
       }
+
       _.each(this.requestBatchers, function (batcher) {
         batcher.start();
       });
@@ -339,6 +274,8 @@ export default function () {
       var requestInitiated = true;
 
       if (this._options.batch && batcher) {
+        console.log('current batcher storage key is  ' + batcher.queue.storageKey);
+
         batcher.enqueue(data);
       } else {
         // execute immediately
@@ -516,11 +453,12 @@ export default function () {
 
       // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
       var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
+      console.log('sending or queuing: ' + actionName);
       return _self._sendOrBatch(
         actionObject,
         _self._options.applicationId,
         endPoint,
-        _self.requestBatchers.events,
+        _self.requestBatchers.actions,
         _self._options.callback
       );
     },
@@ -564,6 +502,7 @@ export default function () {
 
       if (!_self._options.skip(event) && !isMoesif(event)) {
         // sendEvent(logData, _self._options.applicationId, _self._options.callback);
+        console.log('sending or queuing' + event['request']['uri']);
         var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
         _self._sendOrBatch(
           logData,

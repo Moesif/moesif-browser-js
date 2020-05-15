@@ -693,108 +693,6 @@ function ensureValidOptions(options) {
 exports['default'] = function () {
   _utils.console.log('moesif object creator is called');
 
-  // function sendEvent(event, token, debug, callback) {
-  //   console.log('actually sending to log event ' + _.JSONEncode(event));
-  //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //         if (debug) {
-  //           console.log('sent to moesif successfully: ' + event['request']['uri']);
-  //         }
-  //       } else {
-  //         console.log('failed to sent to moesif: ' + event['request']['uri']);
-  //         if (debug) {
-  //           console.error(xmlhttp.statusText);
-  //         }
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not sent to moesif'), event);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(event));
-  // }
-
-  // function sendAction(action, token, debug, callback) {
-  //   console.log('actually sending action to moesif' + _.JSONEncode(action));
-  //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //         if (debug) {
-  //           console.log('sent action to moesif successfully: ' + (action && action['action_name']));
-  //         }
-  //       } else {
-  //         console.log('failed to sent action to moesif: ' + (action && action['action_name']));
-  //         if (debug) {
-  //           console.error(xmlhttp.statusText);
-  //         }
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not sent to moesif'), event);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(action));
-  // }
-
-  // function updateUser(userProfile, token, debug, callback) {
-  //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //         if (debug) {
-  //           console.log('update user to moesif successfully: ' + userProfile['user_id']);
-  //         }
-  //       } else {
-  //         console.log('update user to moesif failed ' + userProfile['user_id']);
-  //         if (debug) {
-  //           console.error(xmlhttp.statusText);
-  //         }
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not update user to moesif'), null, userProfile);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(userProfile));
-  // }
-
-  // function updateCompany(companyProfile, token, debug, callback) {
-  //   var xmlhttp = new XMLHttpRequest();
-  //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
-  //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-  //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-  //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-  //   xmlhttp.onreadystatechange = function () {
-  //     if (xmlhttp.readyState === 4) {
-  //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-  //           console.log('update company to moesif successfully: ' + companyProfile['company_id']);
-  //       } else {
-  //         console.log('update company to moesif failed ' + companyProfile['company_id']);
-  //         console.error(xmlhttp.statusText);
-  //         if (callback && _.isFunction(callback)) {
-  //           callback(new Error('can not update company to moesif'), null, companyProfile);
-  //         }
-  //       }
-  //     }
-  //   };
-  //   xmlhttp.send(JSONStringify(companyProfile));
-  // }
-
   return {
     'init': function init(options) {
       if (!window) {
@@ -866,36 +764,74 @@ exports['default'] = function () {
     },
     _executeRequest: function _executeRequest(url, data, options, callback) {
       var token = options && options.applicationId || this._options.applicationId;
+      var method = options && options.method || 'POST';
+      // options = {
+      //   method: 'POST',
+      //   verbose: true,
+      //   ignore_json_errors: true, // eslint-disable-line camelcase
+      //   timeout_ms: timeoutMS, // eslint-disable-line camelcase
+      //   applicationId
+      // };
 
       // right now we onlu support USE_XHR
 
       try {
         var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
-        xmlhttp.open('POST', url);
+        xmlhttp.open(method, url);
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
         xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
+
+        if (options.timeout_ms && typeof xmlhttp.timeout !== 'undefined') {
+          xmlhttp.timeout = options.timeout_ms;
+          var startTime = new Date().getTime();
+        }
         xmlhttp.onreadystatechange = function () {
           if (xmlhttp.readyState === 4) {
+            // XMLHttpRequest.DONE == 4, except in safari 4
             if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-              _utils.console.log('sent to moesif successfully: ' + data);
+              if (callback) {
+                var response;
+                try {
+                  response = _utils._.JSONDecode(xmlhttp.responseText);
+                } catch (e) {
+                  _utils.console.error(e);
+                  if (options.ignore_json_errors) {
+                    response = xmlhttp.responseText;
+                  } else {
+                    return;
+                  }
+                }
+                callback(response);
+              }
             } else {
-              _utils.console.log('failed to sent to moesif: ' + data);
-              _utils.console.error(xmlhttp.statusText);
-              if (callback && _utils._.isFunction(callback)) {
-                callback(new Error('can not sent to moesif'), data);
+              var error;
+              if (xmlhttp.timeout && !xmlhttp.status && new Date().getTime() - startTime >= xmlhttp.timeout) {
+                error = 'timeout';
+              } else {
+                error = 'Bad HTTP status: ' + xmlhttp.status + ' ' + xmlhttp.statusText;
+              }
+              _utils.console.error(error);
+              if (callback) {
+                callback({ status: 0, error: error, xhr_req: xmlhttp }); // eslint-disable-line camelcase
               }
             }
           }
         };
+
         xmlhttp.send((0, _utils.JSONStringify)(data));
       } catch (err) {
         _utils.console.error('failed to send event to moesif' + event['request']['uri']);
         _utils.console.error(err);
+        if (callback) {
+          callback({ status: 0, error: err });
+        }
       }
     },
     initBatching: function initBatching() {
       var applicationId = this._options.applicationId;
+
+      _utils.console.log('does requestBatch.events exists? ' + this.requestBatchers.events);
 
       if (!this.requestBatchers.events) {
         var batchConfig = {
@@ -905,11 +841,15 @@ exports['default'] = function () {
           }, this)
         };
 
+        var eventsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+        var actionsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+
         this.requestBatchers = {
-          events: new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig),
-          actions: new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig)
+          events: eventsBatcher,
+          actions: actionsBatcher
         };
       }
+
       _utils._.each(this.requestBatchers, function (batcher) {
         batcher.start();
       });
@@ -918,6 +858,8 @@ exports['default'] = function () {
       var requestInitiated = true;
 
       if (this._options.batch && batcher) {
+        _utils.console.log('current batcher storage key is  ' + batcher.queue.storageKey);
+
         batcher.enqueue(data);
       } else {
         // execute immediately
@@ -1084,7 +1026,8 @@ exports['default'] = function () {
 
       // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
       var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
-      return _self._sendOrBatch(actionObject, _self._options.applicationId, endPoint, _self.requestBatchers.events, _self._options.callback);
+      _utils.console.log('sending or queuing: ' + actionName);
+      return _self._sendOrBatch(actionObject, _self._options.applicationId, endPoint, _self.requestBatchers.actions, _self._options.callback);
     },
     recordEvent: function recordEvent(event) {
       if (isMoesif(event)) {
@@ -1126,6 +1069,7 @@ exports['default'] = function () {
 
       if (!_self._options.skip(event) && !isMoesif(event)) {
         // sendEvent(logData, _self._options.applicationId, _self._options.callback);
+        _utils.console.log('sending or queuing' + event['request']['uri']);
         var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
         _self._sendOrBatch(logData, _self._options.applicationId, endPoint, _self.requestBatchers.events, _self._options.callback);
       } else {
@@ -1244,6 +1188,7 @@ var RequestBatcher = function RequestBatcher(storageKey, endpoint, options) {
  * Add one item to queue.
  */
 RequestBatcher.prototype.enqueue = function (item, cb) {
+    logger.log('enqueueing ' + (0, _utils.JSONStringify)(item));
     this.queue.enqueue(item, this.flushInterval, cb);
 };
 
@@ -1285,6 +1230,7 @@ RequestBatcher.prototype.resetBatchSize = function () {
  * Restore flush interval time configuration to whatever is set in the main SDK.
  */
 RequestBatcher.prototype.resetFlush = function () {
+    console.log('reset flush is called');
     this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
 };
 
@@ -1293,6 +1239,7 @@ RequestBatcher.prototype.resetFlush = function () {
  */
 RequestBatcher.prototype.scheduleFlush = function (flushMS) {
     this.flushInterval = flushMS;
+    logger.log('scheduleFlush is called with next try' + flushMS);
     if (!this.stopped) {
         // don't schedule anymore if batching has been stopped
         this.timeoutID = setTimeout(_utils._.bind(this.flush, this), this.flushInterval);
@@ -1311,7 +1258,7 @@ RequestBatcher.prototype.scheduleFlush = function (flushMS) {
  */
 RequestBatcher.prototype.flush = function (options) {
     try {
-
+        logger.log('flush is called with ' + options);
         if (this.requestInProgress) {
             logger.log('Flush: Request already in progress');
             return;
@@ -1320,6 +1267,8 @@ RequestBatcher.prototype.flush = function (options) {
         options = options || {};
         var currentBatchSize = this.batchSize;
         var batch = this.queue.fillBatch(currentBatchSize);
+        logger.log('current batch size is ' + batch.length);
+
         if (batch.length < 1) {
             this.resetFlush();
             return; // nothing to do
@@ -1334,6 +1283,8 @@ RequestBatcher.prototype.flush = function (options) {
         });
         var batchSendCallback = _utils._.bind(function (res) {
             this.requestInProgress = false;
+
+            logger.log('batchSend callback ');
 
             try {
 
@@ -1375,6 +1326,8 @@ RequestBatcher.prototype.flush = function (options) {
                     removeItemsFromQueue = true;
                 }
 
+                logger.log('should remove sent items? ' + removeItemsFromQueue);
+
                 if (removeItemsFromQueue) {
                     this.queue.removeItemsByID(_utils._.map(batch, function (item) {
                         return item['id'];
@@ -1395,7 +1348,7 @@ RequestBatcher.prototype.flush = function (options) {
         if (options.sendBeacon) {
             requestOptions.transport = 'sendBeacon';
         }
-        logger.log('MIXPANEL REQUEST:', this.endpoint, dataForRequest);
+        logger.log('Moesif Request:', this.endpoint, dataForRequest);
         this.sendRequest(this.endpoint, dataForRequest, requestOptions, batchSendCallback);
     } catch (err) {
         logger.error('Error flushing request queue', err);
@@ -1474,6 +1427,7 @@ RequestQueue.prototype.enqueue = function (item, flushInterval, cb) {
             succeeded = this.saveToStorage(storedQueue);
             if (succeeded) {
                 // only add to in-memory queue when storage succeeds
+                logger.log('succeeded saving to storage');
                 this.memQueue.push(queueEntry);
             }
         } catch (err) {
@@ -1498,12 +1452,16 @@ RequestQueue.prototype.enqueue = function (item, flushInterval, cb) {
  * already passed).
  */
 RequestQueue.prototype.fillBatch = function (batchSize) {
+    logger.log('trying to fill batchSize ' + batchSize);
     var batch = this.memQueue.slice(0, batchSize);
+    logger.log('current memQueue size ' + this.memQueue.length);
+
     if (batch.length < batchSize) {
         // don't need lock just to read events; localStorage is thread-safe
         // and the worst that could happen is a duplicate send of some
         // orphaned events, which will be deduplicated on the server side
         var storedQueue = this.readFromStorage();
+        logger.log('current storedQueue size ' + storedQueue.length);
         if (storedQueue.length) {
             // item IDs already in batch; don't duplicate out of storage
             var idsInBatch = {}; // poor man's Set
@@ -1545,6 +1503,8 @@ var filterOutIDsAndInvalid = function filterOutIDsAndInvalid(items, idSet) {
  * and persisted queue
  */
 RequestQueue.prototype.removeItemsByID = function (ids, cb) {
+    logger.log('about to remove sent items from queue ' + ids);
+
     var idSet = {}; // poor man's Set
     _utils._.each(ids, function (id) {
         idSet[id] = true;
@@ -1556,12 +1516,14 @@ RequestQueue.prototype.removeItemsByID = function (ids, cb) {
         try {
             var storedQueue = this.readFromStorage();
             storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
+            logger.log('new storedQueue ' + storedQueue && storedQueue.length);
             succeeded = this.saveToStorage(storedQueue);
         } catch (err) {
             logger.error('Error removing items', ids);
             succeeded = false;
         }
         if (cb) {
+            logger.log('triggering callback of removalItems');
             cb(succeeded);
         }
     }, this), function lockFailure(err) {
@@ -1579,6 +1541,7 @@ RequestQueue.prototype.removeItemsByID = function (ids, cb) {
 RequestQueue.prototype.readFromStorage = function () {
     var storageEntry;
     try {
+        logger.log('trying to get storage with storage key ' + this.storageKey);
         storageEntry = this.storage.getItem(this.storageKey);
         if (storageEntry) {
             storageEntry = (0, _utils.JSONParse)(storageEntry);
@@ -1586,6 +1549,8 @@ RequestQueue.prototype.readFromStorage = function () {
                 logger.error('Invalid storage entry:', storageEntry);
                 storageEntry = null;
             }
+        } else {
+            logger.log('storageEntry is empty');
         }
     } catch (err) {
         logger.error('Error retrieving queue', err);

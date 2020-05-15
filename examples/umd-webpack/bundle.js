@@ -108,7 +108,7 @@
 	    };
 
 	    // Console override
-	    var console = {
+	    var console$1 = {
 	        /** @type {function(...[*])} */
 	        log: function() {
 	            if (Config.DEBUG && !_.isUndefined(windowConsole) && windowConsole) {
@@ -404,7 +404,7 @@
 	            try {
 	                return f.apply(this, arguments);
 	            } catch (e) {
-	                console.critical('Implementation error. Please contact support@moesif.com.');
+	                console$1.critical('Implementation error. Please contact support@moesif.com.');
 	            }
 	        };
 	    };
@@ -1125,7 +1125,7 @@
 	    // _.localStorage
 	    _.localStorage = {
 	        error: function(msg) {
-	            console.error('localStorage error: ' + msg);
+	            console$1.error('localStorage error: ' + msg);
 	        },
 
 	        get: function(name) {
@@ -1578,15 +1578,15 @@
 	    var log_func_with_prefix = function(func, prefix) {
 	      return function() {
 	          arguments[0] = '[' + prefix + '] ' + arguments[0];
-	          return func.apply(console, arguments);
+	          return func.apply(console$1, arguments);
 	      };
 	    };
 
 	    var console_with_prefix = function(prefix) {
 	      return {
-	          log: log_func_with_prefix(console.log, prefix),
-	          error: log_func_with_prefix(console.error, prefix),
-	          critical: log_func_with_prefix(console.critical, prefix)
+	          log: log_func_with_prefix(console$1.log, prefix),
+	          error: log_func_with_prefix(console$1.error, prefix),
+	          critical: log_func_with_prefix(console$1.critical, prefix)
 	      };
 	    };
 
@@ -1662,13 +1662,13 @@
 
 	              if (postData) {
 	                if (typeof postData === 'string') {
-	                  console.log('request post data is string');
-	                  console.log(postData);
+	                  console$1.log('request post data is string');
+	                  console$1.log(postData);
 	                  try {
 	                    requestModel['body'] = _.JSONDecode(postData);
 	                  } catch(err) {
-	                    console.log('JSON decode failed');
-	                    console.log(err);
+	                    console$1.log('JSON decode failed');
+	                    console$1.log(err);
 	                    requestModel['transfer_encoding'] = 'base64';
 	                    requestModel['body'] = _.base64Encode(postData);
 	                  }
@@ -1782,13 +1782,13 @@
 
 	      if (payload) {
 	        if (typeof payload === 'string') {
-	          console.log('request post data is string');
-	          console.log(payload);
+	          console$1.log('request post data is string');
+	          console$1.log(payload);
 	          try {
 	            requestModel['body'] = _.JSONDecode(payload);
 	          } catch(err) {
-	            console.log('JSON decode failed');
-	            console.log(err);
+	            console$1.log('JSON decode failed');
+	            console$1.log(err);
 	            requestModel['transfer_encoding'] = 'base64';
 	            requestModel['body'] = _.base64Encode(payload);
 	          }
@@ -1849,20 +1849,20 @@
 	     */
 	    function captureWeb3Requests(myWeb3, recorder, options) {
 	      if (myWeb3['currentProvider']) {
-	        console.log('found my currentProvider, patching it');
+	        console$1.log('found my currentProvider, patching it');
 	        var CPDR = myWeb3['currentProvider'];
 
 	        var send = CPDR['send'];
 	        var sendAsync = CPDR['sendAsync'];
 
 	        CPDR['send'] = function(payload) {
-	          console.log('patched send is called');
-	          console.log(payload);
+	          console$1.log('patched send is called');
+	          console$1.log(payload);
 	          var _startTime = (new Date()).toISOString();
 	          var result = send.apply(CPDR, arguments);
 
-	          console.log('patch send result is back');
-	          console.log(result);
+	          console$1.log('patch send result is back');
+	          console$1.log(result);
 	          var _endTime = (new Date()).toISOString();
 	          if (recorder) {
 	            recorder(createEventModel(CPDR, _startTime, _endTime, payload, result));
@@ -1872,27 +1872,27 @@
 	        };
 
 	        CPDR['sendAsync'] = function(payload, callback) {
-	          console.log('patched sendAsync is called');
-	          console.log(payload);
+	          console$1.log('patched sendAsync is called');
+	          console$1.log(payload);
 	          var _startTime = (new Date()).toISOString();
 	          var provider = CPDR;
 
 	          var _callback = function(err, result) {
 	            var _endTime = (new Date()).toISOString();
 
-	            console.log('inside patched callback');
-	            console.log(result);
+	            console$1.log('inside patched callback');
+	            console$1.log(result);
 	            if (recorder) {
-	              console.log('about to record event');
+	              console$1.log('about to record event');
 	              recorder(createEventModel(provider, _startTime, _endTime, payload, result, err));
 	            }
 
-	            console.log('triggering original callback');
+	            console$1.log('triggering original callback');
 
 	            callback(err, result);
 	          };
 
-	          console.log(payload);
+	          console$1.log(payload);
 	          sendAsync.apply(CPDR, [payload, _callback]);
 	        };
 
@@ -1914,9 +1914,9 @@
 	     */
 	    function processBodyAndInitializedModel(buffer) {
 	      if (!buffer) return {};
-	      console.log('about to decode buffer');
-	      console.log(buffer);
-	      console.log(buffer.byteLength);
+	      console$1.log('about to decode buffer');
+	      console$1.log(buffer);
+	      console$1.log(buffer.byteLength);
 
 	      if (buffer.byteLength <= 0) {
 	        // empty body.
@@ -1930,15 +1930,15 @@
 	        try {
 	          return { 'body': _.JSONDecode(text) };
 	        } catch (err) {
-	          console.error(err);
+	          console$1.error(err);
 	          return {
 	            'transfer_encoding': 'base64',
 	            'body': _.base64Encode(text)
 	          };
 	        }
 	      } catch (err) {
-	        console.error(err);
-	        console.log(buffer);
+	        console$1.error(err);
+	        console$1.log(buffer);
 	        return {
 	          'transfer_encoding': 'base64',
 	          'body': 'can not be decoded'
@@ -1953,13 +1953,13 @@
 	     */
 	    function parseHeaders(headers) {
 	      var result = {};
-	      console.log('parseheaders is called');
+	      console$1.log('parseheaders is called');
 
 	      var entries = headers.entries();
 
 	      var entry = entries.next();
 	      while (!entry.done) {
-	        console.log(entry.value); // 1 3 5 7 9
+	        console$1.log(entry.value); // 1 3 5 7 9
 	        result[entry.value[0]] = entry.value[1];
 
 	        entry = entries.next();
@@ -1975,9 +1975,9 @@
 	    function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
 	      try {
 	        setTimeout(function() {
-	          console.log('interception is here.');
-	          console.log(savedRequest);
-	          console.log(savedResponse);
+	          console$1.log('interception is here.');
+	          console$1.log(savedRequest);
+	          console$1.log(savedResponse);
 	          if (savedRequest && savedResponse) {
 	            // try to exract out information:
 	            // var reqHeaders = {};
@@ -1990,12 +1990,12 @@
 	            // for (var pair2 of savedResponse.headers.entries()) {
 	            //   resHeaders[pair2[0]] = pair2[1];
 	            // }
-	            console.log('inside if statement.');
+	            console$1.log('inside if statement.');
 	            try {
 	              Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function(
 	                bodies
 	              ) {
-	                console.log('processing bodies');
+	                console$1.log('processing bodies');
 	                var processedBodies = bodies.map(processBodyAndInitializedModel);
 
 	                var requestModel = Object.assign(processedBodies[0], {
@@ -2011,8 +2011,8 @@
 	                  'headers': parseHeaders(savedResponse.headers)
 	                });
 
-	                console.log(requestModel);
-	                console.log(responseModel);
+	                console$1.log(requestModel);
+	                console$1.log(responseModel);
 
 	                var event = {
 	                  'request': requestModel,
@@ -2022,20 +2022,20 @@
 	                recorder(event);
 	              });
 	            } catch (err) {
-	              console.log('error processing body');
+	              console$1.log('error processing body');
 	            }
 	          } else {
-	            console.log('savedRequest');
+	            console$1.log('savedRequest');
 	          }
 	        }, 50);
 	      } catch (err) {
-	        console.error('error processing saved fetch request and response, but move on anyways.');
-	        console.log(err);
+	        console$1.error('error processing saved fetch request and response, but move on anyways.');
+	        console$1.log(err);
 	      }
 	    }
 
 	    function interceptor(recorder, fetch, arg1, arg2) {
-	      console.log('fetch interceptor is called');
+	      console$1.log('fetch interceptor is called');
 
 	      var savedRequest = null;
 
@@ -2055,7 +2055,7 @@
 	      //   return fetch(ar1, ar2);
 	      // });
 
-	      console.log('about to perform fetch.');
+	      console$1.log('about to perform fetch.');
 	      promise = fetch(arg1, arg2);
 
 	      var savedResponse = null;
@@ -2079,14 +2079,14 @@
 	      var myenv = env || window || self;
 
 	      if (myenv['fetch']) {
-	        console.log('found fetch method.');
+	        console$1.log('found fetch method.');
 	        if (!myenv['fetch']['polyfill']) {
 	          // basically, if it is polyfill, it means
 	          // that it is using XMLhttpRequest underneath,
 	          // then no need to patch fetch.
 	          var oldFetch = myenv['fetch'];
 
-	          console.log('fetch is not polyfilled so instrumenting it');
+	          console$1.log('fetch is not polyfilled so instrumenting it');
 
 	          myenv['fetch'] = (function(fetch) {
 	            return function(arg1, arg2) {
@@ -2102,11 +2102,11 @@
 	        } else {
 	          // should not patch if it is polyfilled.
 	          // since it would duplicate the data.
-	          console.log('skip patching fetch since it is polyfilled');
+	          console$1.log('skip patching fetch since it is polyfilled');
 	          return null;
 	        }
 	      } else {
-	        console.log('there is no fetch found');
+	        console$1.log('there is no fetch found');
 	      }
 	    }
 
@@ -2156,8 +2156,8 @@
 	      // Translate the utmz cookie format into url query string format.
 	      var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
 
-	      console.log('cookie');
-	      console.log(cookie);
+	      console$1.log('cookie');
+	      console$1.log(cookie);
 
 	      var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
 	        return _.getQueryParamByName(queryName, query) ||
@@ -2229,7 +2229,7 @@
 
 	        return result;
 	      } catch (err) {
-	        console.error(err);
+	        console$1.error(err);
 	      }
 	    }
 
@@ -2434,6 +2434,7 @@
 	                succeeded = this.saveToStorage(storedQueue);
 	                if (succeeded) {
 	                    // only add to in-memory queue when storage succeeds
+	                    logger$1.log('succeeded saving to storage');
 	                    this.memQueue.push(queueEntry);
 	                }
 	            } catch(err) {
@@ -2458,12 +2459,16 @@
 	     * already passed).
 	     */
 	    RequestQueue.prototype.fillBatch = function(batchSize) {
+	        logger$1.log('trying to fill batchSize ' + batchSize);
 	        var batch = this.memQueue.slice(0, batchSize);
+	        logger$1.log('current memQueue size ' + this.memQueue.length);
+
 	        if (batch.length < batchSize) {
 	            // don't need lock just to read events; localStorage is thread-safe
 	            // and the worst that could happen is a duplicate send of some
 	            // orphaned events, which will be deduplicated on the server side
 	            var storedQueue = this.readFromStorage();
+	            logger$1.log('current storedQueue size ' + storedQueue.length);
 	            if (storedQueue.length) {
 	                // item IDs already in batch; don't duplicate out of storage
 	                var idsInBatch = {}; // poor man's Set
@@ -2503,6 +2508,8 @@
 	     * and persisted queue
 	     */
 	    RequestQueue.prototype.removeItemsByID = function(ids, cb) {
+	        logger$1.log('about to remove sent items from queue ' + ids);
+
 	        var idSet = {}; // poor man's Set
 	        _.each(ids, function(id) { idSet[id] = true; });
 
@@ -2512,12 +2519,14 @@
 	            try {
 	                var storedQueue = this.readFromStorage();
 	                storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
+	                logger$1.log('new storedQueue ' + storedQueue && storedQueue.length);
 	                succeeded = this.saveToStorage(storedQueue);
 	            } catch(err) {
 	                logger$1.error('Error removing items', ids);
 	                succeeded = false;
 	            }
 	            if (cb) {
+	                logger$1.log('triggering callback of removalItems');
 	                cb(succeeded);
 	            }
 	        }, this), function lockFailure(err) {
@@ -2535,6 +2544,7 @@
 	    RequestQueue.prototype.readFromStorage = function() {
 	        var storageEntry;
 	        try {
+	            logger$1.log('trying to get storage with storage key ' + this.storageKey);
 	            storageEntry = this.storage.getItem(this.storageKey);
 	            if (storageEntry) {
 	                storageEntry = JSONParse(storageEntry);
@@ -2542,6 +2552,8 @@
 	                    logger$1.error('Invalid storage entry:', storageEntry);
 	                    storageEntry = null;
 	                }
+	            } else {
+	              logger$1.log('storageEntry is empty');
 	            }
 	        } catch (err) {
 	            logger$1.error('Error retrieving queue', err);
@@ -2602,6 +2614,7 @@
 	     * Add one item to queue.
 	     */
 	    RequestBatcher.prototype.enqueue = function(item, cb) {
+	        logger.log('enqueueing ' + JSONStringify(item));
 	        this.queue.enqueue(item, this.flushInterval, cb);
 	    };
 
@@ -2643,6 +2656,7 @@
 	     * Restore flush interval time configuration to whatever is set in the main SDK.
 	     */
 	    RequestBatcher.prototype.resetFlush = function() {
+	        console.log('reset flush is called');
 	        this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
 	    };
 
@@ -2651,6 +2665,7 @@
 	     */
 	    RequestBatcher.prototype.scheduleFlush = function(flushMS) {
 	        this.flushInterval = flushMS;
+	        logger.log('scheduleFlush is called with next try' + flushMS);
 	        if (!this.stopped) { // don't schedule anymore if batching has been stopped
 	            this.timeoutID = setTimeout(_.bind(this.flush, this), this.flushInterval);
 	        }
@@ -2668,7 +2683,7 @@
 	     */
 	    RequestBatcher.prototype.flush = function(options) {
 	        try {
-
+	            logger.log('flush is called with ' + options);
 	            if (this.requestInProgress) {
 	                logger.log('Flush: Request already in progress');
 	                return;
@@ -2677,6 +2692,8 @@
 	            options = options || {};
 	            var currentBatchSize = this.batchSize;
 	            var batch = this.queue.fillBatch(currentBatchSize);
+	            logger.log('current batch size is ' + batch.length);
+
 	            if (batch.length < 1) {
 	                this.resetFlush();
 	                return; // nothing to do
@@ -2689,6 +2706,8 @@
 	            var dataForRequest = _.map(batch, function(item) { return item['payload']; });
 	            var batchSendCallback = _.bind(function(res) {
 	                this.requestInProgress = false;
+
+	                logger.log('batchSend callback ');
 
 	                try {
 
@@ -2738,6 +2757,8 @@
 	                        removeItemsFromQueue = true;
 	                    }
 
+	                    logger.log('should remove sent items? ' + removeItemsFromQueue);
+
 	                    if (removeItemsFromQueue) {
 	                        this.queue.removeItemsByID(
 	                            _.map(batch, function(item) { return item['id']; }),
@@ -2759,7 +2780,7 @@
 	            if (options.sendBeacon) {
 	                requestOptions.transport = 'sendBeacon';
 	            }
-	            logger.log('MIXPANEL REQUEST:', this.endpoint, dataForRequest);
+	            logger.log('Moesif Request:', this.endpoint, dataForRequest);
 	            this.sendRequest(this.endpoint, dataForRequest, requestOptions, batchSendCallback);
 
 	        } catch(err) {
@@ -2836,114 +2857,12 @@
 	    }
 
 	    function moesifCreator () {
-	      console.log('moesif object creator is called');
-
-	      // function sendEvent(event, token, debug, callback) {
-	      //   console.log('actually sending to log event ' + _.JSONEncode(event));
-	      //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-	      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
-	      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-	      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-	      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-	      //   xmlhttp.onreadystatechange = function () {
-	      //     if (xmlhttp.readyState === 4) {
-	      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-	      //         if (debug) {
-	      //           console.log('sent to moesif successfully: ' + event['request']['uri']);
-	      //         }
-	      //       } else {
-	      //         console.log('failed to sent to moesif: ' + event['request']['uri']);
-	      //         if (debug) {
-	      //           console.error(xmlhttp.statusText);
-	      //         }
-	      //         if (callback && _.isFunction(callback)) {
-	      //           callback(new Error('can not sent to moesif'), event);
-	      //         }
-	      //       }
-	      //     }
-	      //   };
-	      //   xmlhttp.send(JSONStringify(event));
-	      // }
-
-	      // function sendAction(action, token, debug, callback) {
-	      //   console.log('actually sending action to moesif' + _.JSONEncode(action));
-	      //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-	      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
-	      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-	      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-	      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-	      //   xmlhttp.onreadystatechange = function () {
-	      //     if (xmlhttp.readyState === 4) {
-	      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-	      //         if (debug) {
-	      //           console.log('sent action to moesif successfully: ' + (action && action['action_name']));
-	      //         }
-	      //       } else {
-	      //         console.log('failed to sent action to moesif: ' + (action && action['action_name']));
-	      //         if (debug) {
-	      //           console.error(xmlhttp.statusText);
-	      //         }
-	      //         if (callback && _.isFunction(callback)) {
-	      //           callback(new Error('can not sent to moesif'), event);
-	      //         }
-	      //       }
-	      //     }
-	      //   };
-	      //   xmlhttp.send(JSONStringify(action));
-	      // }
-
-	      // function updateUser(userProfile, token, debug, callback) {
-	      //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-	      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
-	      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-	      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-	      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-	      //   xmlhttp.onreadystatechange = function () {
-	      //     if (xmlhttp.readyState === 4) {
-	      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-	      //         if (debug) {
-	      //           console.log('update user to moesif successfully: ' + userProfile['user_id']);
-	      //         }
-	      //       } else {
-	      //         console.log('update user to moesif failed ' + userProfile['user_id']);
-	      //         if (debug) {
-	      //           console.error(xmlhttp.statusText);
-	      //         }
-	      //         if (callback && _.isFunction(callback)) {
-	      //           callback(new Error('can not update user to moesif'), null, userProfile);
-	      //         }
-	      //       }
-	      //     }
-	      //   };
-	      //   xmlhttp.send(JSONStringify(userProfile));
-	      // }
-
-	      // function updateCompany(companyProfile, token, debug, callback) {
-	      //   var xmlhttp = new XMLHttpRequest();
-	      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
-	      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
-	      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-	      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-	      //   xmlhttp.onreadystatechange = function () {
-	      //     if (xmlhttp.readyState === 4) {
-	      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-	      //           console.log('update company to moesif successfully: ' + companyProfile['company_id']);
-	      //       } else {
-	      //         console.log('update company to moesif failed ' + companyProfile['company_id']);
-	      //         console.error(xmlhttp.statusText);
-	      //         if (callback && _.isFunction(callback)) {
-	      //           callback(new Error('can not update company to moesif'), null, companyProfile);
-	      //         }
-	      //       }
-	      //     }
-	      //   };
-	      //   xmlhttp.send(JSONStringify(companyProfile));
-	      // }
+	      console$1.log('moesif object creator is called');
 
 	      return {
 	        'init': function (options) {
 	          if (!window) {
-	            console.critical('Warning, this library need to be initiated on the client side');
+	            console$1.critical('Warning, this library need to be initiated on the client side');
 	          }
 
 	          ensureValidOptions(options);
@@ -2993,7 +2912,7 @@
 	          if (ops.batch) {
 	            if (!localStorageSupported || !USE_XHR) {
 	              ops.batch = false;
-	              console.log('Turning off batch processing because it needs XHR and localStorage');
+	              console$1.log('Turning off batch processing because it needs XHR and localStorage');
 	            } else {
 	              this.initBatching();
 	              if (sendBeacon && window.addEventListener) {
@@ -3008,41 +2927,82 @@
 	            }
 	          }
 
-	          console.log('moesif initiated');
+	          console$1.log('moesif initiated');
 	          return this;
 	        },
 	        _executeRequest: function (url, data, options, callback) {
 	          var token = (options && options.applicationId) || this._options.applicationId;
+	          var method = (options && options.method) || 'POST';
+	          // options = {
+	          //   method: 'POST',
+	          //   verbose: true,
+	          //   ignore_json_errors: true, // eslint-disable-line camelcase
+	          //   timeout_ms: timeoutMS, // eslint-disable-line camelcase
+	          //   applicationId
+	          // };
 
 	          // right now we onlu support USE_XHR
 
 	          try {
 	            var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-	            xmlhttp.open('POST', url);
+	            xmlhttp.open(method, url);
 	            xmlhttp.setRequestHeader('Content-Type', 'application/json');
 	            xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
 	            xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+
+	            if (options.timeout_ms && typeof xmlhttp.timeout !== 'undefined') {
+	              xmlhttp.timeout = options.timeout_ms;
+	              var startTime = new Date().getTime();
+	            }
 	            xmlhttp.onreadystatechange = function () {
-	              if (xmlhttp.readyState === 4) {
+	              if (xmlhttp.readyState === 4) { // XMLHttpRequest.DONE == 4, except in safari 4
 	                if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-	                  console.log('sent to moesif successfully: ' + data);
+	                  if (callback) {
+	                    var response;
+	                    try {
+	                      response = _.JSONDecode(xmlhttp.responseText);
+	                    } catch (e) {
+	                      console$1.error(e);
+	                      if (options.ignore_json_errors) {
+	                        response = xmlhttp.responseText;
+	                      } else {
+	                        return;
+	                      }
+	                    }
+	                    callback(response);
+	                  }
 	                } else {
-	                  console.log('failed to sent to moesif: ' + data);
-	                  console.error(xmlhttp.statusText);
-	                  if (callback && _.isFunction(callback)) {
-	                    callback(new Error('can not sent to moesif'), data);
+	                  var error;
+	                  if (
+	                    xmlhttp.timeout &&
+	                    !xmlhttp.status &&
+	                    new Date().getTime() - startTime >= xmlhttp.timeout
+	                  ) {
+	                    error = 'timeout';
+	                  } else {
+	                    error = 'Bad HTTP status: ' + xmlhttp.status + ' ' + xmlhttp.statusText;
+	                  }
+	                  console$1.error(error);
+	                  if (callback) {
+	                    callback({ status: 0, error: error, xhr_req: xmlhttp }); // eslint-disable-line camelcase
 	                  }
 	                }
 	              }
 	            };
+
 	            xmlhttp.send(JSONStringify(data));
 	          } catch (err) {
-	            console.error('failed to send event to moesif' + event['request']['uri']);
-	            console.error(err);
+	            console$1.error('failed to send event to moesif' + event['request']['uri']);
+	            console$1.error(err);
+	             if (callback) {
+	              callback({status: 0, error: err });
+	            }
 	          }
 	        },
 	        initBatching: function () {
 	          var applicationId = this._options.applicationId;
+
+	          console$1.log('does requestBatch.events exists? ' + this.requestBatchers.events);
 
 	          if (!this.requestBatchers.events) {
 	            var batchConfig = {
@@ -3057,11 +3017,15 @@
 	              }, this)
 	            };
 
+	            var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+	            var actionsBatcher = new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+
 	            this.requestBatchers = {
-	              events: new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig),
-	              actions: new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig)
+	              events: eventsBatcher,
+	              actions: actionsBatcher
 	            };
 	          }
+
 	          _.each(this.requestBatchers, function (batcher) {
 	            batcher.start();
 	          });
@@ -3070,6 +3034,8 @@
 	          var requestInitiated = true;
 
 	          if (this._options.batch && batcher) {
+	            console$1.log('current batcher storage key is  ' + batcher.queue.storageKey);
+
 	            batcher.enqueue(data);
 	          } else {
 	            // execute immediately
@@ -3086,7 +3052,7 @@
 
 
 	          if (this._stopRecording || this._stopWeb3Recording) {
-	            console.log('recording has already started, please call stop first.');
+	            console$1.log('recording has already started, please call stop first.');
 	            return false;
 	          }
 
@@ -3094,11 +3060,11 @@
 	            _self.recordEvent(event);
 	          }
 
-	          console.log('moesif starting');
+	          console$1.log('moesif starting');
 	          this._stopRecording = captureXMLHttpRequest(recorder);
 
 	          if (!this._options.disableFetch) {
-	            console.log('also instrumenting fetch API');
+	            console$1.log('also instrumenting fetch API');
 	            this._stopFetchRecording = patch(recorder);
 	          }
 	          this['useWeb3'](passedInWeb3);
@@ -3126,7 +3092,7 @@
 	            this._stopWeb3Recording = captureWeb3Requests(passedInWeb3, recorder, this._options);
 	          } else if (window['web3']) {
 	            // try to patch the global web3
-	            console.log('found global web3, will capture from it');
+	            console$1.log('found global web3, will capture from it');
 	            this._stopWeb3Recording = captureWeb3Requests(window['web3'], recorder, this._options);
 	          }
 	          if (this._stopWeb3Recording) {
@@ -3169,7 +3135,7 @@
 	          try {
 	            localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
 	          } catch (err) {
-	            console.error('error saving to local storage');
+	            console$1.error('error saving to local storage');
 	          }
 	        },
 	        updateCompany: function(companyObject, applicationId, callback) {
@@ -3208,7 +3174,7 @@
 	          try {
 	            localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
 	          } catch (err) {
-	            console.error('error saving to local storage');
+	            console$1.error('error saving to local storage');
 	          }
 	        },
 	        'identifySession': function (session) {
@@ -3247,22 +3213,23 @@
 
 	          // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
 	          var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
+	          console$1.log('sending or queuing: ' + actionName);
 	          return _self._sendOrBatch(
 	            actionObject,
 	            _self._options.applicationId,
 	            endPoint,
-	            _self.requestBatchers.events,
+	            _self.requestBatchers.actions,
 	            _self._options.callback
 	          );
 	        },
 	        recordEvent: function (event) {
 	          if (isMoesif(event)) {
-	            console.log('skipped logging for requests to moesif');
+	            console$1.log('skipped logging for requests to moesif');
 	            return;
 	          }
 
 	          var _self = this;
-	          console.log('determining if should log: ' + event['request']['uri']);
+	          console$1.log('determining if should log: ' + event['request']['uri']);
 	          var logData = Object.assign({}, event);
 	          if (_self._getUserId()) {
 	            logData['user_id'] = _self._getUserId();
@@ -3295,6 +3262,7 @@
 
 	          if (!_self._options.skip(event) && !isMoesif(event)) {
 	            // sendEvent(logData, _self._options.applicationId, _self._options.callback);
+	            console$1.log('sending or queuing' + event['request']['uri']);
 	            var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
 	            _self._sendOrBatch(
 	              logData,
@@ -3304,7 +3272,7 @@
 	              _self._options.callback
 	            );
 	          } else {
-	            console.log('skipped logging for ' + event['request']['uri']);
+	            console$1.log('skipped logging for ' + event['request']['uri']);
 	          }
 	        },
 	        _getUserId: function () {

@@ -1,5 +1,5 @@
 import { RequestQueue } from './request-queue';
-import { console_with_prefix, _ } from './utils'; // eslint-disable-line camelcase
+import { console_with_prefix, _, JSONStringify } from './utils'; // eslint-disable-line camelcase
 
 // maximum interval between request retries after exponential backoff
 var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
@@ -30,6 +30,7 @@ var RequestBatcher = function(storageKey, endpoint, options) {
  * Add one item to queue.
  */
 RequestBatcher.prototype.enqueue = function(item, cb) {
+    logger.log('enqueueing ' + JSONStringify(item));
     this.queue.enqueue(item, this.flushInterval, cb);
 };
 
@@ -71,6 +72,7 @@ RequestBatcher.prototype.resetBatchSize = function() {
  * Restore flush interval time configuration to whatever is set in the main SDK.
  */
 RequestBatcher.prototype.resetFlush = function() {
+    console.log('reset flush is called');
     this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
 };
 
@@ -106,7 +108,7 @@ RequestBatcher.prototype.flush = function(options) {
         options = options || {};
         var currentBatchSize = this.batchSize;
         var batch = this.queue.fillBatch(currentBatchSize);
-        logger.log('current batch size is' + batch.length);
+        logger.log('current batch size is ' + batch.length);
 
         if (batch.length < 1) {
             this.resetFlush();
@@ -120,6 +122,8 @@ RequestBatcher.prototype.flush = function(options) {
         var dataForRequest = _.map(batch, function(item) { return item['payload']; });
         var batchSendCallback = _.bind(function(res) {
             this.requestInProgress = false;
+
+            logger.log('batchSend callback ');
 
             try {
 
@@ -169,6 +173,8 @@ RequestBatcher.prototype.flush = function(options) {
                     removeItemsFromQueue = true;
                 }
 
+                logger.log('should remove sent items? ' + removeItemsFromQueue);
+
                 if (removeItemsFromQueue) {
                     this.queue.removeItemsByID(
                         _.map(batch, function(item) { return item['id']; }),
@@ -190,7 +196,7 @@ RequestBatcher.prototype.flush = function(options) {
         if (options.sendBeacon) {
             requestOptions.transport = 'sendBeacon';
         }
-        logger.log('MIXPANEL REQUEST:', this.endpoint, dataForRequest);
+        logger.log('Moesif Request:', this.endpoint, dataForRequest);
         this.sendRequest(this.endpoint, dataForRequest, requestOptions, batchSendCallback);
 
     } catch(err) {

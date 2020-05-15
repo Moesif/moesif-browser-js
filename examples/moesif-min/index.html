@@ -7,7 +7,7 @@
     <script src="moesif.min.js"></script>
     <script type="text/javascript">
       var options = {
-        applicationId: 'your application id',
+        applicationId: 'Your Application Id',
         debug: true,
         getMetadata: function(eventData) {
           console.log('getMetdata is called');
@@ -61,8 +61,8 @@
       $.ajax('http://jsonplaceholder.typicode.com/posts/' + POST_COUNT, {
         method: 'GET'
       }).then(function(data) {
-        POST_COUNT = (POST_COUNT + 1) % 50;
       });
+      POST_COUNT = (POST_COUNT + 1) % 100;
     });
 
     $( "#track" ).click(function() {

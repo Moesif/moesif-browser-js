@@ -57,6 +57,7 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
             succeeded = this.saveToStorage(storedQueue);
             if (succeeded) {
                 // only add to in-memory queue when storage succeeds
+                logger.log('succeeded saving to storage');
                 this.memQueue.push(queueEntry);
             }
         } catch(err) {
@@ -81,12 +82,16 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
  * already passed).
  */
 RequestQueue.prototype.fillBatch = function(batchSize) {
+    logger.log('trying to fill batchSize ' + batchSize);
     var batch = this.memQueue.slice(0, batchSize);
+    logger.log('current memQueue size ' + this.memQueue.length);
+
     if (batch.length < batchSize) {
         // don't need lock just to read events; localStorage is thread-safe
         // and the worst that could happen is a duplicate send of some
         // orphaned events, which will be deduplicated on the server side
         var storedQueue = this.readFromStorage();
+        logger.log('current storedQueue size ' + storedQueue.length);
         if (storedQueue.length) {
             // item IDs already in batch; don't duplicate out of storage
             var idsInBatch = {}; // poor man's Set
@@ -126,6 +131,8 @@ var filterOutIDsAndInvalid = function(items, idSet) {
  * and persisted queue
  */
 RequestQueue.prototype.removeItemsByID = function(ids, cb) {
+    logger.log('about to remove sent items from queue ' + ids);
+
     var idSet = {}; // poor man's Set
     _.each(ids, function(id) { idSet[id] = true; });
 
@@ -135,12 +142,14 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
         try {
             var storedQueue = this.readFromStorage();
             storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
+            logger.log('new storedQueue ' + storedQueue && storedQueue.length);
             succeeded = this.saveToStorage(storedQueue);
         } catch(err) {
             logger.error('Error removing items', ids);
             succeeded = false;
         }
         if (cb) {
+            logger.log('triggering callback of removalItems');
             cb(succeeded);
         }
     }, this), function lockFailure(err) {
@@ -158,6 +167,7 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
 RequestQueue.prototype.readFromStorage = function() {
     var storageEntry;
     try {
+        logger.log('trying to get storage with storage key ' + this.storageKey);
         storageEntry = this.storage.getItem(this.storageKey);
         if (storageEntry) {
             storageEntry = JSONParse(storageEntry);
@@ -165,6 +175,8 @@ RequestQueue.prototype.readFromStorage = function() {
                 logger.error('Invalid storage entry:', storageEntry);
                 storageEntry = null;
             }
+        } else {
+          logger.log('storageEntry is empty');
         }
     } catch (err) {
         logger.error('Error retrieving queue', err);
