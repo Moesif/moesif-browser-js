@@ -297,6 +297,18 @@ moesif.init(options);
 Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
 Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
 
+#### batch, boolean, optional, default false.
+
+Will start batching the tracking of API Events and User Actions to sent to Moesif. The identifyUser and identifyCompanies are not batched.
+
+#### batchSize, number, optional, default 50
+
+Even if set, the batchSize is used on a best effort basis. If the payloads sizes get too big, the batchSize maybe auto adjusted.
+
+### batchIntervalMs, number in milliseconds, optional, default 5000
+
+The maximum interval to flush the queue when the batch size have not been reached.
+
 ## Ethereum DApp support
 
 DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API like any other Single Page App. For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js) which Moesif supports natively.
