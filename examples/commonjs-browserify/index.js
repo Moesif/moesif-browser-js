@@ -1,7 +1,7 @@
 var moesif = require('./moesif.cjs.js');
 
 moesif.init({
-  applicationId: 'Your Application ID',
+  applicationId: 'Your Application Id',
   batch: true,
   batch_size: 2,
 });

@@ -27,11 +27,14 @@
         console.log("yay, jquery is defined");
       }
 
+      var POST_COUNT = 1;
+
       $("#send").click(function () {
-        $.ajax("http://jsonplaceholder.typicode.com/posts/10", {
+        $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
           method: "GET",
         }).then(function (data) {
-          console.log(data);
+          // console.log(data);
+          POST_COUNT = (POST_COUNT + 1) % 50;
         });
       });
     </script>

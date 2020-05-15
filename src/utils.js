@@ -31,6 +31,7 @@ var ArrayProto = Array.prototype,
 var nativeBind = FuncProto.bind,
     nativeForEach = ArrayProto.forEach,
     nativeIndexOf = ArrayProto.indexOf,
+    nativeMap = ArrayProto.map,
     nativeIsArray = Array.isArray,
     breaker = {};
 
@@ -209,6 +210,18 @@ _.toArray = function(iterable) {
         return slice.call(iterable);
     }
     return _.values(iterable);
+};
+
+_.map = function(arr, callback) {
+  if (nativeMap && arr.map === nativeMap) {
+      return arr.map(callback);
+  } else {
+      var results = [];
+      _.each(arr, function(item) {
+          results.push(callback(item));
+      });
+      return results;
+  }
 };
 
 _.values = function(obj) {
@@ -1536,4 +1549,4 @@ _['info']['browser']    = _.info.browser;
 _['info']['properties'] = _.info.properties;
 
 
-export { _, userAgent, console, console_with_prefix, localStorageSupported, JSONParse, JSONStringify };
+export { _, userAgent, console, console_with_prefix, localStorageSupported, JSONParse, JSONStringify, cheap_guid };

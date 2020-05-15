@@ -16,7 +16,10 @@
             'foo' : 'browser.js',
             'bar' : 'browser1'
           }
-        }
+        },
+        batch: true,
+        batch_size: 3,
+        batch_flush_interval_ms: 3000
         // add other option here.
       };
 
@@ -52,18 +55,21 @@
       console.log('yay, jquery is defined');
     }
 
+    var POST_COUNT = 1;
+
     $( "#send" ).click(function() {
-      $.ajax('http://jsonplaceholder.typicode.com/posts/10', {
+      $.ajax('http://jsonplaceholder.typicode.com/posts/' + POST_COUNT, {
         method: 'GET'
       }).then(function(data) {
-        console.log(data);
+        POST_COUNT = (POST_COUNT + 1) % 50;
       });
     });
 
     $( "#track" ).click(function() {
       console.log('about to start track');
       moesif.track('button_click', {
-        foo: 'bar'
+        foo: 'bar',
+        count: POST_COUNT
       });
     });
 </script>

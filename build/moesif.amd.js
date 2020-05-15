@@ -1,8 +1,8 @@
 define(function () { 'use strict';
 
     var Config = {
-        DEBUG: false,
-        LIB_VERSION: '1.5.8'
+        DEBUG: true,
+        LIB_VERSION: '1.5.9'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -34,6 +34,7 @@ define(function () { 'use strict';
     var nativeBind = FuncProto.bind;
     var nativeForEach = ArrayProto.forEach;
     var nativeIndexOf = ArrayProto.indexOf;
+    var nativeMap = ArrayProto.map;
     var nativeIsArray = Array.isArray;
     var breaker = {};
     var _ = {
@@ -211,6 +212,18 @@ define(function () { 'use strict';
             return slice.call(iterable);
         }
         return _.values(iterable);
+    };
+
+    _.map = function(arr, callback) {
+      if (nativeMap && arr.map === nativeMap) {
+          return arr.map(callback);
+      } else {
+          var results = [];
+          _.each(arr, function(item) {
+              results.push(callback(item));
+          });
+          return results;
+      }
     };
 
     _.values = function(obj) {
@@ -1022,6 +1035,30 @@ define(function () { 'use strict';
         }
     };
 
+    var _localStorageSupported = null;
+    var localStorageSupported = function(storage, forceCheck) {
+        if (_localStorageSupported !== null && !forceCheck) {
+            return _localStorageSupported;
+        }
+
+        var supported = true;
+        try {
+            storage = storage || window.localStorage;
+            var key = '__mplss_' + cheap_guid(8),
+                val = 'xyz';
+            storage.setItem(key, val);
+            if (storage.getItem(key) !== val) {
+                supported = false;
+            }
+            storage.removeItem(key);
+        } catch (err) {
+            supported = false;
+        }
+
+        _localStorageSupported = supported;
+        return supported;
+    };
+
     // _.localStorage
     _.localStorage = {
         error: function(msg) {
@@ -1469,6 +1506,36 @@ define(function () { 'use strict';
             });
         }
     };
+
+    var cheap_guid = function(maxlen) {
+      var guid = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+      return maxlen ? guid.substring(0, maxlen) : guid;
+    };
+
+    var log_func_with_prefix = function(func, prefix) {
+      return function() {
+          arguments[0] = '[' + prefix + '] ' + arguments[0];
+          return func.apply(console, arguments);
+      };
+    };
+
+    var console_with_prefix = function(prefix) {
+      return {
+          log: log_func_with_prefix(console.log, prefix),
+          error: log_func_with_prefix(console.error, prefix),
+          critical: log_func_with_prefix(console.critical, prefix)
+      };
+    };
+
+    var JSONStringify = null;
+    var JSONParse = null;
+    if (typeof JSON !== 'undefined') {
+        JSONStringify = JSON.stringify;
+        JSONParse = JSON.parse;
+    }
+    JSONStringify = JSONStringify || _.JSONEncode;
+    JSONParse = JSONParse || _.JSONDecode;
+
 
     // EXPORTS (for closure compiler)
     _['toArray']            = _.toArray;
@@ -2103,24 +2170,585 @@ define(function () { 'use strict';
       }
     }
 
+    // eslint-disable-line camelcase
+
+    var logger$2 = console_with_prefix('lock');
+
+    /**
+     * SharedLock: a mutex built on HTML5 localStorage, to ensure that only one browser
+     * window/tab at a time will be able to access shared resources.
+     *
+     * Implementation based on the original version by David Wolever (https://github.com/wolever)
+     * at https://gist.github.com/wolever/5fd7573d1ef6166e8f8c4af286a69432.
+     *
+     * @example
+     * const myLock = new SharedLock('some-key');
+     * myLock.withLock(function() {
+     *   console.log('I hold the mutex!');
+     * });
+     *
+     * @constructor
+     */
+    var SharedLock = function(key, options) {
+        options = options || {};
+
+        this.storageKey = key;
+        this.storage = options.storage || window.localStorage;
+        this.pollIntervalMS = options.pollIntervalMS || 100;
+        this.timeoutMS = options.timeoutMS || 2000;
+    };
+
+    // pass in a specific pid to test contention scenarios; otherwise
+    // it is chosen randomly for each acquisition attempt
+    SharedLock.prototype.withLock = function(lockedCB, errorCB, pid) {
+        if (!pid && typeof errorCB !== 'function') {
+            pid = errorCB;
+            errorCB = null;
+        }
+
+        var i = pid || (new Date().getTime() + '|' + Math.random());
+        var startTime = new Date().getTime();
+
+        var key = this.storageKey;
+        var pollIntervalMS = this.pollIntervalMS;
+        var timeoutMS = this.timeoutMS;
+        var storage = this.storage;
+
+        var keyX = key + ':X';
+        var keyY = key + ':Y';
+        var keyZ = key + ':Z';
+
+        var reportError = function(err) {
+            errorCB && errorCB(err);
+        };
+
+        var delay = function(cb) {
+            if (new Date().getTime() - startTime > timeoutMS) {
+                logger$2.error('Timeout waiting for mutex on ' + key + '; clearing lock. [' + i + ']');
+                storage.removeItem(keyZ);
+                storage.removeItem(keyY);
+                loop();
+                return;
+            }
+            setTimeout(function() {
+                try {
+                    cb();
+                } catch(err) {
+                    reportError(err);
+                }
+            }, pollIntervalMS * (Math.random() + 0.1));
+        };
+
+        var waitFor = function(predicate, cb) {
+            if (predicate()) {
+                cb();
+            } else {
+                delay(function() {
+                    waitFor(predicate, cb);
+                });
+            }
+        };
+
+        var getSetY = function() {
+            var valY = storage.getItem(keyY);
+            if (valY && valY !== i) { // if Y == i then this process already has the lock (useful for test cases)
+                return false;
+            } else {
+                storage.setItem(keyY, i);
+                if (storage.getItem(keyY) === i) {
+                    return true;
+                } else {
+                    if (!localStorageSupported(storage, true)) {
+                        throw new Error('localStorage support dropped while acquiring lock');
+                    }
+                    return false;
+                }
+            }
+        };
+
+        var loop = function() {
+            storage.setItem(keyX, i);
+
+            waitFor(getSetY, function() {
+                if (storage.getItem(keyX) === i) {
+                    criticalSection();
+                    return;
+                }
+
+                delay(function() {
+                    if (storage.getItem(keyY) !== i) {
+                        loop();
+                        return;
+                    }
+                    waitFor(function() {
+                        return !storage.getItem(keyZ);
+                    }, criticalSection);
+                });
+            });
+        };
+
+        var criticalSection = function() {
+            storage.setItem(keyZ, '1');
+            try {
+                lockedCB();
+            } finally {
+                storage.removeItem(keyZ);
+                if (storage.getItem(keyY) === i) {
+                    storage.removeItem(keyY);
+                }
+                if (storage.getItem(keyX) === i) {
+                    storage.removeItem(keyX);
+                }
+            }
+        };
+
+        try {
+            if (localStorageSupported(storage, true)) {
+                loop();
+            } else {
+                throw new Error('localStorage support check failed');
+            }
+        } catch(err) {
+            reportError(err);
+        }
+    };
+
+    // eslint-disable-line camelcase
+
+    var logger$1 = console_with_prefix('batch');
+
+    /**
+     * RequestQueue: queue for batching API requests with localStorage backup for retries.
+     * Maintains an in-memory queue which represents the source of truth for the current
+     * page, but also writes all items out to a copy in the browser's localStorage, which
+     * can be read on subsequent pageloads and retried. For batchability, all the request
+     * items in the queue should be of the same type (events, people updates, group updates)
+     * so they can be sent in a single request to the same API endpoint.
+     *
+     * LocalStorage keying and locking: In order for reloads and subsequent pageloads of
+     * the same site to access the same persisted data, they must share the same localStorage
+     * key (for instance based on project token and queue type). Therefore access to the
+     * localStorage entry is guarded by an asynchronous mutex (SharedLock) to prevent
+     * simultaneously open windows/tabs from overwriting each other's data (which would lead
+     * to data loss in some situations).
+     * @constructor
+     */
+    var RequestQueue = function(storageKey, options) {
+        options = options || {};
+        this.storageKey = storageKey;
+        this.storage = options.storage || window.localStorage;
+        this.lock = new SharedLock(storageKey, {storage: this.storage});
+
+        this.pid = options.pid || null; // pass pid to test out storage lock contention scenarios
+
+        this.memQueue = [];
+    };
+
+    /**
+     * Add one item to queues (memory and localStorage). The queued entry includes
+     * the given item along with an auto-generated ID and a "flush-after" timestamp.
+     * It is expected that the item will be sent over the network and dequeued
+     * before the flush-after time; if this doesn't happen it is considered orphaned
+     * (e.g., the original tab where it was enqueued got closed before it could be
+     * sent) and the item can be sent by any tab that finds it in localStorage.
+     *
+     * The final callback param is called with a param indicating success or
+     * failure of the enqueue operation; it is asynchronous because the localStorage
+     * lock is asynchronous.
+     */
+    RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
+        var queueEntry = {
+            'id': cheap_guid(),
+            'flushAfter': new Date().getTime() + flushInterval * 2,
+            'payload': item
+        };
+
+        this.lock.withLock(_.bind(function lockAcquired() {
+            var succeeded;
+            try {
+                var storedQueue = this.readFromStorage();
+                storedQueue.push(queueEntry);
+                succeeded = this.saveToStorage(storedQueue);
+                if (succeeded) {
+                    // only add to in-memory queue when storage succeeds
+                    this.memQueue.push(queueEntry);
+                }
+            } catch(err) {
+                logger$1.error('Error enqueueing item', item);
+                succeeded = false;
+            }
+            if (cb) {
+                cb(succeeded);
+            }
+        }, this), function lockFailure(err) {
+            logger$1.error('Error acquiring storage lock', err);
+            if (cb) {
+                cb(false);
+            }
+        }, this.pid);
+    };
+
+    /**
+     * Read out the given number of queue entries. If this.memQueue
+     * has fewer than batchSize items, then look for "orphaned" items
+     * in the persisted queue (items where the 'flushAfter' time has
+     * already passed).
+     */
+    RequestQueue.prototype.fillBatch = function(batchSize) {
+        var batch = this.memQueue.slice(0, batchSize);
+        if (batch.length < batchSize) {
+            // don't need lock just to read events; localStorage is thread-safe
+            // and the worst that could happen is a duplicate send of some
+            // orphaned events, which will be deduplicated on the server side
+            var storedQueue = this.readFromStorage();
+            if (storedQueue.length) {
+                // item IDs already in batch; don't duplicate out of storage
+                var idsInBatch = {}; // poor man's Set
+                _.each(batch, function(item) { idsInBatch[item['id']] = true; });
+
+                for (var i = 0; i < storedQueue.length; i++) {
+                    var item = storedQueue[i];
+                    if (new Date().getTime() > item['flushAfter'] && !idsInBatch[item['id']]) {
+                        batch.push(item);
+                        if (batch.length >= batchSize) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return batch;
+    };
+
+    /**
+     * Remove items with matching 'id' from array (immutably)
+     * also remove any item without a valid id (e.g., malformed
+     * storage entries).
+     */
+    var filterOutIDsAndInvalid = function(items, idSet) {
+        var filteredItems = [];
+        _.each(items, function(item) {
+            if (item['id'] && !idSet[item['id']]) {
+                filteredItems.push(item);
+            }
+        });
+        return filteredItems;
+    };
+
+    /**
+     * Remove items with matching IDs from both in-memory queue
+     * and persisted queue
+     */
+    RequestQueue.prototype.removeItemsByID = function(ids, cb) {
+        var idSet = {}; // poor man's Set
+        _.each(ids, function(id) { idSet[id] = true; });
+
+        this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet);
+        this.lock.withLock(_.bind(function lockAcquired() {
+            var succeeded;
+            try {
+                var storedQueue = this.readFromStorage();
+                storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
+                succeeded = this.saveToStorage(storedQueue);
+            } catch(err) {
+                logger$1.error('Error removing items', ids);
+                succeeded = false;
+            }
+            if (cb) {
+                cb(succeeded);
+            }
+        }, this), function lockFailure(err) {
+            logger$1.error('Error acquiring storage lock', err);
+            if (cb) {
+                cb(false);
+            }
+        }, this.pid);
+    };
+
+    /**
+     * Read and parse items array from localStorage entry, handling
+     * malformed/missing data if necessary.
+     */
+    RequestQueue.prototype.readFromStorage = function() {
+        var storageEntry;
+        try {
+            storageEntry = this.storage.getItem(this.storageKey);
+            if (storageEntry) {
+                storageEntry = JSONParse(storageEntry);
+                if (!_.isArray(storageEntry)) {
+                    logger$1.error('Invalid storage entry:', storageEntry);
+                    storageEntry = null;
+                }
+            }
+        } catch (err) {
+            logger$1.error('Error retrieving queue', err);
+            storageEntry = null;
+        }
+        return storageEntry || [];
+    };
+
+    /**
+     * Serialize the given items array to localStorage.
+     */
+    RequestQueue.prototype.saveToStorage = function(queue) {
+        try {
+            this.storage.setItem(this.storageKey, JSONStringify(queue));
+            return true;
+        } catch (err) {
+            logger$1.error('Error saving queue', err);
+            return false;
+        }
+    };
+
+    /**
+     * Clear out queues (memory and localStorage).
+     */
+    RequestQueue.prototype.clear = function() {
+        this.memQueue = [];
+        this.storage.removeItem(this.storageKey);
+    };
+
+    // eslint-disable-line camelcase
+
+    // maximum interval between request retries after exponential backoff
+    var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+    var logger = console_with_prefix('batch');
+
+    /**
+     * RequestBatcher: manages the queueing, flushing, retry etc of requests of one
+     * type (events, people, groups).
+     * Uses RequestQueue to manage the backing store.
+     * @constructor
+     */
+    var RequestBatcher = function(storageKey, endpoint, options) {
+        this.queue = new RequestQueue(storageKey, {storage: options.storage});
+        this.endpoint = endpoint;
+
+        this.libConfig = options.libConfig;
+        this.sendRequest = options.sendRequestFunc;
+
+        // seed variable batch size + flush interval with configured values
+        this.batchSize = this.libConfig['batch_size'];
+        this.flushInterval = this.libConfig['batch_flush_interval_ms'];
+
+        this.stopped = false;
+    };
+
+    /**
+     * Add one item to queue.
+     */
+    RequestBatcher.prototype.enqueue = function(item, cb) {
+        this.queue.enqueue(item, this.flushInterval, cb);
+    };
+
+    /**
+     * Start flushing batches at the configured time interval. Must call
+     * this method upon SDK init in order to send anything over the network.
+     */
+    RequestBatcher.prototype.start = function() {
+        this.stopped = false;
+        this.flush();
+    };
+
+    /**
+     * Stop flushing batches. Can be restarted by calling start().
+     */
+    RequestBatcher.prototype.stop = function() {
+        this.stopped = true;
+        if (this.timeoutID) {
+            clearTimeout(this.timeoutID);
+            this.timeoutID = null;
+        }
+    };
+
+    /**
+     * Clear out queue.
+     */
+    RequestBatcher.prototype.clear = function() {
+        this.queue.clear();
+    };
+
+    /**
+     * Restore batch size configuration to whatever is set in the main SDK.
+     */
+    RequestBatcher.prototype.resetBatchSize = function() {
+        this.batchSize = this.libConfig['batch_size'];
+    };
+
+    /**
+     * Restore flush interval time configuration to whatever is set in the main SDK.
+     */
+    RequestBatcher.prototype.resetFlush = function() {
+        this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
+    };
+
+    /**
+     * Schedule the next flush in the given number of milliseconds.
+     */
+    RequestBatcher.prototype.scheduleFlush = function(flushMS) {
+        this.flushInterval = flushMS;
+        if (!this.stopped) { // don't schedule anymore if batching has been stopped
+            this.timeoutID = setTimeout(_.bind(this.flush, this), this.flushInterval);
+        }
+    };
+
+    /**
+     * Flush one batch to network. Depending on success/failure modes, it will either
+     * remove the batch from the queue or leave it in for retry, and schedule the next
+     * flush. In cases of most network or API failures, it will back off exponentially
+     * when retrying.
+     * @param {Object} [options]
+     * @param {boolean} [options.sendBeacon] - whether to send batch with
+     * navigator.sendBeacon (only useful for sending batches before page unloads, as
+     * sendBeacon offers no callbacks or status indications)
+     */
+    RequestBatcher.prototype.flush = function(options) {
+        try {
+
+            if (this.requestInProgress) {
+                logger.log('Flush: Request already in progress');
+                return;
+            }
+
+            options = options || {};
+            var currentBatchSize = this.batchSize;
+            var batch = this.queue.fillBatch(currentBatchSize);
+            if (batch.length < 1) {
+                this.resetFlush();
+                return; // nothing to do
+            }
+
+            this.requestInProgress = true;
+
+            var timeoutMS = this.libConfig['batch_request_timeout_ms'];
+            var startTime = new Date().getTime();
+            var dataForRequest = _.map(batch, function(item) { return item['payload']; });
+            var batchSendCallback = _.bind(function(res) {
+                this.requestInProgress = false;
+
+                try {
+
+                    // handle API response in a try-catch to make sure we can reset the
+                    // flush operation if something goes wrong
+
+                    var removeItemsFromQueue = false;
+                    if (
+                        _.isObject(res) &&
+                        res.error === 'timeout' &&
+                        new Date().getTime() - startTime >= timeoutMS
+                    ) {
+                        logger.error('Network timeout; retrying');
+                        this.flush();
+                    } else if (
+                        _.isObject(res) &&
+                        res.xhr_req &&
+                        (res.xhr_req['status'] >= 500 || res.xhr_req['status'] <= 0)
+                    ) {
+                        // network or API error, retry
+                        var retryMS = this.flushInterval * 2;
+                        var headers = res.xhr_req['responseHeaders'];
+                        if (headers) {
+                            var retryAfter = headers['Retry-After'];
+                            if (retryAfter) {
+                                retryMS = (parseInt(retryAfter, 10) * 1000) || retryMS;
+                            }
+                        }
+                        retryMS = Math.min(MAX_RETRY_INTERVAL_MS, retryMS);
+                        logger.error('Error; retry in ' + retryMS + ' ms');
+                        this.scheduleFlush(retryMS);
+                    } else if (_.isObject(res) && res.xhr_req && res.xhr_req['status'] === 413) {
+                        // 413 Payload Too Large
+                        if (batch.length > 1) {
+                            var halvedBatchSize = Math.max(1, Math.floor(currentBatchSize / 2));
+                            this.batchSize = Math.min(this.batchSize, halvedBatchSize, batch.length - 1);
+                            logger.error('413 response; reducing batch size to ' + this.batchSize);
+                            this.resetFlush();
+                        } else {
+                            logger.error('Single-event request too large; dropping', batch);
+                            this.resetBatchSize();
+                            removeItemsFromQueue = true;
+                        }
+                    } else {
+                        // successful network request+response; remove each item in batch from queue
+                        // (even if it was e.g. a 400, in which case retrying won't help)
+                        removeItemsFromQueue = true;
+                    }
+
+                    if (removeItemsFromQueue) {
+                        this.queue.removeItemsByID(
+                            _.map(batch, function(item) { return item['id']; }),
+                            _.bind(this.flush, this) // handle next batch if the queue isn't empty
+                        );
+                    }
+
+                } catch(err) {
+                    logger.error('Error handling API response', err);
+                    this.resetFlush();
+                }
+            }, this);
+            var requestOptions = {
+                method: 'POST',
+                verbose: true,
+                ignore_json_errors: true, // eslint-disable-line camelcase
+                timeout_ms: timeoutMS // eslint-disable-line camelcase
+            };
+            if (options.sendBeacon) {
+                requestOptions.transport = 'sendBeacon';
+            }
+            logger.log('MIXPANEL REQUEST:', this.endpoint, dataForRequest);
+            this.sendRequest(this.endpoint, dataForRequest, requestOptions, batchSendCallback);
+
+        } catch(err) {
+            logger.error('Error flushing request queue', err);
+            this.resetFlush();
+        }
+    };
+
     var MOESIF_CONSTANTS = {
       //The base Uri for API calls
       HOST: 'api.moesif.net',
       EVENT_ENDPOINT: '/v1/events',
+      EVENT_BATCH_ENDPOINT: '/v1/events/batch',
       ACTION_ENDPOINT: '/v1/actions',
       ACTION_BATCH_ENDPOINT: '/v1/actions/batch',
       USER_ENDPOINT: '/v1/users',
       COMPANY_ENDPOINT: '/v1/companies',
-      EVENT_BATCH_ENDPOINT: '/v1/events/batch',
       STORED_USER_ID: 'moesif_stored_user_id',
       STORED_COMPANY_ID: 'moesif_stored_company_id',
       STORED_SESSION_ID: 'moesif_stored_session_id'
     };
 
+    /*
+     * Dynamic... constants? Is that an oxymoron?
+     */
+    // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
+    // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
+    var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
+
+    // IE<10 does not support cross-origin XHR's but script tags
+    // with defer won't block window.onload; ENQUEUE_REQUESTS
+    // should only be true for Opera<12
+    var ENQUEUE_REQUESTS = !USE_XHR && (userAgent.indexOf('MSIE') === -1) && (userAgent.indexOf('Mozilla') === -1);
+
+    // save reference to navigator.sendBeacon so it can be minified
+    var sendBeacon = null;
+    if (navigator['sendBeacon']) {
+      sendBeacon = function () {
+        // late reference to navigator.sendBeacon to allow patching/spying
+        return navigator['sendBeacon'].apply(navigator, arguments);
+      };
+    }
+
+
     var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
     function isMoesif(event) {
-      return event['request']['headers']['X-Moesif-SDK'];
+      try {
+        return event['request']['headers']['X-Moesif-SDK'];
+      } catch(err) {
+        return false;
+      }
     }
 
     function ensureValidOptions(options) {
@@ -2145,116 +2773,109 @@ define(function () { 'use strict';
     }
 
     function moesifCreator () {
-
       console.log('moesif object creator is called');
 
-      function sendEvent(event, token, debug, callback) {
-        console.log('actually sending to log event ' + _.JSONEncode(event) );
-        var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
-        xmlhttp.setRequestHeader('Content-Type', 'application/json');
-        xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-        xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-        xmlhttp.onreadystatechange = function () {
-          if (xmlhttp.readyState === 4) {
-            if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
-              if (debug) {
-                console.log('sent to moesif successfully: ' + event['request']['uri']);
-              }
-            } else {
-              console.log('failed to sent to moesif: '  + event['request']['uri']);
-              if (debug) {
-                console.error(xmlhttp.statusText);
-              }
-              if (callback && _.isFunction(callback)) {
-                callback(new Error('can not sent to moesif'), event);
-              }
-            }
-          }
-        };
-        xmlhttp.send(_.JSONEncode(event));
-      }
+      // function sendEvent(event, token, debug, callback) {
+      //   console.log('actually sending to log event ' + _.JSONEncode(event));
+      //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
+      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
+      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+      //   xmlhttp.onreadystatechange = function () {
+      //     if (xmlhttp.readyState === 4) {
+      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
+      //         if (debug) {
+      //           console.log('sent to moesif successfully: ' + event['request']['uri']);
+      //         }
+      //       } else {
+      //         console.log('failed to sent to moesif: ' + event['request']['uri']);
+      //         if (debug) {
+      //           console.error(xmlhttp.statusText);
+      //         }
+      //         if (callback && _.isFunction(callback)) {
+      //           callback(new Error('can not sent to moesif'), event);
+      //         }
+      //       }
+      //     }
+      //   };
+      //   xmlhttp.send(JSONStringify(event));
+      // }
 
-      function sendAction(action, token, debug, callback) {
-        console.log('actually sending action to moesif' + _.JSONEncode(action) );
-        var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
-        xmlhttp.setRequestHeader('Content-Type', 'application/json');
-        xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-        xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-        xmlhttp.onreadystatechange = function () {
-          if (xmlhttp.readyState === 4) {
-            if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
-              if (debug) {
-                console.log('sent action to moesif successfully: ' + (action && action['action_name']));
-              }
-            } else {
-              console.log('failed to sent action to moesif: '  + (action && action['action_name']));
-              if (debug) {
-                console.error(xmlhttp.statusText);
-              }
-              if (callback && _.isFunction(callback)) {
-                callback(new Error('can not sent to moesif'), event);
-              }
-            }
-          }
-        };
-        xmlhttp.send(_.JSONEncode(action));
-      }
+      // function sendAction(action, token, debug, callback) {
+      //   console.log('actually sending action to moesif' + _.JSONEncode(action));
+      //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
+      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
+      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+      //   xmlhttp.onreadystatechange = function () {
+      //     if (xmlhttp.readyState === 4) {
+      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
+      //         if (debug) {
+      //           console.log('sent action to moesif successfully: ' + (action && action['action_name']));
+      //         }
+      //       } else {
+      //         console.log('failed to sent action to moesif: ' + (action && action['action_name']));
+      //         if (debug) {
+      //           console.error(xmlhttp.statusText);
+      //         }
+      //         if (callback && _.isFunction(callback)) {
+      //           callback(new Error('can not sent to moesif'), event);
+      //         }
+      //       }
+      //     }
+      //   };
+      //   xmlhttp.send(JSONStringify(action));
+      // }
 
+      // function updateUser(userProfile, token, debug, callback) {
+      //   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
+      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
+      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+      //   xmlhttp.onreadystatechange = function () {
+      //     if (xmlhttp.readyState === 4) {
+      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
+      //         if (debug) {
+      //           console.log('update user to moesif successfully: ' + userProfile['user_id']);
+      //         }
+      //       } else {
+      //         console.log('update user to moesif failed ' + userProfile['user_id']);
+      //         if (debug) {
+      //           console.error(xmlhttp.statusText);
+      //         }
+      //         if (callback && _.isFunction(callback)) {
+      //           callback(new Error('can not update user to moesif'), null, userProfile);
+      //         }
+      //       }
+      //     }
+      //   };
+      //   xmlhttp.send(JSONStringify(userProfile));
+      // }
 
-      function updateUser(userProfile, token, debug, callback) {
-        var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
-        xmlhttp.setRequestHeader('Content-Type', 'application/json');
-        xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-        xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-        xmlhttp.onreadystatechange = function () {
-          if (xmlhttp.readyState === 4) {
-            if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
-              if (debug) {
-                console.log('update user to moesif successfully: ' + userProfile['user_id']);
-              }
-            } else {
-              console.log('update user to moesif failed ' + userProfile['user_id']);
-              if (debug) {
-                console.error(xmlhttp.statusText);
-              }
-              if (callback && _.isFunction(callback)) {
-                callback(new Error('can not update user to moesif'), null, userProfile);
-              }
-            }
-          }
-        };
-        xmlhttp.send(_.JSONEncode(userProfile));
-      }
-
-      function updateCompany(companyProfile, token, debug, callback) {
-        var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-        xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
-        xmlhttp.setRequestHeader('Content-Type', 'application/json');
-        xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-        xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
-        xmlhttp.onreadystatechange = function () {
-          if (xmlhttp.readyState === 4) {
-            if (xmlhttp.status >= 200 && xmlhttp.status <= 300 ) {
-              if (debug) {
-                console.log('update company to moesif successfully: ' + companyProfile['company_id']);
-              }
-            } else {
-              console.log('update company to moesif failed ' + companyProfile['company_id']);
-              if (debug) {
-                console.error(xmlhttp.statusText);
-              }
-              if (callback && _.isFunction(callback)) {
-                callback(new Error('can not update company to moesif'), null, companyProfile);
-              }
-            }
-          }
-        };
-        xmlhttp.send(_.JSONEncode(companyProfile));
-      }
-
+      // function updateCompany(companyProfile, token, debug, callback) {
+      //   var xmlhttp = new XMLHttpRequest();
+      //   xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
+      //   xmlhttp.setRequestHeader('Content-Type', 'application/json');
+      //   xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+      //   xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+      //   xmlhttp.onreadystatechange = function () {
+      //     if (xmlhttp.readyState === 4) {
+      //       if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
+      //           console.log('update company to moesif successfully: ' + companyProfile['company_id']);
+      //       } else {
+      //         console.log('update company to moesif failed ' + companyProfile['company_id']);
+      //         console.error(xmlhttp.statusText);
+      //         if (callback && _.isFunction(callback)) {
+      //           callback(new Error('can not update company to moesif'), null, companyProfile);
+      //         }
+      //       }
+      //     }
+      //   };
+      //   xmlhttp.send(JSONStringify(companyProfile));
+      // }
 
       return {
         'init': function (options) {
@@ -2263,14 +2884,15 @@ define(function () { 'use strict';
           }
 
           ensureValidOptions(options);
+
           var ops = {};
 
           ops.getTags = options['getTags'] || function () {
-              return undefined;
-            };
+            return undefined;
+          };
           ops.maskContent = options['maskContent'] || function (eventData) {
-              return eventData;
-            };
+            return eventData;
+          };
 
           ops.getMetadata = options['getMetadata'] || function () {
             return undefined;
@@ -2290,15 +2912,111 @@ define(function () { 'use strict';
           ops.disableGclid = options['disableGclid'];
           ops.disableUtm = options['disableUtm'];
 
+          ops.batch = options['batch'] || false;
+
+          ops['batch_size'] = options['batch_size'] || 50,
+          ops['batch_flush_interval_ms'] = options['batch_flush_interval_ms'] || 5000;
+          ops['batch_request_timeout_ms'] = options['batch_request_timeout_ms'] || 90000;
+
+          this.requestBatchers = {};
+
+
           this._options = ops;
           this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
           this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
           this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
-
           this._campaign = getCampaignData(ops);
+
+          if (ops.batch) {
+            if (!localStorageSupported || !USE_XHR) {
+              ops.batch = false;
+              console.log('Turning off batch processing because it needs XHR and localStorage');
+            } else {
+              this.initBatching();
+              if (sendBeacon && window.addEventListener) {
+                window.addEventListener('unload', _.bind(function () {
+                  // Before page closes, attempt to flush any events queued up via navigator.sendBeacon.
+                  // Since sendBeacon doesn't report success/failure, events will not be removed from
+                  // the persistent store; if the site is loaded again, the events will be flushed again
+                  // on startup and deduplicated on the Mixpanel server side.
+                  this.requestBatchers.events.flush({ sendBeacon: true });
+                }, this));
+              }
+            }
+          }
 
           console.log('moesif initiated');
           return this;
+        },
+        _executeRequest: function (url, data, options, callback) {
+          var token = (options && options.applicationId) || this._options.applicationId;
+
+          // right now we onlu support USE_XHR
+
+          try {
+            var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+            xmlhttp.open('POST', url);
+            xmlhttp.setRequestHeader('Content-Type', 'application/json');
+            xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+            xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
+            xmlhttp.onreadystatechange = function () {
+              if (xmlhttp.readyState === 4) {
+                if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
+                  console.log('sent to moesif successfully: ' + data);
+                } else {
+                  console.log('failed to sent to moesif: ' + data);
+                  console.error(xmlhttp.statusText);
+                  if (callback && _.isFunction(callback)) {
+                    callback(new Error('can not sent to moesif'), data);
+                  }
+                }
+              }
+            };
+            xmlhttp.send(JSONStringify(data));
+          } catch (err) {
+            console.error('failed to send event to moesif' + event['request']['uri']);
+            console.error(err);
+          }
+        },
+        initBatching: function () {
+          var applicationId = this._options.applicationId;
+
+          if (!this.requestBatchers.events) {
+            var batchConfig = {
+              libConfig: this._options,
+              sendRequestFunc: _.bind(function (endPoint, data, options, cb) {
+                this._executeRequest(
+                  endPoint,
+                  data,
+                  options,
+                  cb
+                );
+              }, this)
+            };
+
+            this.requestBatchers = {
+              events: new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig),
+              actions: new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig)
+            };
+          }
+          _.each(this.requestBatchers, function (batcher) {
+            batcher.start();
+          });
+        },
+        _sendOrBatch: function(data, applicationId, endPoint, batcher, callback) {
+          var requestInitiated = true;
+
+          if (this._options.batch && batcher) {
+            batcher.enqueue(data);
+          } else {
+            // execute immediately
+            var executeOps = {
+              applicationId: applicationId
+            };
+
+            requestInitiated = this._executeRequest(endPoint, data, executeOps, callback);
+          }
+          return requestInitiated;
         },
         'start': function (passedInWeb3) {
           var _self = this;
@@ -2354,6 +3072,14 @@ define(function () { 'use strict';
           }
           return false;
         },
+        updateUser: function(userObject, applicationId, callback) {
+          this._executeRequest(
+            HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT,
+            userObject,
+            { applicationId: applicationId },
+            callback
+          );
+        },
         'identifyUser': function (userId, metadata) {
           this._userId = userId;
           if (!(this._options && this._options.applicationId)) {
@@ -2376,8 +3102,20 @@ define(function () { 'use strict';
             userObject['company_id'] = this._companyId;
           }
 
-          updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+          this.updateUser(userObject, this._options.applicationId, this._options.callback);
+          try {
+            localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+          } catch (err) {
+            console.error('error saving to local storage');
+          }
+        },
+        updateCompany: function(companyObject, applicationId, callback) {
+          this._executeRequest(
+            HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.companyId,
+            companyObject,
+            { applicationId: applicationId },
+            callback
+          );
         },
         'identifyCompany': function (companyId, metadata, companyDomain) {
           this._companyId = companyId;
@@ -2402,8 +3140,13 @@ define(function () { 'use strict';
             companyObject['campaign'] = this._campaign;
           }
 
-          updateCompany(companyObject, this._options.applicationId, this._options.debug, this._options.callback);
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+          this.updateCompany(companyObject, this._options.applicationId, this._options.callback);
+
+          try {
+            localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+          } catch (err) {
+            console.error('error saving to local storage');
+          }
         },
         'identifySession': function (session) {
           this._session = session;
@@ -2439,9 +3182,22 @@ define(function () { 'use strict';
             actionObject['metadata'] = metadata;
           }
 
-          sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
+          // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
+          var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
+          return _self._sendOrBatch(
+            actionObject,
+            _self._options.applicationId,
+            endPoint,
+            _self.requestBatchers.events,
+            _self._options.callback
+          );
         },
-        recordEvent: function(event) {
+        recordEvent: function (event) {
+          if (isMoesif(event)) {
+            console.log('skipped logging for requests to moesif');
+            return;
+          }
+
           var _self = this;
           console.log('determining if should log: ' + event['request']['uri']);
           var logData = Object.assign({}, event);
@@ -2475,7 +3231,15 @@ define(function () { 'use strict';
           }
 
           if (!_self._options.skip(event) && !isMoesif(event)) {
-            sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
+            // sendEvent(logData, _self._options.applicationId, _self._options.callback);
+            var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
+            _self._sendOrBatch(
+              logData,
+              _self._options.applicationId,
+              endPoint,
+              _self.requestBatchers.events,
+              _self._options.callback
+            );
           } else {
             console.log('skipped logging for ' + event['request']['uri']);
           }
@@ -2483,7 +3247,7 @@ define(function () { 'use strict';
         _getUserId: function () {
           return this._userId;
         },
-        _getCompanyId: function() {
+        _getCompanyId: function () {
           return this._companyId;
         },
         _getSession: function () {

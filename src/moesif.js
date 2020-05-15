@@ -334,9 +334,11 @@ export default function () {
         batcher.enqueue(data);
       } else {
         // execute immediately
-        requestInitiated = this._executeRequest(endPoint, data, {
-          applicationId: applicationId,
-        }, callback);
+        var executeOps = {
+          applicationId: applicationId
+        };
+
+        requestInitiated = this._executeRequest(endPoint, data, executeOps, callback);
       }
       return requestInitiated;
     },
