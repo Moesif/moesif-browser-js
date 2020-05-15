@@ -1512,6 +1512,14 @@ var console_with_prefix = function(prefix) {
   };
 };
 
+var JSONStringify = null, JSONParse = null;
+if (typeof JSON !== 'undefined') {
+    JSONStringify = JSON.stringify;
+    JSONParse = JSON.parse;
+}
+JSONStringify = JSONStringify || _.JSONEncode;
+JSONParse = JSONParse || _.JSONDecode;
+
 
 // EXPORTS (for closure compiler)
 _['toArray']            = _.toArray;
@@ -1528,4 +1536,4 @@ _['info']['browser']    = _.info.browser;
 _['info']['properties'] = _.info.properties;
 
 
-export { _, userAgent, console, console_with_prefix, localStorageSupported };
+export { _, userAgent, console, console_with_prefix, localStorageSupported, JSONParse, JSONStringify };
