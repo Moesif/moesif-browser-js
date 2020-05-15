@@ -128,9 +128,9 @@ export default function () {
 
       ops.batch = options['batch'] || false;
 
-      ops['batch_size'] = options['batch_size'] || 50,
-      ops['batch_flush_interval_ms'] = options['batch_flush_interval_ms'] || 5000;
-      ops['batch_request_timeout_ms'] = options['batch_request_timeout_ms'] || 90000;
+      ops['batch_size'] = options['batchSize'] || 50,
+      ops['batch_flush_interval_ms'] = options['batchIntervalMs'] || 5000;
+      ops['batch_request_timeout_ms'] = options['batchTimeoutMs'] || 90000;
 
       this.requestBatchers = {};
 
