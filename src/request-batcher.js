@@ -79,6 +79,7 @@ RequestBatcher.prototype.resetFlush = function() {
  */
 RequestBatcher.prototype.scheduleFlush = function(flushMS) {
     this.flushInterval = flushMS;
+    logger.log('scheduleFlush is called with next try' + flushMS);
     if (!this.stopped) { // don't schedule anymore if batching has been stopped
         this.timeoutID = setTimeout(_.bind(this.flush, this), this.flushInterval);
     }
@@ -96,7 +97,7 @@ RequestBatcher.prototype.scheduleFlush = function(flushMS) {
  */
 RequestBatcher.prototype.flush = function(options) {
     try {
-
+        logger.log('flush is called with ' + options);
         if (this.requestInProgress) {
             logger.log('Flush: Request already in progress');
             return;
@@ -105,6 +106,8 @@ RequestBatcher.prototype.flush = function(options) {
         options = options || {};
         var currentBatchSize = this.batchSize;
         var batch = this.queue.fillBatch(currentBatchSize);
+        logger.log('current batch size is' + batch.length);
+
         if (batch.length < 1) {
             this.resetFlush();
             return; // nothing to do

@@ -274,12 +274,20 @@ export default function () {
     },
     _executeRequest: function (url, data, options, callback) {
       var token = (options && options.applicationId) || this._options.applicationId;
+      var method = (options && options.method) || 'POST';
+      // options = {
+      //   method: 'POST',
+      //   verbose: true,
+      //   ignore_json_errors: true, // eslint-disable-line camelcase
+      //   timeout_ms: timeoutMS, // eslint-disable-line camelcase
+      //   applicationId
+      // };
 
       // right now we onlu support USE_XHR
 
       try {
         var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
-        xmlhttp.open('POST', url);
+        xmlhttp.open(method, url);
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
         xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + Config.LIB_VERSION);
