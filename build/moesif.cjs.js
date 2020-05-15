@@ -1,7 +1,7 @@
 'use strict';
 
 var Config = {
-    DEBUG: false,
+    DEBUG: true,
     LIB_VERSION: '1.5.9'
 };
 
@@ -1551,6 +1551,10 @@ _['info']['device']     = _.info.device;
 _['info']['browser']    = _.info.browser;
 _['info']['properties'] = _.info.properties;
 
+// eslint-disable-line camelcase
+
+var logger = console_with_prefix('capture');
+
 var HTTP_PROTOCOL$1 = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
 /**
@@ -1599,13 +1603,13 @@ function captureXMLHttpRequest(recorder) {
 
           if (postData) {
             if (typeof postData === 'string') {
-              console.log('request post data is string');
-              console.log(postData);
+              logger.log('request post data is string');
+              logger.log(postData);
               try {
                 requestModel['body'] = _.JSONDecode(postData);
               } catch(err) {
-                console.log('JSON decode failed');
-                console.log(err);
+                logger.log('JSON decode failed');
+                logger.log(err);
                 requestModel['transfer_encoding'] = 'base64';
                 requestModel['body'] = _.base64Encode(postData);
               }
@@ -1690,6 +1694,10 @@ function convertToFullUrl(url) {
   return url;
 }
 
+// eslint-disable-line
+
+var logger$1 = console_with_prefix('web3capture');
+
 function computeUrl(provider) {
   if (provider && provider.host) {
     return provider.host;
@@ -1719,13 +1727,13 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
 
   if (payload) {
     if (typeof payload === 'string') {
-      console.log('request post data is string');
-      console.log(payload);
+      logger$1.log('request post data is string');
+      logger$1.log(payload);
       try {
         requestModel['body'] = _.JSONDecode(payload);
       } catch(err) {
-        console.log('JSON decode failed');
-        console.log(err);
+        logger$1.log('JSON decode failed');
+        logger$1.log(err);
         requestModel['transfer_encoding'] = 'base64';
         requestModel['body'] = _.base64Encode(payload);
       }
@@ -1786,20 +1794,20 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
  */
 function captureWeb3Requests(myWeb3, recorder, options) {
   if (myWeb3['currentProvider']) {
-    console.log('found my currentProvider, patching it');
+    logger$1.log('found my currentProvider, patching it');
     var CPDR = myWeb3['currentProvider'];
 
     var send = CPDR['send'];
     var sendAsync = CPDR['sendAsync'];
 
     CPDR['send'] = function(payload) {
-      console.log('patched send is called');
-      console.log(payload);
+      logger$1.log('patched send is called');
+      logger$1.log(payload);
       var _startTime = (new Date()).toISOString();
       var result = send.apply(CPDR, arguments);
 
-      console.log('patch send result is back');
-      console.log(result);
+      logger$1.log('patch send result is back');
+      logger$1.log(result);
       var _endTime = (new Date()).toISOString();
       if (recorder) {
         recorder(createEventModel(CPDR, _startTime, _endTime, payload, result));
@@ -1809,27 +1817,24 @@ function captureWeb3Requests(myWeb3, recorder, options) {
     };
 
     CPDR['sendAsync'] = function(payload, callback) {
-      console.log('patched sendAsync is called');
-      console.log(payload);
+      logger$1.log('patched sendAsync is called');
+      logger$1.log(payload);
       var _startTime = (new Date()).toISOString();
       var provider = CPDR;
 
       var _callback = function(err, result) {
         var _endTime = (new Date()).toISOString();
 
-        console.log('inside patched callback');
-        console.log(result);
+        logger$1.log('inside patched callback');
+        logger$1.log(result);
         if (recorder) {
-          console.log('about to record event');
           recorder(createEventModel(provider, _startTime, _endTime, payload, result, err));
         }
-
-        console.log('triggering original callback');
-
-        callback(err, result);
+        if (callback) {
+          callback(err, result);
+        }
       };
 
-      console.log(payload);
       sendAsync.apply(CPDR, [payload, _callback]);
     };
 
@@ -1843,6 +1848,10 @@ function captureWeb3Requests(myWeb3, recorder, options) {
   // so caller have a handle to undo the patch if needed.
 }
 
+// eslint-disable-line camelcase
+
+var logger$2 = console_with_prefix('captureFetch');
+
 /**
  * @param {*} buffer
  * this checks the buffer and
@@ -1851,9 +1860,9 @@ function captureWeb3Requests(myWeb3, recorder, options) {
  */
 function processBodyAndInitializedModel(buffer) {
   if (!buffer) return {};
-  console.log('about to decode buffer');
-  console.log(buffer);
-  console.log(buffer.byteLength);
+  logger$2.log('about to decode buffer');
+  logger$2.log(buffer);
+  logger$2.log(buffer.byteLength);
 
   if (buffer.byteLength <= 0) {
     // empty body.
@@ -1867,15 +1876,15 @@ function processBodyAndInitializedModel(buffer) {
     try {
       return { 'body': _.JSONDecode(text) };
     } catch (err) {
-      console.error(err);
+      logger$2.error(err);
       return {
         'transfer_encoding': 'base64',
         'body': _.base64Encode(text)
       };
     }
   } catch (err) {
-    console.error(err);
-    console.log(buffer);
+    logger$2.error(err);
+    logger$2.log(buffer);
     return {
       'transfer_encoding': 'base64',
       'body': 'can not be decoded'
@@ -1890,13 +1899,13 @@ function processBodyAndInitializedModel(buffer) {
  */
 function parseHeaders(headers) {
   var result = {};
-  console.log('parseheaders is called');
+  logger$2.log('parseheaders is called');
 
   var entries = headers.entries();
 
   var entry = entries.next();
   while (!entry.done) {
-    console.log(entry.value); // 1 3 5 7 9
+    logger$2.log(entry.value); // 1 3 5 7 9
     result[entry.value[0]] = entry.value[1];
 
     entry = entries.next();
@@ -1912,9 +1921,9 @@ function parseHeaders(headers) {
 function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
   try {
     setTimeout(function() {
-      console.log('interception is here.');
-      console.log(savedRequest);
-      console.log(savedResponse);
+      logger$2.log('interception is here.');
+      logger$2.log(savedRequest);
+      logger$2.log(savedResponse);
       if (savedRequest && savedResponse) {
         // try to exract out information:
         // var reqHeaders = {};
@@ -1927,12 +1936,10 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
         // for (var pair2 of savedResponse.headers.entries()) {
         //   resHeaders[pair2[0]] = pair2[1];
         // }
-        console.log('inside if statement.');
         try {
           Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function(
             bodies
           ) {
-            console.log('processing bodies');
             var processedBodies = bodies.map(processBodyAndInitializedModel);
 
             var requestModel = Object.assign(processedBodies[0], {
@@ -1948,8 +1955,8 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
               'headers': parseHeaders(savedResponse.headers)
             });
 
-            console.log(requestModel);
-            console.log(responseModel);
+            logger$2.log(requestModel);
+            logger$2.log(responseModel);
 
             var event = {
               'request': requestModel,
@@ -1959,21 +1966,19 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
             recorder(event);
           });
         } catch (err) {
-          console.log('error processing body');
+          logger$2.error('error processing body');
         }
       } else {
-        console.log('savedRequest');
+        logger$2.log('savedRequest');
       }
     }, 50);
   } catch (err) {
-    console.error('error processing saved fetch request and response, but move on anyways.');
-    console.log(err);
+    logger$2.error('error processing saved fetch request and response, but move on anyways.');
+    logger$2.log(err);
   }
 }
 
 function interceptor(recorder, fetch, arg1, arg2) {
-  console.log('fetch interceptor is called');
-
   var savedRequest = null;
 
   try {
@@ -1992,7 +1997,6 @@ function interceptor(recorder, fetch, arg1, arg2) {
   //   return fetch(ar1, ar2);
   // });
 
-  console.log('about to perform fetch.');
   promise = fetch(arg1, arg2);
 
   var savedResponse = null;
@@ -2016,14 +2020,14 @@ function patch(recorder, env) {
   var myenv = env || window || self;
 
   if (myenv['fetch']) {
-    console.log('found fetch method.');
+    logger$2.log('found fetch method.');
     if (!myenv['fetch']['polyfill']) {
       // basically, if it is polyfill, it means
       // that it is using XMLhttpRequest underneath,
       // then no need to patch fetch.
       var oldFetch = myenv['fetch'];
 
-      console.log('fetch is not polyfilled so instrumenting it');
+      logger$2.log('fetch is not polyfilled so instrumenting it');
 
       myenv['fetch'] = (function(fetch) {
         return function(arg1, arg2) {
@@ -2039,11 +2043,11 @@ function patch(recorder, env) {
     } else {
       // should not patch if it is polyfilled.
       // since it would duplicate the data.
-      console.log('skip patching fetch since it is polyfilled');
+      logger$2.log('skip patching fetch since it is polyfilled');
       return null;
     }
   } else {
-    console.log('there is no fetch found');
+    logger$2.log('there is no fetch found, so skipping instrumentation.');
   }
 }
 
@@ -2077,6 +2081,10 @@ function getReferrer() {
   return referrerInfo;
 }
 
+// eslint-disable-line
+
+var logger$4 = console_with_prefix('utm');
+
 var Constants = {  // UTM Params
   UTM_SOURCE: 'utm_source',
   UTM_MEDIUM: 'utm_medium',
@@ -2093,8 +2101,8 @@ function getUtmData(rawCookie, query) {
   // Translate the utmz cookie format into url query string format.
   var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
 
-  console.log('cookie');
-  console.log(cookie);
+  logger$4.log('cookie');
+  logger$4.log(cookie);
 
   var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
     return _.getQueryParamByName(queryName, query) ||
@@ -2129,6 +2137,8 @@ function getUtm(queryParams, cookieParams) {
   var utmProperties = getUtmData(cookieParams, queryParams);
   return utmProperties;
 }
+
+var logger$3 = console_with_prefix('campaign');
 
 function _getUrlParams() {
   return location && location.search;
@@ -2166,13 +2176,13 @@ function getCampaignData(opt) {
 
     return result;
   } catch (err) {
-    console.error(err);
+    logger$3.log(err);
   }
 }
 
-// eslint-disable-line camelcase
+// eslint-disable-line
 
-var logger$2 = console_with_prefix('lock');
+var logger$7 = console_with_prefix('lock');
 
 /**
  * SharedLock: a mutex built on HTML5 localStorage, to ensure that only one browser
@@ -2224,7 +2234,7 @@ SharedLock.prototype.withLock = function(lockedCB, errorCB, pid) {
 
     var delay = function(cb) {
         if (new Date().getTime() - startTime > timeoutMS) {
-            logger$2.error('Timeout waiting for mutex on ' + key + '; clearing lock. [' + i + ']');
+            logger$7.error('Timeout waiting for mutex on ' + key + '; clearing lock. [' + i + ']');
             storage.removeItem(keyZ);
             storage.removeItem(keyY);
             loop();
@@ -2313,9 +2323,7 @@ SharedLock.prototype.withLock = function(lockedCB, errorCB, pid) {
     }
 };
 
-// eslint-disable-line camelcase
-
-var logger$1 = console_with_prefix('batch');
+var logger$6 = console_with_prefix('batch');
 
 /**
  * RequestQueue: queue for batching API requests with localStorage backup for retries.
@@ -2371,18 +2379,18 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
             succeeded = this.saveToStorage(storedQueue);
             if (succeeded) {
                 // only add to in-memory queue when storage succeeds
-                logger$1.log('succeeded saving to storage');
+                logger$6.log('succeeded saving to storage');
                 this.memQueue.push(queueEntry);
             }
         } catch(err) {
-            logger$1.error('Error enqueueing item', item);
+            logger$6.error('Error enqueueing item', item);
             succeeded = false;
         }
         if (cb) {
             cb(succeeded);
         }
     }, this), function lockFailure(err) {
-        logger$1.error('Error acquiring storage lock', err);
+        logger$6.error('Error acquiring storage lock', err);
         if (cb) {
             cb(false);
         }
@@ -2396,16 +2404,14 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
  * already passed).
  */
 RequestQueue.prototype.fillBatch = function(batchSize) {
-    logger$1.log('trying to fill batchSize ' + batchSize);
     var batch = this.memQueue.slice(0, batchSize);
-    logger$1.log('current memQueue size ' + this.memQueue.length);
 
     if (batch.length < batchSize) {
         // don't need lock just to read events; localStorage is thread-safe
         // and the worst that could happen is a duplicate send of some
         // orphaned events, which will be deduplicated on the server side
         var storedQueue = this.readFromStorage();
-        logger$1.log('current storedQueue size ' + storedQueue.length);
+        logger$6.log('current storedQueue size ' + storedQueue.length);
         if (storedQueue.length) {
             // item IDs already in batch; don't duplicate out of storage
             var idsInBatch = {}; // poor man's Set
@@ -2445,8 +2451,6 @@ var filterOutIDsAndInvalid = function(items, idSet) {
  * and persisted queue
  */
 RequestQueue.prototype.removeItemsByID = function(ids, cb) {
-    logger$1.log('about to remove sent items from queue ' + ids);
-
     var idSet = {}; // poor man's Set
     _.each(ids, function(id) { idSet[id] = true; });
 
@@ -2456,18 +2460,18 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
         try {
             var storedQueue = this.readFromStorage();
             storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
-            logger$1.log('new storedQueue ' + storedQueue && storedQueue.length);
+            logger$6.log('new storedQueue ' + storedQueue && storedQueue.length);
             succeeded = this.saveToStorage(storedQueue);
         } catch(err) {
-            logger$1.error('Error removing items', ids);
+            logger$6.error('Error removing items', ids);
             succeeded = false;
         }
         if (cb) {
-            logger$1.log('triggering callback of removalItems');
+            logger$6.log('triggering callback of removalItems');
             cb(succeeded);
         }
     }, this), function lockFailure(err) {
-        logger$1.error('Error acquiring storage lock', err);
+        logger$6.error('Error acquiring storage lock', err);
         if (cb) {
             cb(false);
         }
@@ -2481,19 +2485,19 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
 RequestQueue.prototype.readFromStorage = function() {
     var storageEntry;
     try {
-        logger$1.log('trying to get storage with storage key ' + this.storageKey);
+        logger$6.log('trying to get storage with storage key ' + this.storageKey);
         storageEntry = this.storage.getItem(this.storageKey);
         if (storageEntry) {
             storageEntry = JSONParse(storageEntry);
             if (!_.isArray(storageEntry)) {
-                logger$1.error('Invalid storage entry:', storageEntry);
+                logger$6.error('Invalid storage entry:', storageEntry);
                 storageEntry = null;
             }
         } else {
-          logger$1.log('storageEntry is empty');
+          logger$6.log('storageEntry is empty');
         }
     } catch (err) {
-        logger$1.error('Error retrieving queue', err);
+        logger$6.error('Error retrieving queue', err);
         storageEntry = null;
     }
     return storageEntry || [];
@@ -2507,7 +2511,7 @@ RequestQueue.prototype.saveToStorage = function(queue) {
         this.storage.setItem(this.storageKey, JSONStringify(queue));
         return true;
     } catch (err) {
-        logger$1.error('Error saving queue', err);
+        logger$6.error('Error saving queue', err);
         return false;
     }
 };
@@ -2525,7 +2529,7 @@ RequestQueue.prototype.clear = function() {
 // maximum interval between request retries after exponential backoff
 var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
-var logger = console_with_prefix('batch');
+var logger$5 = console_with_prefix('batch');
 
 /**
  * RequestBatcher: manages the queueing, flushing, retry etc of requests of one
@@ -2551,7 +2555,6 @@ var RequestBatcher = function(storageKey, endpoint, options) {
  * Add one item to queue.
  */
 RequestBatcher.prototype.enqueue = function(item, cb) {
-    logger.log('enqueueing ' + JSONStringify(item));
     this.queue.enqueue(item, this.flushInterval, cb);
 };
 
@@ -2593,7 +2596,6 @@ RequestBatcher.prototype.resetBatchSize = function() {
  * Restore flush interval time configuration to whatever is set in the main SDK.
  */
 RequestBatcher.prototype.resetFlush = function() {
-    logger.log('reset flush is called');
     this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
 };
 
@@ -2602,7 +2604,6 @@ RequestBatcher.prototype.resetFlush = function() {
  */
 RequestBatcher.prototype.scheduleFlush = function(flushMS) {
     this.flushInterval = flushMS;
-    logger.log('scheduleFlush is called with next try' + flushMS);
     if (!this.stopped) { // don't schedule anymore if batching has been stopped
         this.timeoutID = setTimeout(_.bind(this.flush, this), this.flushInterval);
     }
@@ -2620,16 +2621,15 @@ RequestBatcher.prototype.scheduleFlush = function(flushMS) {
  */
 RequestBatcher.prototype.flush = function(options) {
     try {
-        logger.log('flush is called with ' + options);
         if (this.requestInProgress) {
-            logger.log('Flush: Request already in progress');
+            logger$5.log('Flush: Request already in progress');
             return;
         }
 
         options = options || {};
         var currentBatchSize = this.batchSize;
         var batch = this.queue.fillBatch(currentBatchSize);
-        logger.log('current batch size is ' + batch.length);
+        logger$5.log('current batch size is ' + batch.length);
 
         if (batch.length < 1) {
             this.resetFlush();
@@ -2644,10 +2644,7 @@ RequestBatcher.prototype.flush = function(options) {
         var batchSendCallback = _.bind(function(res) {
             this.requestInProgress = false;
 
-            logger.log('batchSend callback ');
-
             try {
-
                 // handle API response in a try-catch to make sure we can reset the
                 // flush operation if something goes wrong
 
@@ -2657,7 +2654,7 @@ RequestBatcher.prototype.flush = function(options) {
                     res.error === 'timeout' &&
                     new Date().getTime() - startTime >= timeoutMS
                 ) {
-                    logger.error('Network timeout; retrying');
+                    logger$5.error('Network timeout; retrying');
                     this.flush();
                 } else if (
                     _.isObject(res) &&
@@ -2674,17 +2671,17 @@ RequestBatcher.prototype.flush = function(options) {
                         }
                     }
                     retryMS = Math.min(MAX_RETRY_INTERVAL_MS, retryMS);
-                    logger.error('Error; retry in ' + retryMS + ' ms');
+                    logger$5.error('Error; retry in ' + retryMS + ' ms');
                     this.scheduleFlush(retryMS);
                 } else if (_.isObject(res) && res.xhr_req && res.xhr_req['status'] === 413) {
                     // 413 Payload Too Large
                     if (batch.length > 1) {
                         var halvedBatchSize = Math.max(1, Math.floor(currentBatchSize / 2));
                         this.batchSize = Math.min(this.batchSize, halvedBatchSize, batch.length - 1);
-                        logger.error('413 response; reducing batch size to ' + this.batchSize);
+                        logger$5.error('413 response; reducing batch size to ' + this.batchSize);
                         this.resetFlush();
                     } else {
-                        logger.error('Single-event request too large; dropping', batch);
+                        logger$5.error('Single-event request too large; dropping', batch);
                         this.resetBatchSize();
                         removeItemsFromQueue = true;
                     }
@@ -2694,8 +2691,6 @@ RequestBatcher.prototype.flush = function(options) {
                     removeItemsFromQueue = true;
                 }
 
-                logger.log('should remove sent items? ' + removeItemsFromQueue);
-
                 if (removeItemsFromQueue) {
                     this.queue.removeItemsByID(
                         _.map(batch, function(item) { return item['id']; }),
@@ -2704,7 +2699,7 @@ RequestBatcher.prototype.flush = function(options) {
                 }
 
             } catch(err) {
-                logger.error('Error handling API response', err);
+                logger$5.error('Error handling API response', err);
                 this.resetFlush();
             }
         }, this);
@@ -2717,11 +2712,11 @@ RequestBatcher.prototype.flush = function(options) {
         if (options.sendBeacon) {
             requestOptions.transport = 'sendBeacon';
         }
-        logger.log('Moesif Request:', this.endpoint, dataForRequest);
+        logger$5.log('Moesif Request:', this.endpoint, dataForRequest);
         this.sendRequest(this.endpoint, dataForRequest, requestOptions, batchSendCallback);
 
     } catch(err) {
-        logger.error('Error flushing request queue', err);
+        logger$5.error('Error flushing request queue', err);
         this.resetFlush();
     }
 };
@@ -2839,7 +2834,6 @@ function moesifCreator () {
 
       this.requestBatchers = {};
 
-
       this._options = ops;
       try {
         this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
@@ -2847,7 +2841,7 @@ function moesifCreator () {
         this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
         this._campaign = getCampaignData(ops);
       } catch(err) {
-        console.log('error loading saved data from local storage but continue');
+        console.error('error loading saved data from local storage but continue');
       }
 
       if (ops.batch) {
@@ -3072,7 +3066,7 @@ function moesifCreator () {
     },
     updateCompany: function(companyObject, applicationId, callback) {
       this._executeRequest(
-        HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.companyId,
+        HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT,
         companyObject,
         { applicationId: applicationId },
         callback

@@ -1,4 +1,4 @@
-import { _, console } from './utils';
+import { _ } from './utils';
 
 function _getReferrerStr() {
   return document && document.referrer;

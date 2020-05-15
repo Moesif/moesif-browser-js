@@ -1,4 +1,4 @@
-import { console_with_prefix, localStorageSupported } from './utils'; // eslint-disable-line camelcase
+import { console_with_prefix, localStorageSupported } from './utils'; // eslint-disable-line
 
 var logger = console_with_prefix('lock');
 

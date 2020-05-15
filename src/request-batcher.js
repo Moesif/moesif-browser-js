@@ -30,7 +30,6 @@ var RequestBatcher = function(storageKey, endpoint, options) {
  * Add one item to queue.
  */
 RequestBatcher.prototype.enqueue = function(item, cb) {
-    logger.log('enqueueing ' + JSONStringify(item));
     this.queue.enqueue(item, this.flushInterval, cb);
 };
 
@@ -72,7 +71,6 @@ RequestBatcher.prototype.resetBatchSize = function() {
  * Restore flush interval time configuration to whatever is set in the main SDK.
  */
 RequestBatcher.prototype.resetFlush = function() {
-    logger.log('reset flush is called');
     this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
 };
 
@@ -81,7 +79,6 @@ RequestBatcher.prototype.resetFlush = function() {
  */
 RequestBatcher.prototype.scheduleFlush = function(flushMS) {
     this.flushInterval = flushMS;
-    logger.log('scheduleFlush is called with next try' + flushMS);
     if (!this.stopped) { // don't schedule anymore if batching has been stopped
         this.timeoutID = setTimeout(_.bind(this.flush, this), this.flushInterval);
     }
@@ -99,7 +96,6 @@ RequestBatcher.prototype.scheduleFlush = function(flushMS) {
  */
 RequestBatcher.prototype.flush = function(options) {
     try {
-        logger.log('flush is called with ' + options);
         if (this.requestInProgress) {
             logger.log('Flush: Request already in progress');
             return;
@@ -123,10 +119,7 @@ RequestBatcher.prototype.flush = function(options) {
         var batchSendCallback = _.bind(function(res) {
             this.requestInProgress = false;
 
-            logger.log('batchSend callback ');
-
             try {
-
                 // handle API response in a try-catch to make sure we can reset the
                 // flush operation if something goes wrong
 
@@ -172,8 +165,6 @@ RequestBatcher.prototype.flush = function(options) {
                     // (even if it was e.g. a 400, in which case retrying won't help)
                     removeItemsFromQueue = true;
                 }
-
-                logger.log('should remove sent items? ' + removeItemsFromQueue);
 
                 if (removeItemsFromQueue) {
                     this.queue.removeItemsByID(

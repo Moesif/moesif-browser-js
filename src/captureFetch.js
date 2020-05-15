@@ -1,4 +1,6 @@
-import { _, console } from './utils';
+import { _, console_with_prefix } from './utils'; // eslint-disable-line camelcase
+
+var logger = console_with_prefix('captureFetch');
 
 /**
  * @param {*} buffer
@@ -8,9 +10,9 @@ import { _, console } from './utils';
  */
 function processBodyAndInitializedModel(buffer) {
   if (!buffer) return {};
-  console.log('about to decode buffer');
-  console.log(buffer);
-  console.log(buffer.byteLength);
+  logger.log('about to decode buffer');
+  logger.log(buffer);
+  logger.log(buffer.byteLength);
 
   if (buffer.byteLength <= 0) {
     // empty body.
@@ -24,15 +26,15 @@ function processBodyAndInitializedModel(buffer) {
     try {
       return { 'body': _.JSONDecode(text) };
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       return {
         'transfer_encoding': 'base64',
         'body': _.base64Encode(text)
       };
     }
   } catch (err) {
-    console.error(err);
-    console.log(buffer);
+    logger.error(err);
+    logger.log(buffer);
     return {
       'transfer_encoding': 'base64',
       'body': 'can not be decoded'
@@ -47,13 +49,13 @@ function processBodyAndInitializedModel(buffer) {
  */
 function parseHeaders(headers) {
   var result = {};
-  console.log('parseheaders is called');
+  logger.log('parseheaders is called');
 
   var entries = headers.entries();
 
   var entry = entries.next();
   while (!entry.done) {
-    console.log(entry.value); // 1 3 5 7 9
+    logger.log(entry.value); // 1 3 5 7 9
     result[entry.value[0]] = entry.value[1];
 
     entry = entries.next();
@@ -69,9 +71,9 @@ function parseHeaders(headers) {
 function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
   try {
     setTimeout(function() {
-      console.log('interception is here.');
-      console.log(savedRequest);
-      console.log(savedResponse);
+      logger.log('interception is here.');
+      logger.log(savedRequest);
+      logger.log(savedResponse);
       if (savedRequest && savedResponse) {
         // try to exract out information:
         // var reqHeaders = {};
@@ -84,12 +86,10 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
         // for (var pair2 of savedResponse.headers.entries()) {
         //   resHeaders[pair2[0]] = pair2[1];
         // }
-        console.log('inside if statement.');
         try {
           Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function(
             bodies
           ) {
-            console.log('processing bodies');
             var processedBodies = bodies.map(processBodyAndInitializedModel);
 
             var requestModel = Object.assign(processedBodies[0], {
@@ -105,8 +105,8 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
               'headers': parseHeaders(savedResponse.headers)
             });
 
-            console.log(requestModel);
-            console.log(responseModel);
+            logger.log(requestModel);
+            logger.log(responseModel);
 
             var event = {
               'request': requestModel,
@@ -116,21 +116,19 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
             recorder(event);
           });
         } catch (err) {
-          console.log('error processing body');
+          logger.error('error processing body');
         }
       } else {
-        console.log('savedRequest');
+        logger.log('savedRequest');
       }
     }, 50);
   } catch (err) {
-    console.error('error processing saved fetch request and response, but move on anyways.');
-    console.log(err);
+    logger.error('error processing saved fetch request and response, but move on anyways.');
+    logger.log(err);
   }
 }
 
 function interceptor(recorder, fetch, arg1, arg2) {
-  console.log('fetch interceptor is called');
-
   var savedRequest = null;
 
   try {
@@ -149,7 +147,6 @@ function interceptor(recorder, fetch, arg1, arg2) {
   //   return fetch(ar1, ar2);
   // });
 
-  console.log('about to perform fetch.');
   promise = fetch(arg1, arg2);
 
   var savedResponse = null;
@@ -173,14 +170,14 @@ function patch(recorder, env) {
   var myenv = env || window || self;
 
   if (myenv['fetch']) {
-    console.log('found fetch method.');
+    logger.log('found fetch method.');
     if (!myenv['fetch']['polyfill']) {
       // basically, if it is polyfill, it means
       // that it is using XMLhttpRequest underneath,
       // then no need to patch fetch.
       var oldFetch = myenv['fetch'];
 
-      console.log('fetch is not polyfilled so instrumenting it');
+      logger.log('fetch is not polyfilled so instrumenting it');
 
       myenv['fetch'] = (function(fetch) {
         return function(arg1, arg2) {
@@ -196,11 +193,11 @@ function patch(recorder, env) {
     } else {
       // should not patch if it is polyfilled.
       // since it would duplicate the data.
-      console.log('skip patching fetch since it is polyfilled');
+      logger.log('skip patching fetch since it is polyfilled');
       return null;
     }
   } else {
-    console.log('there is no fetch found');
+    logger.log('there is no fetch found, so skipping instrumentation.');
   }
 }
 

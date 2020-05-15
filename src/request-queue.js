@@ -1,5 +1,5 @@
+import { cheap_guid, console_with_prefix, JSONParse, JSONStringify, _ } from './utils'; // eslint-disable-line
 import { SharedLock } from './shared-lock';
-import { cheap_guid, console_with_prefix, JSONParse, JSONStringify, _ } from './utils'; // eslint-disable-line camelcase
 
 var logger = console_with_prefix('batch');
 
@@ -82,9 +82,7 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
  * already passed).
  */
 RequestQueue.prototype.fillBatch = function(batchSize) {
-    logger.log('trying to fill batchSize ' + batchSize);
     var batch = this.memQueue.slice(0, batchSize);
-    logger.log('current memQueue size ' + this.memQueue.length);
 
     if (batch.length < batchSize) {
         // don't need lock just to read events; localStorage is thread-safe
@@ -131,8 +129,6 @@ var filterOutIDsAndInvalid = function(items, idSet) {
  * and persisted queue
  */
 RequestQueue.prototype.removeItemsByID = function(ids, cb) {
-    logger.log('about to remove sent items from queue ' + ids);
-
     var idSet = {}; // poor man's Set
     _.each(ids, function(id) { idSet[id] = true; });
 

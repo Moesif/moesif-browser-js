@@ -1,5 +1,5 @@
 /**
- * Created by Xingheng on 2/1/17.
+ * Created by Xingheng
  */
 
 import { _, console, userAgent, localStorageSupported, JSONStringify } from './utils';
@@ -134,7 +134,6 @@ export default function () {
 
       this.requestBatchers = {};
 
-
       this._options = ops;
       try {
         this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
@@ -142,7 +141,7 @@ export default function () {
         this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
         this._campaign = getCampaignData(ops);
       } catch(err) {
-        console.log('error loading saved data from local storage but continue');
+        console.error('error loading saved data from local storage but continue');
       }
 
       if (ops.batch) {
@@ -367,7 +366,7 @@ export default function () {
     },
     updateCompany: function(companyObject, applicationId, callback) {
       this._executeRequest(
-        HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.companyId,
+        HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT,
         companyObject,
         { applicationId: applicationId },
         callback
