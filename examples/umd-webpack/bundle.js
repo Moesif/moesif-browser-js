@@ -64,7 +64,7 @@
 	}(this, function () { 'use strict';
 
 	    var Config = {
-	        DEBUG: true,
+	        DEBUG: false,
 	        LIB_VERSION: '1.5.9'
 	    };
 

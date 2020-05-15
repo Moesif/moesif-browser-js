@@ -11,13 +11,12 @@
         debug: true,
         getMetadata: function (eventData) {
           console.log("getMetdata is called");
-          console.log("eventData is" + JSON.stringify(eventData));
           return {
             foo: "browser.js",
             bar: "browser1",
           };
         },
-        batch: false,
+        batch: true,
         batch_size: 5,
         batch_flush_interval_ms: 15000,
         // add other option here.
