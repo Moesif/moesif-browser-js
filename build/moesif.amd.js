@@ -1,7 +1,7 @@
 define(function () { 'use strict';
 
     var Config = {
-        DEBUG: true,
+        DEBUG: false,
         LIB_VERSION: '1.5.9'
     };
 
@@ -45,7 +45,7 @@ define(function () { 'use strict';
     };
 
     // Console override
-    var console$1 = {
+    var console = {
         /** @type {function(...[*])} */
         log: function() {
             if (Config.DEBUG && !_.isUndefined(windowConsole) && windowConsole) {
@@ -341,7 +341,7 @@ define(function () { 'use strict';
             try {
                 return f.apply(this, arguments);
             } catch (e) {
-                console$1.critical('Implementation error. Please contact support@moesif.com.');
+                console.critical('Implementation error. Please contact support@moesif.com.');
             }
         };
     };
@@ -1062,7 +1062,7 @@ define(function () { 'use strict';
     // _.localStorage
     _.localStorage = {
         error: function(msg) {
-            console$1.error('localStorage error: ' + msg);
+            console.error('localStorage error: ' + msg);
         },
 
         get: function(name) {
@@ -1515,15 +1515,15 @@ define(function () { 'use strict';
     var log_func_with_prefix = function(func, prefix) {
       return function() {
           arguments[0] = '[' + prefix + '] ' + arguments[0];
-          return func.apply(console$1, arguments);
+          return func.apply(console, arguments);
       };
     };
 
     var console_with_prefix = function(prefix) {
       return {
-          log: log_func_with_prefix(console$1.log, prefix),
-          error: log_func_with_prefix(console$1.error, prefix),
-          critical: log_func_with_prefix(console$1.critical, prefix)
+          log: log_func_with_prefix(console.log, prefix),
+          error: log_func_with_prefix(console.error, prefix),
+          critical: log_func_with_prefix(console.critical, prefix)
       };
     };
 
@@ -1599,13 +1599,13 @@ define(function () { 'use strict';
 
               if (postData) {
                 if (typeof postData === 'string') {
-                  console$1.log('request post data is string');
-                  console$1.log(postData);
+                  console.log('request post data is string');
+                  console.log(postData);
                   try {
                     requestModel['body'] = _.JSONDecode(postData);
                   } catch(err) {
-                    console$1.log('JSON decode failed');
-                    console$1.log(err);
+                    console.log('JSON decode failed');
+                    console.log(err);
                     requestModel['transfer_encoding'] = 'base64';
                     requestModel['body'] = _.base64Encode(postData);
                   }
@@ -1719,13 +1719,13 @@ define(function () { 'use strict';
 
       if (payload) {
         if (typeof payload === 'string') {
-          console$1.log('request post data is string');
-          console$1.log(payload);
+          console.log('request post data is string');
+          console.log(payload);
           try {
             requestModel['body'] = _.JSONDecode(payload);
           } catch(err) {
-            console$1.log('JSON decode failed');
-            console$1.log(err);
+            console.log('JSON decode failed');
+            console.log(err);
             requestModel['transfer_encoding'] = 'base64';
             requestModel['body'] = _.base64Encode(payload);
           }
@@ -1786,20 +1786,20 @@ define(function () { 'use strict';
      */
     function captureWeb3Requests(myWeb3, recorder, options) {
       if (myWeb3['currentProvider']) {
-        console$1.log('found my currentProvider, patching it');
+        console.log('found my currentProvider, patching it');
         var CPDR = myWeb3['currentProvider'];
 
         var send = CPDR['send'];
         var sendAsync = CPDR['sendAsync'];
 
         CPDR['send'] = function(payload) {
-          console$1.log('patched send is called');
-          console$1.log(payload);
+          console.log('patched send is called');
+          console.log(payload);
           var _startTime = (new Date()).toISOString();
           var result = send.apply(CPDR, arguments);
 
-          console$1.log('patch send result is back');
-          console$1.log(result);
+          console.log('patch send result is back');
+          console.log(result);
           var _endTime = (new Date()).toISOString();
           if (recorder) {
             recorder(createEventModel(CPDR, _startTime, _endTime, payload, result));
@@ -1809,27 +1809,27 @@ define(function () { 'use strict';
         };
 
         CPDR['sendAsync'] = function(payload, callback) {
-          console$1.log('patched sendAsync is called');
-          console$1.log(payload);
+          console.log('patched sendAsync is called');
+          console.log(payload);
           var _startTime = (new Date()).toISOString();
           var provider = CPDR;
 
           var _callback = function(err, result) {
             var _endTime = (new Date()).toISOString();
 
-            console$1.log('inside patched callback');
-            console$1.log(result);
+            console.log('inside patched callback');
+            console.log(result);
             if (recorder) {
-              console$1.log('about to record event');
+              console.log('about to record event');
               recorder(createEventModel(provider, _startTime, _endTime, payload, result, err));
             }
 
-            console$1.log('triggering original callback');
+            console.log('triggering original callback');
 
             callback(err, result);
           };
 
-          console$1.log(payload);
+          console.log(payload);
           sendAsync.apply(CPDR, [payload, _callback]);
         };
 
@@ -1851,9 +1851,9 @@ define(function () { 'use strict';
      */
     function processBodyAndInitializedModel(buffer) {
       if (!buffer) return {};
-      console$1.log('about to decode buffer');
-      console$1.log(buffer);
-      console$1.log(buffer.byteLength);
+      console.log('about to decode buffer');
+      console.log(buffer);
+      console.log(buffer.byteLength);
 
       if (buffer.byteLength <= 0) {
         // empty body.
@@ -1867,15 +1867,15 @@ define(function () { 'use strict';
         try {
           return { 'body': _.JSONDecode(text) };
         } catch (err) {
-          console$1.error(err);
+          console.error(err);
           return {
             'transfer_encoding': 'base64',
             'body': _.base64Encode(text)
           };
         }
       } catch (err) {
-        console$1.error(err);
-        console$1.log(buffer);
+        console.error(err);
+        console.log(buffer);
         return {
           'transfer_encoding': 'base64',
           'body': 'can not be decoded'
@@ -1890,13 +1890,13 @@ define(function () { 'use strict';
      */
     function parseHeaders(headers) {
       var result = {};
-      console$1.log('parseheaders is called');
+      console.log('parseheaders is called');
 
       var entries = headers.entries();
 
       var entry = entries.next();
       while (!entry.done) {
-        console$1.log(entry.value); // 1 3 5 7 9
+        console.log(entry.value); // 1 3 5 7 9
         result[entry.value[0]] = entry.value[1];
 
         entry = entries.next();
@@ -1912,9 +1912,9 @@ define(function () { 'use strict';
     function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
       try {
         setTimeout(function() {
-          console$1.log('interception is here.');
-          console$1.log(savedRequest);
-          console$1.log(savedResponse);
+          console.log('interception is here.');
+          console.log(savedRequest);
+          console.log(savedResponse);
           if (savedRequest && savedResponse) {
             // try to exract out information:
             // var reqHeaders = {};
@@ -1927,12 +1927,12 @@ define(function () { 'use strict';
             // for (var pair2 of savedResponse.headers.entries()) {
             //   resHeaders[pair2[0]] = pair2[1];
             // }
-            console$1.log('inside if statement.');
+            console.log('inside if statement.');
             try {
               Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function(
                 bodies
               ) {
-                console$1.log('processing bodies');
+                console.log('processing bodies');
                 var processedBodies = bodies.map(processBodyAndInitializedModel);
 
                 var requestModel = Object.assign(processedBodies[0], {
@@ -1948,8 +1948,8 @@ define(function () { 'use strict';
                   'headers': parseHeaders(savedResponse.headers)
                 });
 
-                console$1.log(requestModel);
-                console$1.log(responseModel);
+                console.log(requestModel);
+                console.log(responseModel);
 
                 var event = {
                   'request': requestModel,
@@ -1959,20 +1959,20 @@ define(function () { 'use strict';
                 recorder(event);
               });
             } catch (err) {
-              console$1.log('error processing body');
+              console.log('error processing body');
             }
           } else {
-            console$1.log('savedRequest');
+            console.log('savedRequest');
           }
         }, 50);
       } catch (err) {
-        console$1.error('error processing saved fetch request and response, but move on anyways.');
-        console$1.log(err);
+        console.error('error processing saved fetch request and response, but move on anyways.');
+        console.log(err);
       }
     }
 
     function interceptor(recorder, fetch, arg1, arg2) {
-      console$1.log('fetch interceptor is called');
+      console.log('fetch interceptor is called');
 
       var savedRequest = null;
 
@@ -1992,7 +1992,7 @@ define(function () { 'use strict';
       //   return fetch(ar1, ar2);
       // });
 
-      console$1.log('about to perform fetch.');
+      console.log('about to perform fetch.');
       promise = fetch(arg1, arg2);
 
       var savedResponse = null;
@@ -2016,14 +2016,14 @@ define(function () { 'use strict';
       var myenv = env || window || self;
 
       if (myenv['fetch']) {
-        console$1.log('found fetch method.');
+        console.log('found fetch method.');
         if (!myenv['fetch']['polyfill']) {
           // basically, if it is polyfill, it means
           // that it is using XMLhttpRequest underneath,
           // then no need to patch fetch.
           var oldFetch = myenv['fetch'];
 
-          console$1.log('fetch is not polyfilled so instrumenting it');
+          console.log('fetch is not polyfilled so instrumenting it');
 
           myenv['fetch'] = (function(fetch) {
             return function(arg1, arg2) {
@@ -2039,11 +2039,11 @@ define(function () { 'use strict';
         } else {
           // should not patch if it is polyfilled.
           // since it would duplicate the data.
-          console$1.log('skip patching fetch since it is polyfilled');
+          console.log('skip patching fetch since it is polyfilled');
           return null;
         }
       } else {
-        console$1.log('there is no fetch found');
+        console.log('there is no fetch found');
       }
     }
 
@@ -2093,8 +2093,8 @@ define(function () { 'use strict';
       // Translate the utmz cookie format into url query string format.
       var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
 
-      console$1.log('cookie');
-      console$1.log(cookie);
+      console.log('cookie');
+      console.log(cookie);
 
       var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
         return _.getQueryParamByName(queryName, query) ||
@@ -2166,7 +2166,7 @@ define(function () { 'use strict';
 
         return result;
       } catch (err) {
-        console$1.error(err);
+        console.error(err);
       }
     }
 
@@ -2593,7 +2593,7 @@ define(function () { 'use strict';
      * Restore flush interval time configuration to whatever is set in the main SDK.
      */
     RequestBatcher.prototype.resetFlush = function() {
-        console.log('reset flush is called');
+        logger.log('reset flush is called');
         this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
     };
 
@@ -2794,12 +2794,12 @@ define(function () { 'use strict';
     }
 
     function moesifCreator () {
-      console$1.log('moesif object creator is called');
+      console.log('moesif object creator is called');
 
       return {
         'init': function (options) {
           if (!window) {
-            console$1.critical('Warning, this library need to be initiated on the client side');
+            console.critical('Warning, this library need to be initiated on the client side');
           }
 
           ensureValidOptions(options);
@@ -2847,13 +2847,13 @@ define(function () { 'use strict';
             this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
             this._campaign = getCampaignData(ops);
           } catch(err) {
-            console$1.log('error loading saved data from local storage but continue');
+            console.log('error loading saved data from local storage but continue');
           }
 
           if (ops.batch) {
             if (!localStorageSupported || !USE_XHR) {
               ops.batch = false;
-              console$1.log('Turning off batch processing because it needs XHR and localStorage');
+              console.log('Turning off batch processing because it needs XHR and localStorage');
             } else {
               this.initBatching();
               if (sendBeacon && window.addEventListener) {
@@ -2868,7 +2868,7 @@ define(function () { 'use strict';
             }
           }
 
-          console$1.log('moesif initiated');
+          console.log('moesif initiated');
           return this;
         },
         _executeRequest: function (url, data, options, callback) {
@@ -2900,17 +2900,7 @@ define(function () { 'use strict';
               if (xmlhttp.readyState === 4) { // XMLHttpRequest.DONE == 4, except in safari 4
                 if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
                   if (callback) {
-                    var response;
-                    try {
-                      response = _.JSONDecode(xmlhttp.responseText);
-                    } catch (e) {
-                      console$1.error(e);
-                      if (options.ignore_json_errors) {
-                        response = xmlhttp.responseText;
-                      } else {
-                        return;
-                      }
-                    }
+                    var response = XMLHttpRequest.responseText;
                     callback(response);
                   }
                 } else {
@@ -2924,7 +2914,7 @@ define(function () { 'use strict';
                   } else {
                     error = 'Bad HTTP status: ' + xmlhttp.status + ' ' + xmlhttp.statusText;
                   }
-                  console$1.error(error);
+                  console.error(error);
                   if (callback) {
                     callback({ status: 0, error: error, xhr_req: xmlhttp }); // eslint-disable-line camelcase
                   }
@@ -2934,8 +2924,8 @@ define(function () { 'use strict';
 
             xmlhttp.send(JSONStringify(data));
           } catch (err) {
-            console$1.error('failed to send event to moesif' + event['request']['uri']);
-            console$1.error(err);
+            console.error('failed to send event to moesif' + event['request']['uri']);
+            console.error(err);
              if (callback) {
               callback({status: 0, error: err });
             }
@@ -2944,7 +2934,7 @@ define(function () { 'use strict';
         initBatching: function () {
           var applicationId = this._options.applicationId;
 
-          console$1.log('does requestBatch.events exists? ' + this.requestBatchers.events);
+          console.log('does requestBatch.events exists? ' + this.requestBatchers.events);
 
           if (!this.requestBatchers.events) {
             var batchConfig = {
@@ -2976,7 +2966,7 @@ define(function () { 'use strict';
           var requestInitiated = true;
 
           if (this._options.batch && batcher) {
-            console$1.log('current batcher storage key is  ' + batcher.queue.storageKey);
+            console.log('current batcher storage key is  ' + batcher.queue.storageKey);
 
             batcher.enqueue(data);
           } else {
@@ -2994,7 +2984,7 @@ define(function () { 'use strict';
 
 
           if (this._stopRecording || this._stopWeb3Recording) {
-            console$1.log('recording has already started, please call stop first.');
+            console.log('recording has already started, please call stop first.');
             return false;
           }
 
@@ -3002,11 +2992,11 @@ define(function () { 'use strict';
             _self.recordEvent(event);
           }
 
-          console$1.log('moesif starting');
+          console.log('moesif starting');
           this._stopRecording = captureXMLHttpRequest(recorder);
 
           if (!this._options.disableFetch) {
-            console$1.log('also instrumenting fetch API');
+            console.log('also instrumenting fetch API');
             this._stopFetchRecording = patch(recorder);
           }
           this['useWeb3'](passedInWeb3);
@@ -3034,7 +3024,7 @@ define(function () { 'use strict';
             this._stopWeb3Recording = captureWeb3Requests(passedInWeb3, recorder, this._options);
           } else if (window['web3']) {
             // try to patch the global web3
-            console$1.log('found global web3, will capture from it');
+            console.log('found global web3, will capture from it');
             this._stopWeb3Recording = captureWeb3Requests(window['web3'], recorder, this._options);
           }
           if (this._stopWeb3Recording) {
@@ -3077,7 +3067,7 @@ define(function () { 'use strict';
           try {
             localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
           } catch (err) {
-            console$1.error('error saving to local storage');
+            console.error('error saving to local storage');
           }
         },
         updateCompany: function(companyObject, applicationId, callback) {
@@ -3116,7 +3106,7 @@ define(function () { 'use strict';
           try {
             localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
           } catch (err) {
-            console$1.error('error saving to local storage');
+            console.error('error saving to local storage');
           }
         },
         'identifySession': function (session) {
@@ -3155,7 +3145,7 @@ define(function () { 'use strict';
 
           // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
           var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
-          console$1.log('sending or queuing: ' + actionName);
+          console.log('sending or queuing: ' + actionName);
           return _self._sendOrBatch(
             actionObject,
             _self._options.applicationId,
@@ -3166,12 +3156,12 @@ define(function () { 'use strict';
         },
         recordEvent: function (event) {
           if (isMoesif(event)) {
-            console$1.log('skipped logging for requests to moesif');
+            console.log('skipped logging for requests to moesif');
             return;
           }
 
           var _self = this;
-          console$1.log('determining if should log: ' + event['request']['uri']);
+          console.log('determining if should log: ' + event['request']['uri']);
           var logData = Object.assign({}, event);
           if (_self._getUserId()) {
             logData['user_id'] = _self._getUserId();
@@ -3204,7 +3194,7 @@ define(function () { 'use strict';
 
           if (!_self._options.skip(event) && !isMoesif(event)) {
             // sendEvent(logData, _self._options.applicationId, _self._options.callback);
-            console$1.log('sending or queuing' + event['request']['uri']);
+            console.log('sending or queuing' + event['request']['uri']);
             var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
             _self._sendOrBatch(
               logData,
@@ -3214,7 +3204,7 @@ define(function () { 'use strict';
               _self._options.callback
             );
           } else {
-            console$1.log('skipped logging for ' + event['request']['uri']);
+            console.log('skipped logging for ' + event['request']['uri']);
           }
         },
         _getUserId: function () {

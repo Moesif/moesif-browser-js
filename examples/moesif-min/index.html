@@ -17,9 +17,9 @@
             bar: "browser1",
           };
         },
-        batch: true,
-        batch_size: 3,
-        batch_flush_interval_ms: 3000,
+        batch: false,
+        batch_size: 5,
+        batch_flush_interval_ms: 15000,
         // add other option here.
       };
 
@@ -31,10 +31,6 @@
 
       // this starts the capturing of the data.
       moesif.start();
-
-      moesif.identifyUser("userAbc", {
-        first_name: "bob",
-      });
     </script>
   </head>
   <body>
@@ -51,14 +47,19 @@
     <button id="send">Send an event to placeholder api server</button>
     <br />
     <button id="track">Send tracked UI action</button>
-    <button id="id-user">Identify User With NewId</button>
-    <button id="id-company">Identify Company With NewId</button>
+    <br />
+    <button id="iduser">Identify User With NewId</button>
+    <br />
+    <button id="idcompany">Identify Company With NewId</button>
     <script type="text/javascript">
       if ($) {
         console.log("yay, jquery is defined");
       }
 
       var POST_COUNT = 1;
+      var ACTION_COUNT = 1;
+      var USER_ID_COUNT = 1;
+      var COMPANY_ID_COUNT = 1;
 
       $("#send").click(function () {
         $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
@@ -71,13 +72,14 @@
         console.log("about to start track");
         moesif.track("button_click", {
           foo: "bar",
-          count: POST_COUNT,
+          count: ACTION_COUNT,
         });
+        ACTION_COUNT = ACTION_COUNT + 1;
       });
 
-      var USER_ID_COUNT = 1;
+      $("#iduser").click(function () {
+        console.log('about to identify user');
 
-      $("id-user").click(function () {
         moesif.identifyUser("user" + USER_ID_COUNT, {
           foo: "bar" + USER_ID_COUNT,
           first_name: "name" + USER_ID_COUNT,
@@ -85,9 +87,8 @@
         USER_ID_COUNT = USER_ID_COUNT + 1;
       });
 
-      var COMPANY_ID_COUNT = 1;
-
-      $("id-company").click(function () {
+      $("#idcompany").click(function () {
+        console.log('about to identify company');
         moesif.identifyUser("company" + COMPANY_ID_COUNT, {
           foo: "bar" + COMPANY_ID_COUNT,
           company_domain: "company-acme" + COMPANY_ID_COUNT + ".co",

@@ -489,7 +489,7 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 var Config = {
-    DEBUG: true,
+    DEBUG: false,
     LIB_VERSION: '1.5.9'
 };
 
@@ -788,17 +788,7 @@ exports['default'] = function () {
             // XMLHttpRequest.DONE == 4, except in safari 4
             if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
               if (callback) {
-                var response;
-                try {
-                  response = _utils._.JSONDecode(xmlhttp.responseText);
-                } catch (e) {
-                  _utils.console.error(e);
-                  if (options.ignore_json_errors) {
-                    response = xmlhttp.responseText;
-                  } else {
-                    return;
-                  }
-                }
+                var response = XMLHttpRequest.responseText;
                 callback(response);
               }
             } else {
@@ -1227,7 +1217,7 @@ RequestBatcher.prototype.resetBatchSize = function () {
  * Restore flush interval time configuration to whatever is set in the main SDK.
  */
 RequestBatcher.prototype.resetFlush = function () {
-    console.log('reset flush is called');
+    logger.log('reset flush is called');
     this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
 };
 

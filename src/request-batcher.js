@@ -72,7 +72,7 @@ RequestBatcher.prototype.resetBatchSize = function() {
  * Restore flush interval time configuration to whatever is set in the main SDK.
  */
 RequestBatcher.prototype.resetFlush = function() {
-    console.log('reset flush is called');
+    logger.log('reset flush is called');
     this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
 };
 

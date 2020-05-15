@@ -195,17 +195,7 @@ export default function () {
           if (xmlhttp.readyState === 4) { // XMLHttpRequest.DONE == 4, except in safari 4
             if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
               if (callback) {
-                var response;
-                try {
-                  response = _.JSONDecode(xmlhttp.responseText);
-                } catch (e) {
-                  console.error(e);
-                  if (options.ignore_json_errors) {
-                    response = xmlhttp.responseText;
-                  } else {
-                    return;
-                  }
-                }
+                var response = XMLHttpRequest.responseText;
                 callback(response);
               }
             } else {
