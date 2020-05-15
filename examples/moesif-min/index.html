@@ -1,30 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Moesif loaded via the minimized CDN file</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
     <script src="moesif.min.js"></script>
     <script type="text/javascript">
       var options = {
-        applicationId: 'Your Application Id',
+        applicationId: "Your Application Id",
         debug: true,
-        getMetadata: function(eventData) {
-          console.log('getMetdata is called');
-          console.log('eventData is' + JSON.stringify(eventData));
+        getMetadata: function (eventData) {
+          console.log("getMetdata is called");
+          console.log("eventData is" + JSON.stringify(eventData));
           return {
-            'foo' : 'browser.js',
-            'bar' : 'browser1'
-          }
+            foo: "browser.js",
+            bar: "browser1",
+          };
         },
         batch: true,
         batch_size: 3,
-        batch_flush_interval_ms: 3000
+        batch_flush_interval_ms: 3000,
         // add other option here.
       };
 
       if (moesif) {
-        console.log('moesif is defined, yay!!!')
+        console.log("moesif is defined, yay!!!");
       }
       // for options see below.
       moesif.init(options);
@@ -32,46 +32,68 @@
       // this starts the capturing of the data.
       moesif.start();
 
-      moesif.identifyUser('userAbc', {
-        first_name: 'bob'
+      moesif.identifyUser("userAbc", {
+        first_name: "bob",
       });
     </script>
-</head>
-<body>
-<h1>Test moesif.min.js</h1>
+  </head>
+  <body>
+    <h1>Test moesif.min.js</h1>
 
-<p>
-    A link to the file in the root folder built by closure. moesif.min.js is included in the header.
-</p>
-<p>
-    Click on the button below should send an request to a placeholder API server. The even should by captured by
-    moesif and send to Moesif.
-</p>
-<button id="send">Send an event to placeholder api server</button>
-<br />
-<button id="track">Send tracked UI action</button>
-<script type="text/javascript">
-    if ($) {
-      console.log('yay, jquery is defined');
-    }
+    <p>
+      A link to the file in the root folder built by closure. moesif.min.js is
+      included in the header.
+    </p>
+    <p>
+      Click on the button below should send an request to a placeholder API
+      server. The even should by captured by moesif and send to Moesif.
+    </p>
+    <button id="send">Send an event to placeholder api server</button>
+    <br />
+    <button id="track">Send tracked UI action</button>
+    <button id="id-user">Identify User With NewId</button>
+    <button id="id-company">Identify Company With NewId</button>
+    <script type="text/javascript">
+      if ($) {
+        console.log("yay, jquery is defined");
+      }
 
-    var POST_COUNT = 1;
+      var POST_COUNT = 1;
 
-    $( "#send" ).click(function() {
-      $.ajax('http://jsonplaceholder.typicode.com/posts/' + POST_COUNT, {
-        method: 'GET'
-      }).then(function(data) {
+      $("#send").click(function () {
+        $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
+          method: "GET",
+        }).then(function (data) {});
+        POST_COUNT = (POST_COUNT + 1) % 100;
       });
-      POST_COUNT = (POST_COUNT + 1) % 100;
-    });
 
-    $( "#track" ).click(function() {
-      console.log('about to start track');
-      moesif.track('button_click', {
-        foo: 'bar',
-        count: POST_COUNT
+      $("#track").click(function () {
+        console.log("about to start track");
+        moesif.track("button_click", {
+          foo: "bar",
+          count: POST_COUNT,
+        });
       });
-    });
-</script>
-</body>
+
+      var USER_ID_COUNT = 1;
+
+      $("id-user").click(function () {
+        moesif.identifyUser("user" + USER_ID_COUNT, {
+          foo: "bar" + USER_ID_COUNT,
+          first_name: "name" + USER_ID_COUNT,
+        });
+        USER_ID_COUNT = USER_ID_COUNT + 1;
+      });
+
+      var COMPANY_ID_COUNT = 1;
+
+      $("id-company").click(function () {
+        moesif.identifyUser("company" + COMPANY_ID_COUNT, {
+          foo: "bar" + COMPANY_ID_COUNT,
+          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co",
+        });
+        COMPANY_ID_COUNT = COMPANY_ID_COUNT + 1;
+      });
+    </script>
+  </body>
 </html>
