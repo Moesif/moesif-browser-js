@@ -626,10 +626,10 @@ var MOESIF_CONSTANTS = {
 // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
 // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
 var USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest();
-
 // IE<10 does not support cross-origin XHR's but script tags
 // with defer won't block window.onload; ENQUEUE_REQUESTS
 // should only be true for Opera<12
+
 var ENQUEUE_REQUESTS = !USE_XHR && _utils.userAgent.indexOf('MSIE') === -1 && _utils.userAgent.indexOf('Mozilla') === -1;
 
 // save reference to navigator.sendBeacon so it can be minified
@@ -642,14 +642,6 @@ if (navigator['sendBeacon']) {
 }
 
 var HTTP_PROTOCOL = 'http:' === (document && document.location.protocol) ? 'http://' : 'https://';
-
-// http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
-// https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
-// var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
-
-// IE<10 does not support cross-origin XHR's but script tags
-// with defer won't block window.onload; ENQUEUE_REQUESTS
-// should only be true for Opera<12
 
 function isContentJson(event) {
   try {
