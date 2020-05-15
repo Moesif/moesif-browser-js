@@ -736,10 +736,14 @@ exports['default'] = function () {
       this.requestBatchers = {};
 
       this._options = ops;
-      this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
-      this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
-      this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
-      this._campaign = (0, _campaign2['default'])(ops);
+      try {
+        this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
+        this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+        this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
+        this._campaign = (0, _campaign2['default'])(ops);
+      } catch (err) {
+        _utils.console.log('error loading saved data from local storage but continue');
+      }
 
       if (ops.batch) {
         if (!_utils.localStorageSupported || !USE_XHR) {
@@ -763,15 +767,16 @@ exports['default'] = function () {
       return this;
     },
     _executeRequest: function _executeRequest(url, data, options, callback) {
-      var token = options && options.applicationId || this._options.applicationId;
-      var method = options && options.method || 'POST';
-      // options = {
+      // options structure
+      // {
       //   method: 'POST',
       //   verbose: true,
       //   ignore_json_errors: true, // eslint-disable-line camelcase
       //   timeout_ms: timeoutMS, // eslint-disable-line camelcase
       //   applicationId
       // };
+      var token = options && options.applicationId || this._options.applicationId;
+      var method = options && options.method || 'POST';
 
       // right now we onlu support USE_XHR
 
