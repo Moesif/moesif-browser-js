@@ -297,15 +297,15 @@ moesif.init(options);
 Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
 Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
 
-#### batch, boolean, optional, default false.
+#### batchEnabled, boolean, optional, default false.
 
 Will start batching the tracking of API Events and User Actions to sent to Moesif. The identifyUser and identifyCompanies are not batched.
 
-#### batchSize, number, optional, default 50
+#### batchSize, number, optional, default 25
 
 Even if set, the batchSize is used on a best effort basis. If the payloads sizes get too big, the batchSize maybe auto adjusted.
 
-#### batchIntervalMs, number in milliseconds, optional, default 5000
+#### batchMaxTime, number in milliseconds, optional, default 2500
 
 The maximum interval to flush the queue when the batch size have not been reached.
 
