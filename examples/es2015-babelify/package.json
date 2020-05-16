@@ -10,7 +10,8 @@
   "author": "team@moesif.com",
   "license": "Apache-2.0",
   "dependencies": {
-    "babelify": "^10.0.0",
-    "browserify": "^16.5.1"
+    "@babel/core": "^7.9.6",
+    "babelify": "^6.1.2",
+    "browserify": "^10.2.4"
   }
 }

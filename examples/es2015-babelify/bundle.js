@@ -8,8 +8,7 @@ var _srcLoaderModule = require('../../src/loader-module');
 var _srcLoaderModule2 = _interopRequireDefault(_srcLoaderModule);
 
 _srcLoaderModule2['default'].init({
-  applicationId: 'Your Application ID',
-  debug: true
+  applicationId: 'Your Application ID'
 });
 
 _srcLoaderModule2['default'].start();
@@ -497,7 +496,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.5.9'
+    LIB_VERSION: '1.6.0'
 };
 
 exports['default'] = Config;
@@ -727,10 +726,10 @@ exports['default'] = function () {
       ops.disableGclid = options['disableGclid'];
       ops.disableUtm = options['disableUtm'];
 
-      ops.batch = options['batch'] || false;
+      ops.batchEnabled = options['batchEnabled'] || false;
 
-      ops['batch_size'] = options['batchSize'] || 50, ops['batch_flush_interval_ms'] = options['batchIntervalMs'] || 5000;
-      ops['batch_request_timeout_ms'] = options['batchTimeoutMs'] || 90000;
+      ops['batch_size'] = options['batchSize'] || 25, ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
+      ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
 
       this.requestBatchers = {};
 
@@ -744,9 +743,9 @@ exports['default'] = function () {
         _utils.console.error('error loading saved data from local storage but continue');
       }
 
-      if (ops.batch) {
+      if (ops.batchEnabled) {
         if (!_utils.localStorageSupported || !USE_XHR) {
-          ops.batch = false;
+          ops.batchEnabled = false;
           _utils.console.log('Turning off batch processing because it needs XHR and localStorage');
         } else {
           this.initBatching();
@@ -851,7 +850,7 @@ exports['default'] = function () {
     _sendOrBatch: function _sendOrBatch(data, applicationId, endPoint, batcher, callback) {
       var requestInitiated = true;
 
-      if (this._options.batch && batcher) {
+      if (this._options.batchEnabled && batcher) {
         _utils.console.log('current batcher storage key is  ' + batcher.queue.storageKey);
 
         batcher.enqueue(data);

@@ -126,11 +126,11 @@ export default function () {
       ops.disableGclid = options['disableGclid'];
       ops.disableUtm = options['disableUtm'];
 
-      ops.batch = options['batch'] || false;
+      ops.batchEnabled = options['batchEnabled'] || false;
 
-      ops['batch_size'] = options['batchSize'] || 50,
-      ops['batch_flush_interval_ms'] = options['batchIntervalMs'] || 5000;
-      ops['batch_request_timeout_ms'] = options['batchTimeoutMs'] || 90000;
+      ops['batch_size'] = options['batchSize'] || 25,
+      ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
+      ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
 
       this.requestBatchers = {};
 
@@ -144,9 +144,9 @@ export default function () {
         console.error('error loading saved data from local storage but continue');
       }
 
-      if (ops.batch) {
+      if (ops.batchEnabled) {
         if (!localStorageSupported || !USE_XHR) {
-          ops.batch = false;
+          ops.batchEnabled = false;
           console.log('Turning off batch processing because it needs XHR and localStorage');
         } else {
           this.initBatching();
@@ -259,7 +259,7 @@ export default function () {
     _sendOrBatch: function(data, applicationId, endPoint, batcher, callback) {
       var requestInitiated = true;
 
-      if (this._options.batch && batcher) {
+      if (this._options.batchEnabled && batcher) {
         console.log('current batcher storage key is  ' + batcher.queue.storageKey);
 
         batcher.enqueue(data);
