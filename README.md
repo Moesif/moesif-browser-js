@@ -362,6 +362,7 @@ As an example:
 
 ## Examples
 
+- Several examples for how to import this library are in the example folder of this repo, _moesif-min_ folder have more examples usage.
 - Example setup for [react-boilerplate](https://github.com/Moesif/moesif-react-boilerplate-example). For React apps, if you set up server side rendering, please ensure that this library is only initiated on the client side.
 - Example setup for an [Etherum Dapp](https://github.com/Moesif/moesif-ethereum-js-example).
 
