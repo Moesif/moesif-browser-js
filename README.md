@@ -305,7 +305,7 @@ Will start batching the tracking of API Events and User Actions to sent to Moesi
 
 Even if set, the batchSize is used on a best effort basis. If the payloads sizes get too big, the batchSize maybe auto adjusted.
 
-### batchIntervalMs, number in milliseconds, optional, default 5000
+#### batchIntervalMs, number in milliseconds, optional, default 5000
 
 The maximum interval to flush the queue when the batch size have not been reached.
 
@@ -313,7 +313,7 @@ The maximum interval to flush the queue when the batch size have not been reache
 
 DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API like any other Single Page App. For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js) which Moesif supports natively.
 
-Moesif will capture interactions with the Ethereum blockchain just like any other API to undersand usage and monitor for any issues affecting your Dapp. Because this data is binary, there are additional set up steps needed to convert these API interactions into something human readable. [Checkout Moesif's Ethereum Web3 documentation for more info](https://www.moesif.com/docs/platform/ethereum-web3/).
+Moesif will capture interactions with the Ethereum blockchain just like any other API to understand usage and monitor for any issues affecting your Dapp. Because this data is binary, there are additional set up steps needed to convert these API interactions into something human readable. [Checkout Moesif's Ethereum Web3 documentation for more info](https://www.moesif.com/docs/platform/ethereum-web3/).
 
 There is also a tutorial available on [Building an Ethereum DApp with Integrated Web3 Monitoring](https://www.moesif.com/blog/blockchain/ethereum/Tutorial-for-building-Ethereum-Dapp-with-Integrated-Error-Monitoring/).
 
