@@ -1,12 +1,42 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Moesif via CommonJS/Browserify</title>
-        <script src="bundle.js"></script>
-    </head>
-    <body>
-        <h1>Initializing Moesif via CommonJS/Browserify</h1>
-        <p>JS source in examples/commonjs-browserify/index.js. Build with 'npm run build'</p>
-    </body>
+  <head>
+    <meta charset="utf-8" />
+    <title>Moesif via CommonJS/Browserify</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="bundle.js"></script>
+  </head>
+  <body>
+    <h1>Initializing Moesif via CommonJS/Browserify</h1>
+    <p>
+      JS source in examples/commonjs-browserify/index.js. Build with 'npm run
+      build'
+    </p>
+
+    <p>
+      A link to the file in the root folder built by closure. moesif.min.js is
+      included in the header.
+    </p>
+    <p>
+      Click on the button below should send an request to a placeholder API
+      server. The even should by captured by moesif and send to Moesif.
+    </p>
+    <button id="send">Send an event to placeholder api server</button>
+    <script type="text/javascript">
+      if ($) {
+        console.log("yay, jquery is defined");
+      }
+
+      var POST_COUNT = 1;
+
+      $("#send").click(function () {
+        $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
+          method: "GET",
+        }).then(function (data) {
+          // console.log(data);
+        });
+        POST_COUNT = (POST_COUNT + 1) % 100;
+      });
+    </script>
+  </body>
 </html>

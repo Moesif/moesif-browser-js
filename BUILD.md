@@ -11,6 +11,10 @@ Build: npm run build
 - deploy to unpkg CDN
 - edit the URLs in readme
 
-# local test server
+# notes:
+
+The debug is set at build time in the config.js
+
+# local test server for the examples
 
 npm run start

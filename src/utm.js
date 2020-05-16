@@ -1,5 +1,6 @@
+import { _, console_with_prefix  } from './utils'; // eslint-disable-line
 
-import { _, console } from './utils';
+var logger = console_with_prefix('utm');
 
 var Constants = {  // UTM Params
   UTM_SOURCE: 'utm_source',
@@ -17,8 +18,8 @@ function getUtmData(rawCookie, query) {
   // Translate the utmz cookie format into url query string format.
   var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
 
-  console.log('cookie');
-  console.log(cookie);
+  logger.log('cookie');
+  logger.log(cookie);
 
   var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
     return _.getQueryParamByName(queryName, query) ||

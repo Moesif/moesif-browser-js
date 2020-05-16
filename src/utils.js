@@ -31,6 +31,7 @@ var ArrayProto = Array.prototype,
 var nativeBind = FuncProto.bind,
     nativeForEach = ArrayProto.forEach,
     nativeIndexOf = ArrayProto.indexOf,
+    nativeMap = ArrayProto.map,
     nativeIsArray = Array.isArray,
     breaker = {};
 
@@ -209,6 +210,18 @@ _.toArray = function(iterable) {
         return slice.call(iterable);
     }
     return _.values(iterable);
+};
+
+_.map = function(arr, callback) {
+  if (nativeMap && arr.map === nativeMap) {
+      return arr.map(callback);
+  } else {
+      var results = [];
+      _.each(arr, function(item) {
+          results.push(callback(item));
+      });
+      return results;
+  }
 };
 
 _.values = function(obj) {
@@ -1020,6 +1033,30 @@ _.cookie = {
     }
 };
 
+var _localStorageSupported = null;
+var localStorageSupported = function(storage, forceCheck) {
+    if (_localStorageSupported !== null && !forceCheck) {
+        return _localStorageSupported;
+    }
+
+    var supported = true;
+    try {
+        storage = storage || window.localStorage;
+        var key = '__mplss_' + cheap_guid(8),
+            val = 'xyz';
+        storage.setItem(key, val);
+        if (storage.getItem(key) !== val) {
+            supported = false;
+        }
+        storage.removeItem(key);
+    } catch (err) {
+        supported = false;
+    }
+
+    _localStorageSupported = supported;
+    return supported;
+};
+
 // _.localStorage
 _.localStorage = {
     error: function(msg) {
@@ -1468,6 +1505,35 @@ _.info = {
     }
 };
 
+var cheap_guid = function(maxlen) {
+  var guid = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+  return maxlen ? guid.substring(0, maxlen) : guid;
+};
+
+var log_func_with_prefix = function(func, prefix) {
+  return function() {
+      arguments[0] = '[' + prefix + '] ' + arguments[0];
+      return func.apply(console, arguments);
+  };
+};
+
+var console_with_prefix = function(prefix) {
+  return {
+      log: log_func_with_prefix(console.log, prefix),
+      error: log_func_with_prefix(console.error, prefix),
+      critical: log_func_with_prefix(console.critical, prefix)
+  };
+};
+
+var JSONStringify = null, JSONParse = null;
+if (typeof JSON !== 'undefined') {
+    JSONStringify = JSON.stringify;
+    JSONParse = JSON.parse;
+}
+JSONStringify = JSONStringify || _.JSONEncode;
+JSONParse = JSONParse || _.JSONDecode;
+
+
 // EXPORTS (for closure compiler)
 _['toArray']            = _.toArray;
 _['isObject']           = _.isObject;
@@ -1482,4 +1548,5 @@ _['info']['device']     = _.info.device;
 _['info']['browser']    = _.info.browser;
 _['info']['properties'] = _.info.properties;
 
-export { _, userAgent, console };
+
+export { _, userAgent, console, console_with_prefix, localStorageSupported, JSONParse, JSONStringify, cheap_guid };

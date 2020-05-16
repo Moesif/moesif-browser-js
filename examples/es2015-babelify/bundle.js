@@ -25,6 +25,8 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'd
 
 var _utils = require('./utils');
 
+// eslint-disable-line
+
 var _referrer = require('./referrer');
 
 var _referrer2 = _interopRequireDefault(_referrer);
@@ -32,6 +34,8 @@ var _referrer2 = _interopRequireDefault(_referrer);
 var _utm = require('./utm');
 
 var _utm2 = _interopRequireDefault(_utm);
+
+var logger = (0, _utils.console_with_prefix)('campaign');
 
 function _getUrlParams() {
   return location && location.search;
@@ -69,14 +73,14 @@ function getCampaignData(opt) {
 
     return result;
   } catch (err) {
-    _utils.console.error(err);
+    logger.log(err);
   }
 }
 
 exports['default'] = getCampaignData;
 module.exports = exports['default'];
 
-},{"./referrer":9,"./utils":10,"./utm":11}],3:[function(require,module,exports){
+},{"./referrer":9,"./utils":13,"./utm":14}],3:[function(require,module,exports){
 /**
  * Created by Xingheng on 1/31/17.
  */
@@ -88,6 +92,10 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 var _utils = require('./utils');
+
+// eslint-disable-line camelcase
+
+var logger = (0, _utils.console_with_prefix)('capture');
 
 var HTTP_PROTOCOL = 'http:' === (document && document.location.protocol) ? 'http://' : 'https://';
 
@@ -137,13 +145,13 @@ function captureXMLHttpRequest(recorder) {
 
           if (postData) {
             if (typeof postData === 'string') {
-              _utils.console.log('request post data is string');
-              _utils.console.log(postData);
+              logger.log('request post data is string');
+              logger.log(postData);
               try {
                 requestModel['body'] = _utils._.JSONDecode(postData);
               } catch (err) {
-                _utils.console.log('JSON decode failed');
-                _utils.console.log(err);
+                logger.log('JSON decode failed');
+                logger.log(err);
                 requestModel['transfer_encoding'] = 'base64';
                 requestModel['body'] = _utils._.base64Encode(postData);
               }
@@ -268,7 +276,7 @@ function convertToFullUrl(url) {
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
-},{"./utils":10}],4:[function(require,module,exports){
+},{"./utils":13}],4:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -276,6 +284,10 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 var _utils = require('./utils');
+
+// eslint-disable-line camelcase
+
+var logger = (0, _utils.console_with_prefix)('captureFetch');
 
 /**
  * @param {*} buffer
@@ -285,9 +297,9 @@ var _utils = require('./utils');
  */
 function processBodyAndInitializedModel(buffer) {
   if (!buffer) return {};
-  _utils.console.log('about to decode buffer');
-  _utils.console.log(buffer);
-  _utils.console.log(buffer.byteLength);
+  logger.log('about to decode buffer');
+  logger.log(buffer);
+  logger.log(buffer.byteLength);
 
   if (buffer.byteLength <= 0) {
     // empty body.
@@ -301,15 +313,15 @@ function processBodyAndInitializedModel(buffer) {
     try {
       return { 'body': _utils._.JSONDecode(text) };
     } catch (err) {
-      _utils.console.error(err);
+      logger.error(err);
       return {
         'transfer_encoding': 'base64',
         'body': _utils._.base64Encode(text)
       };
     }
   } catch (err) {
-    _utils.console.error(err);
-    _utils.console.log(buffer);
+    logger.error(err);
+    logger.log(buffer);
     return {
       'transfer_encoding': 'base64',
       'body': 'can not be decoded'
@@ -324,13 +336,13 @@ function processBodyAndInitializedModel(buffer) {
  */
 function parseHeaders(headers) {
   var result = {};
-  _utils.console.log('parseheaders is called');
+  logger.log('parseheaders is called');
 
   var entries = headers.entries();
 
   var entry = entries.next();
   while (!entry.done) {
-    _utils.console.log(entry.value); // 1 3 5 7 9
+    logger.log(entry.value); // 1 3 5 7 9
     result[entry.value[0]] = entry.value[1];
 
     entry = entries.next();
@@ -346,9 +358,9 @@ function parseHeaders(headers) {
 function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
   try {
     setTimeout(function () {
-      _utils.console.log('interception is here.');
-      _utils.console.log(savedRequest);
-      _utils.console.log(savedResponse);
+      logger.log('interception is here.');
+      logger.log(savedRequest);
+      logger.log(savedResponse);
       if (savedRequest && savedResponse) {
         // try to exract out information:
         // var reqHeaders = {};
@@ -361,10 +373,8 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
         // for (var pair2 of savedResponse.headers.entries()) {
         //   resHeaders[pair2[0]] = pair2[1];
         // }
-        _utils.console.log('inside if statement.');
         try {
           Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function (bodies) {
-            _utils.console.log('processing bodies');
             var processedBodies = bodies.map(processBodyAndInitializedModel);
 
             var requestModel = Object.assign(processedBodies[0], {
@@ -380,8 +390,8 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
               'headers': parseHeaders(savedResponse.headers)
             });
 
-            _utils.console.log(requestModel);
-            _utils.console.log(responseModel);
+            logger.log(requestModel);
+            logger.log(responseModel);
 
             var event = {
               'request': requestModel,
@@ -391,21 +401,19 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
             recorder(event);
           });
         } catch (err) {
-          _utils.console.log('error processing body');
+          logger.error('error processing body');
         }
       } else {
-        _utils.console.log('savedRequest');
+        logger.log('savedRequest');
       }
     }, 50);
   } catch (err) {
-    _utils.console.error('error processing saved fetch request and response, but move on anyways.');
-    _utils.console.log(err);
+    logger.error('error processing saved fetch request and response, but move on anyways.');
+    logger.log(err);
   }
 }
 
 function interceptor(recorder, fetch, arg1, arg2) {
-  _utils.console.log('fetch interceptor is called');
-
   var savedRequest = null;
 
   try {
@@ -424,7 +432,6 @@ function interceptor(recorder, fetch, arg1, arg2) {
   //   return fetch(ar1, ar2);
   // });
 
-  _utils.console.log('about to perform fetch.');
   promise = fetch(arg1, arg2);
 
   var savedResponse = null;
@@ -448,14 +455,14 @@ function patch(recorder, env) {
   var myenv = env || window || self;
 
   if (myenv['fetch']) {
-    _utils.console.log('found fetch method.');
+    logger.log('found fetch method.');
     if (!myenv['fetch']['polyfill']) {
       // basically, if it is polyfill, it means
       // that it is using XMLhttpRequest underneath,
       // then no need to patch fetch.
       var oldFetch = myenv['fetch'];
 
-      _utils.console.log('fetch is not polyfilled so instrumenting it');
+      logger.log('fetch is not polyfilled so instrumenting it');
 
       myenv['fetch'] = (function (fetch) {
         return function (arg1, arg2) {
@@ -471,18 +478,18 @@ function patch(recorder, env) {
     } else {
       // should not patch if it is polyfilled.
       // since it would duplicate the data.
-      _utils.console.log('skip patching fetch since it is polyfilled');
+      logger.log('skip patching fetch since it is polyfilled');
       return null;
     }
   } else {
-    _utils.console.log('there is no fetch found');
+    logger.log('there is no fetch found, so skipping instrumentation.');
   }
 }
 
 exports['default'] = patch;
 module.exports = exports['default'];
 
-},{"./utils":10}],5:[function(require,module,exports){
+},{"./utils":13}],5:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -490,7 +497,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.5.8'
+    LIB_VERSION: '1.5.9'
 };
 
 exports['default'] = Config;
@@ -571,7 +578,7 @@ function init_as_module() {
 
 },{"./moesif":8}],8:[function(require,module,exports){
 /**
- * Created by Xingheng on 2/1/17.
+ * Created by Xingheng
  */
 
 'use strict';
@@ -604,29 +611,44 @@ var _config = require('./config');
 
 var _config2 = _interopRequireDefault(_config);
 
+var _requestBatcher = require('./request-batcher');
+
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: 'api.moesif.net',
   EVENT_ENDPOINT: '/v1/events',
+  EVENT_BATCH_ENDPOINT: '/v1/events/batch',
   ACTION_ENDPOINT: '/v1/actions',
   ACTION_BATCH_ENDPOINT: '/v1/actions/batch',
   USER_ENDPOINT: '/v1/users',
   COMPANY_ENDPOINT: '/v1/companies',
-  EVENT_BATCH_ENDPOINT: '/v1/events/batch',
   STORED_USER_ID: 'moesif_stored_user_id',
   STORED_COMPANY_ID: 'moesif_stored_company_id',
   STORED_SESSION_ID: 'moesif_stored_session_id'
 };
 
-var HTTP_PROTOCOL = 'http:' === (document && document.location.protocol) ? 'http://' : 'https://';
-
+/*
+ * Dynamic... constants? Is that an oxymoron?
+ */
 // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
 // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
-// var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
-
+var USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest();
 // IE<10 does not support cross-origin XHR's but script tags
 // with defer won't block window.onload; ENQUEUE_REQUESTS
 // should only be true for Opera<12
+
+var ENQUEUE_REQUESTS = !USE_XHR && _utils.userAgent.indexOf('MSIE') === -1 && _utils.userAgent.indexOf('Mozilla') === -1;
+
+// save reference to navigator.sendBeacon so it can be minified
+var sendBeacon = null;
+if (navigator['sendBeacon']) {
+  sendBeacon = function () {
+    // late reference to navigator.sendBeacon to allow patching/spying
+    return navigator['sendBeacon'].apply(navigator, arguments);
+  };
+}
+
+var HTTP_PROTOCOL = 'http:' === (document && document.location.protocol) ? 'http://' : 'https://';
 
 function isContentJson(event) {
   try {
@@ -639,7 +661,11 @@ function isContentJson(event) {
 }
 
 function isMoesif(event) {
-  return event['request']['headers']['X-Moesif-SDK'];
+  try {
+    return event['request']['headers']['X-Moesif-SDK'];
+  } catch (err) {
+    return false;
+  }
 }
 
 function ensureValidOptions(options) {
@@ -664,114 +690,7 @@ function ensureValidOptions(options) {
 }
 
 exports['default'] = function () {
-
   _utils.console.log('moesif object creator is called');
-
-  function sendEvent(event, token, debug, callback) {
-    _utils.console.log('actually sending to log event ' + _utils._.JSONEncode(event));
-    var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
-    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT);
-    xmlhttp.setRequestHeader('Content-Type', 'application/json');
-    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
-    xmlhttp.onreadystatechange = function () {
-      if (xmlhttp.readyState === 4) {
-        if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-          if (debug) {
-            _utils.console.log('sent to moesif successfully: ' + event['request']['uri']);
-          }
-        } else {
-          _utils.console.log('failed to sent to moesif: ' + event['request']['uri']);
-          if (debug) {
-            _utils.console.error(xmlhttp.statusText);
-          }
-          if (callback && _utils._.isFunction(callback)) {
-            callback(new Error('can not sent to moesif'), event);
-          }
-        }
-      }
-    };
-    xmlhttp.send(_utils._.JSONEncode(event));
-  }
-
-  function sendAction(action, token, debug, callback) {
-    _utils.console.log('actually sending action to moesif' + _utils._.JSONEncode(action));
-    var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
-    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT);
-    xmlhttp.setRequestHeader('Content-Type', 'application/json');
-    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
-    xmlhttp.onreadystatechange = function () {
-      if (xmlhttp.readyState === 4) {
-        if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-          if (debug) {
-            _utils.console.log('sent action to moesif successfully: ' + (action && action['action_name']));
-          }
-        } else {
-          _utils.console.log('failed to sent action to moesif: ' + (action && action['action_name']));
-          if (debug) {
-            _utils.console.error(xmlhttp.statusText);
-          }
-          if (callback && _utils._.isFunction(callback)) {
-            callback(new Error('can not sent to moesif'), event);
-          }
-        }
-      }
-    };
-    xmlhttp.send(_utils._.JSONEncode(action));
-  }
-
-  function updateUser(userProfile, token, debug, callback) {
-    var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
-    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT);
-    xmlhttp.setRequestHeader('Content-Type', 'application/json');
-    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
-    xmlhttp.onreadystatechange = function () {
-      if (xmlhttp.readyState === 4) {
-        if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-          if (debug) {
-            _utils.console.log('update user to moesif successfully: ' + userProfile['user_id']);
-          }
-        } else {
-          _utils.console.log('update user to moesif failed ' + userProfile['user_id']);
-          if (debug) {
-            _utils.console.error(xmlhttp.statusText);
-          }
-          if (callback && _utils._.isFunction(callback)) {
-            callback(new Error('can not update user to moesif'), null, userProfile);
-          }
-        }
-      }
-    };
-    xmlhttp.send(_utils._.JSONEncode(userProfile));
-  }
-
-  function updateCompany(companyProfile, token, debug, callback) {
-    var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
-    xmlhttp.open('POST', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT);
-    xmlhttp.setRequestHeader('Content-Type', 'application/json');
-    xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
-    xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
-    xmlhttp.onreadystatechange = function () {
-      if (xmlhttp.readyState === 4) {
-        if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
-          if (debug) {
-            _utils.console.log('update company to moesif successfully: ' + companyProfile['company_id']);
-          }
-        } else {
-          _utils.console.log('update company to moesif failed ' + companyProfile['company_id']);
-          if (debug) {
-            _utils.console.error(xmlhttp.statusText);
-          }
-          if (callback && _utils._.isFunction(callback)) {
-            callback(new Error('can not update company to moesif'), null, companyProfile);
-          }
-        }
-      }
-    };
-    xmlhttp.send(_utils._.JSONEncode(companyProfile));
-  }
 
   return {
     'init': function init(options) {
@@ -780,6 +699,7 @@ exports['default'] = function () {
       }
 
       ensureValidOptions(options);
+
       var ops = {};
 
       ops.getTags = options['getTags'] || function () {
@@ -807,15 +727,143 @@ exports['default'] = function () {
       ops.disableGclid = options['disableGclid'];
       ops.disableUtm = options['disableUtm'];
 
-      this._options = ops;
-      this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
-      this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
-      this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
+      ops.batch = options['batch'] || false;
 
-      this._campaign = (0, _campaign2['default'])(ops);
+      ops['batch_size'] = options['batchSize'] || 50, ops['batch_flush_interval_ms'] = options['batchIntervalMs'] || 5000;
+      ops['batch_request_timeout_ms'] = options['batchTimeoutMs'] || 90000;
+
+      this.requestBatchers = {};
+
+      this._options = ops;
+      try {
+        this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
+        this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
+        this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
+        this._campaign = (0, _campaign2['default'])(ops);
+      } catch (err) {
+        _utils.console.error('error loading saved data from local storage but continue');
+      }
+
+      if (ops.batch) {
+        if (!_utils.localStorageSupported || !USE_XHR) {
+          ops.batch = false;
+          _utils.console.log('Turning off batch processing because it needs XHR and localStorage');
+        } else {
+          this.initBatching();
+          if (sendBeacon && window.addEventListener) {
+            window.addEventListener('unload', _utils._.bind(function () {
+              // Before page closes, attempt to flush any events queued up via navigator.sendBeacon.
+              // Since sendBeacon doesn't report success/failure, events will not be removed from
+              // the persistent store; if the site is loaded again, the events will be flushed again
+              // on startup and deduplicated on the Mixpanel server side.
+              this.requestBatchers.events.flush({ sendBeacon: true });
+            }, this));
+          }
+        }
+      }
 
       _utils.console.log('moesif initiated');
       return this;
+    },
+    _executeRequest: function _executeRequest(url, data, options, callback) {
+      // options structure
+      // {
+      //   method: 'POST',
+      //   verbose: true,
+      //   ignore_json_errors: true, // eslint-disable-line camelcase
+      //   timeout_ms: timeoutMS, // eslint-disable-line camelcase
+      //   applicationId
+      // };
+      var token = options && options.applicationId || this._options.applicationId;
+      var method = options && options.method || 'POST';
+
+      // right now we onlu support USE_XHR
+
+      try {
+        var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
+        xmlhttp.open(method, url);
+        xmlhttp.setRequestHeader('Content-Type', 'application/json');
+        xmlhttp.setRequestHeader('X-Moesif-Application-Id', token);
+        xmlhttp.setRequestHeader('X-Moesif-SDK', 'moesif-browser-js/' + _config2['default'].LIB_VERSION);
+
+        if (options.timeout_ms && typeof xmlhttp.timeout !== 'undefined') {
+          xmlhttp.timeout = options.timeout_ms;
+          var startTime = new Date().getTime();
+        }
+        xmlhttp.onreadystatechange = function () {
+          if (xmlhttp.readyState === 4) {
+            // XMLHttpRequest.DONE == 4, except in safari 4
+            if (xmlhttp.status >= 200 && xmlhttp.status <= 300) {
+              if (callback) {
+                var response = XMLHttpRequest.responseText;
+                callback(response);
+              }
+            } else {
+              var error;
+              if (xmlhttp.timeout && !xmlhttp.status && new Date().getTime() - startTime >= xmlhttp.timeout) {
+                error = 'timeout';
+              } else {
+                error = 'Bad HTTP status: ' + xmlhttp.status + ' ' + xmlhttp.statusText;
+              }
+              _utils.console.error(error);
+              if (callback) {
+                callback({ status: 0, error: error, xhr_req: xmlhttp }); // eslint-disable-line camelcase
+              }
+            }
+          }
+        };
+
+        xmlhttp.send((0, _utils.JSONStringify)(data));
+      } catch (err) {
+        _utils.console.error('failed to send event to moesif' + event['request']['uri']);
+        _utils.console.error(err);
+        if (callback) {
+          callback({ status: 0, error: err });
+        }
+      }
+    },
+    initBatching: function initBatching() {
+      var applicationId = this._options.applicationId;
+
+      _utils.console.log('does requestBatch.events exists? ' + this.requestBatchers.events);
+
+      if (!this.requestBatchers.events) {
+        var batchConfig = {
+          libConfig: this._options,
+          sendRequestFunc: _utils._.bind(function (endPoint, data, options, cb) {
+            this._executeRequest(endPoint, data, options, cb);
+          }, this)
+        };
+
+        var eventsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+        var actionsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+
+        this.requestBatchers = {
+          events: eventsBatcher,
+          actions: actionsBatcher
+        };
+      }
+
+      _utils._.each(this.requestBatchers, function (batcher) {
+        batcher.start();
+      });
+    },
+    _sendOrBatch: function _sendOrBatch(data, applicationId, endPoint, batcher, callback) {
+      var requestInitiated = true;
+
+      if (this._options.batch && batcher) {
+        _utils.console.log('current batcher storage key is  ' + batcher.queue.storageKey);
+
+        batcher.enqueue(data);
+      } else {
+        // execute immediately
+        var executeOps = {
+          applicationId: applicationId
+        };
+
+        requestInitiated = this._executeRequest(endPoint, data, executeOps, callback);
+      }
+      return requestInitiated;
     },
     'start': function start(passedInWeb3) {
       var _self = this;
@@ -870,6 +918,9 @@ exports['default'] = function () {
       }
       return false;
     },
+    updateUser: function updateUser(userObject, applicationId, callback) {
+      this._executeRequest(HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT, userObject, { applicationId: applicationId }, callback);
+    },
     'identifyUser': function identifyUser(userId, metadata) {
       this._userId = userId;
       if (!(this._options && this._options.applicationId)) {
@@ -892,8 +943,15 @@ exports['default'] = function () {
         userObject['company_id'] = this._companyId;
       }
 
-      updateUser(userObject, this._options.applicationId, this._options.debug, this._options.callback);
-      localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+      this.updateUser(userObject, this._options.applicationId, this._options.callback);
+      try {
+        localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+      } catch (err) {
+        _utils.console.error('error saving to local storage');
+      }
+    },
+    updateCompany: function updateCompany(companyObject, applicationId, callback) {
+      this._executeRequest(HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT, companyObject, { applicationId: applicationId }, callback);
     },
     'identifyCompany': function identifyCompany(companyId, metadata, companyDomain) {
       this._companyId = companyId;
@@ -918,8 +976,13 @@ exports['default'] = function () {
         companyObject['campaign'] = this._campaign;
       }
 
-      updateCompany(companyObject, this._options.applicationId, this._options.debug, this._options.callback);
-      localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+      this.updateCompany(companyObject, this._options.applicationId, this._options.callback);
+
+      try {
+        localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+      } catch (err) {
+        _utils.console.error('error saving to local storage');
+      }
     },
     'identifySession': function identifySession(session) {
       this._session = session;
@@ -955,9 +1018,17 @@ exports['default'] = function () {
         actionObject['metadata'] = metadata;
       }
 
-      sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
+      // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
+      var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
+      _utils.console.log('sending or queuing: ' + actionName);
+      return _self._sendOrBatch(actionObject, _self._options.applicationId, endPoint, _self.requestBatchers.actions, _self._options.callback);
     },
     recordEvent: function recordEvent(event) {
+      if (isMoesif(event)) {
+        _utils.console.log('skipped logging for requests to moesif');
+        return;
+      }
+
       var _self = this;
       _utils.console.log('determining if should log: ' + event['request']['uri']);
       var logData = Object.assign({}, event);
@@ -991,7 +1062,10 @@ exports['default'] = function () {
       }
 
       if (!_self._options.skip(event) && !isMoesif(event)) {
-        sendEvent(logData, _self._options.applicationId, _self._options.debug, _self._options.callback);
+        // sendEvent(logData, _self._options.applicationId, _self._options.callback);
+        _utils.console.log('sending or queuing' + event['request']['uri']);
+        var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
+        _self._sendOrBatch(logData, _self._options.applicationId, endPoint, _self.requestBatchers.events, _self._options.callback);
       } else {
         _utils.console.log('skipped logging for ' + event['request']['uri']);
       }
@@ -1024,7 +1098,7 @@ exports['default'] = function () {
 
 module.exports = exports['default'];
 
-},{"./campaign":2,"./capture":3,"./captureFetch":4,"./config":5,"./utils":10,"./web3capture":12}],9:[function(require,module,exports){
+},{"./campaign":2,"./capture":3,"./captureFetch":4,"./config":5,"./request-batcher":10,"./utils":13,"./web3capture":15}],9:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1066,7 +1140,585 @@ function getReferrer() {
 exports['default'] = getReferrer;
 module.exports = exports['default'];
 
-},{"./utils":10}],10:[function(require,module,exports){
+},{"./utils":13}],10:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+    value: true
+});
+
+var _requestQueue = require('./request-queue');
+
+var _utils = require('./utils');
+
+// eslint-disable-line camelcase
+
+// maximum interval between request retries after exponential backoff
+var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+var logger = (0, _utils.console_with_prefix)('batch');
+
+/**
+ * RequestBatcher: manages the queueing, flushing, retry etc of requests of one
+ * type (events, people, groups).
+ * Uses RequestQueue to manage the backing store.
+ * @constructor
+ */
+var RequestBatcher = function RequestBatcher(storageKey, endpoint, options) {
+    this.queue = new _requestQueue.RequestQueue(storageKey, { storage: options.storage });
+    this.endpoint = endpoint;
+
+    this.libConfig = options.libConfig;
+    this.sendRequest = options.sendRequestFunc;
+
+    // seed variable batch size + flush interval with configured values
+    this.batchSize = this.libConfig['batch_size'];
+    this.flushInterval = this.libConfig['batch_flush_interval_ms'];
+
+    this.stopped = false;
+};
+
+/**
+ * Add one item to queue.
+ */
+RequestBatcher.prototype.enqueue = function (item, cb) {
+    this.queue.enqueue(item, this.flushInterval, cb);
+};
+
+/**
+ * Start flushing batches at the configured time interval. Must call
+ * this method upon SDK init in order to send anything over the network.
+ */
+RequestBatcher.prototype.start = function () {
+    this.stopped = false;
+    this.flush();
+};
+
+/**
+ * Stop flushing batches. Can be restarted by calling start().
+ */
+RequestBatcher.prototype.stop = function () {
+    this.stopped = true;
+    if (this.timeoutID) {
+        clearTimeout(this.timeoutID);
+        this.timeoutID = null;
+    }
+};
+
+/**
+ * Clear out queue.
+ */
+RequestBatcher.prototype.clear = function () {
+    this.queue.clear();
+};
+
+/**
+ * Restore batch size configuration to whatever is set in the main SDK.
+ */
+RequestBatcher.prototype.resetBatchSize = function () {
+    this.batchSize = this.libConfig['batch_size'];
+};
+
+/**
+ * Restore flush interval time configuration to whatever is set in the main SDK.
+ */
+RequestBatcher.prototype.resetFlush = function () {
+    this.scheduleFlush(this.libConfig['batch_flush_interval_ms']);
+};
+
+/**
+ * Schedule the next flush in the given number of milliseconds.
+ */
+RequestBatcher.prototype.scheduleFlush = function (flushMS) {
+    this.flushInterval = flushMS;
+    if (!this.stopped) {
+        // don't schedule anymore if batching has been stopped
+        this.timeoutID = setTimeout(_utils._.bind(this.flush, this), this.flushInterval);
+    }
+};
+
+/**
+ * Flush one batch to network. Depending on success/failure modes, it will either
+ * remove the batch from the queue or leave it in for retry, and schedule the next
+ * flush. In cases of most network or API failures, it will back off exponentially
+ * when retrying.
+ * @param {Object} [options]
+ * @param {boolean} [options.sendBeacon] - whether to send batch with
+ * navigator.sendBeacon (only useful for sending batches before page unloads, as
+ * sendBeacon offers no callbacks or status indications)
+ */
+RequestBatcher.prototype.flush = function (options) {
+    try {
+        if (this.requestInProgress) {
+            logger.log('Flush: Request already in progress');
+            return;
+        }
+
+        options = options || {};
+        var currentBatchSize = this.batchSize;
+        var batch = this.queue.fillBatch(currentBatchSize);
+        logger.log('current batch size is ' + batch.length);
+
+        if (batch.length < 1) {
+            this.resetFlush();
+            return; // nothing to do
+        }
+
+        this.requestInProgress = true;
+
+        var timeoutMS = this.libConfig['batch_request_timeout_ms'];
+        var startTime = new Date().getTime();
+        var dataForRequest = _utils._.map(batch, function (item) {
+            return item['payload'];
+        });
+        var batchSendCallback = _utils._.bind(function (res) {
+            this.requestInProgress = false;
+
+            try {
+                // handle API response in a try-catch to make sure we can reset the
+                // flush operation if something goes wrong
+
+                var removeItemsFromQueue = false;
+                if (_utils._.isObject(res) && res.error === 'timeout' && new Date().getTime() - startTime >= timeoutMS) {
+                    logger.error('Network timeout; retrying');
+                    this.flush();
+                } else if (_utils._.isObject(res) && res.xhr_req && (res.xhr_req['status'] >= 500 || res.xhr_req['status'] <= 0)) {
+                    // network or API error, retry
+                    var retryMS = this.flushInterval * 2;
+                    var headers = res.xhr_req['responseHeaders'];
+                    if (headers) {
+                        var retryAfter = headers['Retry-After'];
+                        if (retryAfter) {
+                            retryMS = parseInt(retryAfter, 10) * 1000 || retryMS;
+                        }
+                    }
+                    retryMS = Math.min(MAX_RETRY_INTERVAL_MS, retryMS);
+                    logger.error('Error; retry in ' + retryMS + ' ms');
+                    this.scheduleFlush(retryMS);
+                } else if (_utils._.isObject(res) && res.xhr_req && res.xhr_req['status'] === 413) {
+                    // 413 Payload Too Large
+                    if (batch.length > 1) {
+                        var halvedBatchSize = Math.max(1, Math.floor(currentBatchSize / 2));
+                        this.batchSize = Math.min(this.batchSize, halvedBatchSize, batch.length - 1);
+                        logger.error('413 response; reducing batch size to ' + this.batchSize);
+                        this.resetFlush();
+                    } else {
+                        logger.error('Single-event request too large; dropping', batch);
+                        this.resetBatchSize();
+                        removeItemsFromQueue = true;
+                    }
+                } else {
+                    // successful network request+response; remove each item in batch from queue
+                    // (even if it was e.g. a 400, in which case retrying won't help)
+                    removeItemsFromQueue = true;
+                }
+
+                if (removeItemsFromQueue) {
+                    this.queue.removeItemsByID(_utils._.map(batch, function (item) {
+                        return item['id'];
+                    }), _utils._.bind(this.flush, this) // handle next batch if the queue isn't empty
+                    );
+                }
+            } catch (err) {
+                logger.error('Error handling API response', err);
+                this.resetFlush();
+            }
+        }, this);
+        var requestOptions = {
+            method: 'POST',
+            verbose: true,
+            ignore_json_errors: true, // eslint-disable-line camelcase
+            timeout_ms: timeoutMS // eslint-disable-line camelcase
+        };
+        if (options.sendBeacon) {
+            requestOptions.transport = 'sendBeacon';
+        }
+        logger.log('Moesif Request:', this.endpoint, dataForRequest);
+        this.sendRequest(this.endpoint, dataForRequest, requestOptions, batchSendCallback);
+    } catch (err) {
+        logger.error('Error flushing request queue', err);
+        this.resetFlush();
+    }
+};
+
+exports.RequestBatcher = RequestBatcher;
+
+},{"./request-queue":11,"./utils":13}],11:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+    value: true
+});
+
+var _utils = require('./utils');
+
+// eslint-disable-line
+
+var _sharedLock = require('./shared-lock');
+
+var logger = (0, _utils.console_with_prefix)('batch');
+
+/**
+ * RequestQueue: queue for batching API requests with localStorage backup for retries.
+ * Maintains an in-memory queue which represents the source of truth for the current
+ * page, but also writes all items out to a copy in the browser's localStorage, which
+ * can be read on subsequent pageloads and retried. For batchability, all the request
+ * items in the queue should be of the same type (events, people updates, group updates)
+ * so they can be sent in a single request to the same API endpoint.
+ *
+ * LocalStorage keying and locking: In order for reloads and subsequent pageloads of
+ * the same site to access the same persisted data, they must share the same localStorage
+ * key (for instance based on project token and queue type). Therefore access to the
+ * localStorage entry is guarded by an asynchronous mutex (SharedLock) to prevent
+ * simultaneously open windows/tabs from overwriting each other's data (which would lead
+ * to data loss in some situations).
+ * @constructor
+ */
+var RequestQueue = function RequestQueue(storageKey, options) {
+    options = options || {};
+    this.storageKey = storageKey;
+    this.storage = options.storage || window.localStorage;
+    this.lock = new _sharedLock.SharedLock(storageKey, { storage: this.storage });
+
+    this.pid = options.pid || null; // pass pid to test out storage lock contention scenarios
+
+    this.memQueue = [];
+};
+
+/**
+ * Add one item to queues (memory and localStorage). The queued entry includes
+ * the given item along with an auto-generated ID and a "flush-after" timestamp.
+ * It is expected that the item will be sent over the network and dequeued
+ * before the flush-after time; if this doesn't happen it is considered orphaned
+ * (e.g., the original tab where it was enqueued got closed before it could be
+ * sent) and the item can be sent by any tab that finds it in localStorage.
+ *
+ * The final callback param is called with a param indicating success or
+ * failure of the enqueue operation; it is asynchronous because the localStorage
+ * lock is asynchronous.
+ */
+RequestQueue.prototype.enqueue = function (item, flushInterval, cb) {
+    var queueEntry = {
+        'id': (0, _utils.cheap_guid)(),
+        'flushAfter': new Date().getTime() + flushInterval * 2,
+        'payload': item
+    };
+
+    this.lock.withLock(_utils._.bind(function lockAcquired() {
+        var succeeded;
+        try {
+            var storedQueue = this.readFromStorage();
+            storedQueue.push(queueEntry);
+            succeeded = this.saveToStorage(storedQueue);
+            if (succeeded) {
+                // only add to in-memory queue when storage succeeds
+                logger.log('succeeded saving to storage');
+                this.memQueue.push(queueEntry);
+            }
+        } catch (err) {
+            logger.error('Error enqueueing item', item);
+            succeeded = false;
+        }
+        if (cb) {
+            cb(succeeded);
+        }
+    }, this), function lockFailure(err) {
+        logger.error('Error acquiring storage lock', err);
+        if (cb) {
+            cb(false);
+        }
+    }, this.pid);
+};
+
+/**
+ * Read out the given number of queue entries. If this.memQueue
+ * has fewer than batchSize items, then look for "orphaned" items
+ * in the persisted queue (items where the 'flushAfter' time has
+ * already passed).
+ */
+RequestQueue.prototype.fillBatch = function (batchSize) {
+    var batch = this.memQueue.slice(0, batchSize);
+
+    if (batch.length < batchSize) {
+        // don't need lock just to read events; localStorage is thread-safe
+        // and the worst that could happen is a duplicate send of some
+        // orphaned events, which will be deduplicated on the server side
+        var storedQueue = this.readFromStorage();
+        logger.log('current storedQueue size ' + storedQueue.length);
+        if (storedQueue.length) {
+            // item IDs already in batch; don't duplicate out of storage
+            var idsInBatch = {}; // poor man's Set
+            _utils._.each(batch, function (item) {
+                idsInBatch[item['id']] = true;
+            });
+
+            for (var i = 0; i < storedQueue.length; i++) {
+                var item = storedQueue[i];
+                if (new Date().getTime() > item['flushAfter'] && !idsInBatch[item['id']]) {
+                    batch.push(item);
+                    if (batch.length >= batchSize) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return batch;
+};
+
+/**
+ * Remove items with matching 'id' from array (immutably)
+ * also remove any item without a valid id (e.g., malformed
+ * storage entries).
+ */
+var filterOutIDsAndInvalid = function filterOutIDsAndInvalid(items, idSet) {
+    var filteredItems = [];
+    _utils._.each(items, function (item) {
+        if (item['id'] && !idSet[item['id']]) {
+            filteredItems.push(item);
+        }
+    });
+    return filteredItems;
+};
+
+/**
+ * Remove items with matching IDs from both in-memory queue
+ * and persisted queue
+ */
+RequestQueue.prototype.removeItemsByID = function (ids, cb) {
+    var idSet = {}; // poor man's Set
+    _utils._.each(ids, function (id) {
+        idSet[id] = true;
+    });
+
+    this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet);
+    this.lock.withLock(_utils._.bind(function lockAcquired() {
+        var succeeded;
+        try {
+            var storedQueue = this.readFromStorage();
+            storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
+            logger.log('new storedQueue ' + storedQueue && storedQueue.length);
+            succeeded = this.saveToStorage(storedQueue);
+        } catch (err) {
+            logger.error('Error removing items', ids);
+            succeeded = false;
+        }
+        if (cb) {
+            logger.log('triggering callback of removalItems');
+            cb(succeeded);
+        }
+    }, this), function lockFailure(err) {
+        logger.error('Error acquiring storage lock', err);
+        if (cb) {
+            cb(false);
+        }
+    }, this.pid);
+};
+
+/**
+ * Read and parse items array from localStorage entry, handling
+ * malformed/missing data if necessary.
+ */
+RequestQueue.prototype.readFromStorage = function () {
+    var storageEntry;
+    try {
+        logger.log('trying to get storage with storage key ' + this.storageKey);
+        storageEntry = this.storage.getItem(this.storageKey);
+        if (storageEntry) {
+            storageEntry = (0, _utils.JSONParse)(storageEntry);
+            if (!_utils._.isArray(storageEntry)) {
+                logger.error('Invalid storage entry:', storageEntry);
+                storageEntry = null;
+            }
+        } else {
+            logger.log('storageEntry is empty');
+        }
+    } catch (err) {
+        logger.error('Error retrieving queue', err);
+        storageEntry = null;
+    }
+    return storageEntry || [];
+};
+
+/**
+ * Serialize the given items array to localStorage.
+ */
+RequestQueue.prototype.saveToStorage = function (queue) {
+    try {
+        this.storage.setItem(this.storageKey, (0, _utils.JSONStringify)(queue));
+        return true;
+    } catch (err) {
+        logger.error('Error saving queue', err);
+        return false;
+    }
+};
+
+/**
+ * Clear out queues (memory and localStorage).
+ */
+RequestQueue.prototype.clear = function () {
+    this.memQueue = [];
+    this.storage.removeItem(this.storageKey);
+};
+
+exports.RequestQueue = RequestQueue;
+
+},{"./shared-lock":12,"./utils":13}],12:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+    value: true
+});
+
+var _utils = require('./utils');
+
+// eslint-disable-line
+
+var logger = (0, _utils.console_with_prefix)('lock');
+
+/**
+ * SharedLock: a mutex built on HTML5 localStorage, to ensure that only one browser
+ * window/tab at a time will be able to access shared resources.
+ *
+ * Implementation based on the original version by David Wolever (https://github.com/wolever)
+ * at https://gist.github.com/wolever/5fd7573d1ef6166e8f8c4af286a69432.
+ *
+ * @example
+ * const myLock = new SharedLock('some-key');
+ * myLock.withLock(function() {
+ *   console.log('I hold the mutex!');
+ * });
+ *
+ * @constructor
+ */
+var SharedLock = function SharedLock(key, options) {
+    options = options || {};
+
+    this.storageKey = key;
+    this.storage = options.storage || window.localStorage;
+    this.pollIntervalMS = options.pollIntervalMS || 100;
+    this.timeoutMS = options.timeoutMS || 2000;
+};
+
+// pass in a specific pid to test contention scenarios; otherwise
+// it is chosen randomly for each acquisition attempt
+SharedLock.prototype.withLock = function (lockedCB, errorCB, pid) {
+    if (!pid && typeof errorCB !== 'function') {
+        pid = errorCB;
+        errorCB = null;
+    }
+
+    var i = pid || new Date().getTime() + '|' + Math.random();
+    var startTime = new Date().getTime();
+
+    var key = this.storageKey;
+    var pollIntervalMS = this.pollIntervalMS;
+    var timeoutMS = this.timeoutMS;
+    var storage = this.storage;
+
+    var keyX = key + ':X';
+    var keyY = key + ':Y';
+    var keyZ = key + ':Z';
+
+    var reportError = function reportError(err) {
+        errorCB && errorCB(err);
+    };
+
+    var delay = function delay(cb) {
+        if (new Date().getTime() - startTime > timeoutMS) {
+            logger.error('Timeout waiting for mutex on ' + key + '; clearing lock. [' + i + ']');
+            storage.removeItem(keyZ);
+            storage.removeItem(keyY);
+            loop();
+            return;
+        }
+        setTimeout(function () {
+            try {
+                cb();
+            } catch (err) {
+                reportError(err);
+            }
+        }, pollIntervalMS * (Math.random() + 0.1));
+    };
+
+    var waitFor = function waitFor(predicate, cb) {
+        if (predicate()) {
+            cb();
+        } else {
+            delay(function () {
+                waitFor(predicate, cb);
+            });
+        }
+    };
+
+    var getSetY = function getSetY() {
+        var valY = storage.getItem(keyY);
+        if (valY && valY !== i) {
+            // if Y == i then this process already has the lock (useful for test cases)
+            return false;
+        } else {
+            storage.setItem(keyY, i);
+            if (storage.getItem(keyY) === i) {
+                return true;
+            } else {
+                if (!(0, _utils.localStorageSupported)(storage, true)) {
+                    throw new Error('localStorage support dropped while acquiring lock');
+                }
+                return false;
+            }
+        }
+    };
+
+    var loop = function loop() {
+        storage.setItem(keyX, i);
+
+        waitFor(getSetY, function () {
+            if (storage.getItem(keyX) === i) {
+                criticalSection();
+                return;
+            }
+
+            delay(function () {
+                if (storage.getItem(keyY) !== i) {
+                    loop();
+                    return;
+                }
+                waitFor(function () {
+                    return !storage.getItem(keyZ);
+                }, criticalSection);
+            });
+        });
+    };
+
+    var criticalSection = function criticalSection() {
+        storage.setItem(keyZ, '1');
+        try {
+            lockedCB();
+        } finally {
+            storage.removeItem(keyZ);
+            if (storage.getItem(keyY) === i) {
+                storage.removeItem(keyY);
+            }
+            if (storage.getItem(keyX) === i) {
+                storage.removeItem(keyX);
+            }
+        }
+    };
+
+    try {
+        if ((0, _utils.localStorageSupported)(storage, true)) {
+            loop();
+        } else {
+            throw new Error('localStorage support check failed');
+        }
+    } catch (err) {
+        reportError(err);
+    }
+};
+
+exports.SharedLock = SharedLock;
+
+},{"./utils":13}],13:[function(require,module,exports){
 /* eslint camelcase: "off", eqeqeq: "off" */
 'use strict';
 
@@ -1109,6 +1761,7 @@ var ArrayProto = Array.prototype,
 var nativeBind = FuncProto.bind,
     nativeForEach = ArrayProto.forEach,
     nativeIndexOf = ArrayProto.indexOf,
+    nativeMap = ArrayProto.map,
     nativeIsArray = Array.isArray,
     breaker = {};
 
@@ -1282,6 +1935,18 @@ _.toArray = function (iterable) {
         return slice.call(iterable);
     }
     return _.values(iterable);
+};
+
+_.map = function (arr, callback) {
+    if (nativeMap && arr.map === nativeMap) {
+        return arr.map(callback);
+    } else {
+        var results = [];
+        _.each(arr, function (item) {
+            results.push(callback(item));
+        });
+        return results;
+    }
 };
 
 _.values = function (obj) {
@@ -2097,6 +2762,30 @@ _.cookie = {
     }
 };
 
+var _localStorageSupported = null;
+var localStorageSupported = function localStorageSupported(storage, forceCheck) {
+    if (_localStorageSupported !== null && !forceCheck) {
+        return _localStorageSupported;
+    }
+
+    var supported = true;
+    try {
+        storage = storage || window.localStorage;
+        var key = '__mplss_' + cheap_guid(8),
+            val = 'xyz';
+        storage.setItem(key, val);
+        if (storage.getItem(key) !== val) {
+            supported = false;
+        }
+        storage.removeItem(key);
+    } catch (err) {
+        supported = false;
+    }
+
+    _localStorageSupported = supported;
+    return supported;
+};
+
 // _.localStorage
 _.localStorage = {
     error: function error(msg) {
@@ -2544,6 +3233,35 @@ _.info = {
     }
 };
 
+var cheap_guid = function cheap_guid(maxlen) {
+    var guid = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    return maxlen ? guid.substring(0, maxlen) : guid;
+};
+
+var log_func_with_prefix = function log_func_with_prefix(func, prefix) {
+    return function () {
+        arguments[0] = '[' + prefix + '] ' + arguments[0];
+        return func.apply(console, arguments);
+    };
+};
+
+var console_with_prefix = function console_with_prefix(prefix) {
+    return {
+        log: log_func_with_prefix(console.log, prefix),
+        error: log_func_with_prefix(console.error, prefix),
+        critical: log_func_with_prefix(console.critical, prefix)
+    };
+};
+
+var JSONStringify = null,
+    JSONParse = null;
+if (typeof JSON !== 'undefined') {
+    exports.JSONStringify = JSONStringify = JSON.stringify;
+    exports.JSONParse = JSONParse = JSON.parse;
+}
+exports.JSONStringify = JSONStringify = JSONStringify || _.JSONEncode;
+exports.JSONParse = JSONParse = JSONParse || _.JSONDecode;
+
 // EXPORTS (for closure compiler)
 _['toArray'] = _.toArray;
 _['isObject'] = _.isObject;
@@ -2561,8 +3279,13 @@ _['info']['properties'] = _.info.properties;
 exports._ = _;
 exports.userAgent = userAgent;
 exports.console = console;
+exports.console_with_prefix = console_with_prefix;
+exports.localStorageSupported = localStorageSupported;
+exports.JSONParse = JSONParse;
+exports.JSONStringify = JSONStringify;
+exports.cheap_guid = cheap_guid;
 
-},{"./config":5}],11:[function(require,module,exports){
+},{"./config":5}],14:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -2570,6 +3293,10 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 var _utils = require('./utils');
+
+// eslint-disable-line
+
+var logger = (0, _utils.console_with_prefix)('utm');
 
 var Constants = { // UTM Params
   UTM_SOURCE: 'utm_source',
@@ -2587,8 +3314,8 @@ function getUtmData(rawCookie, query) {
   // Translate the utmz cookie format into url query string format.
   var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
 
-  _utils.console.log('cookie');
-  _utils.console.log(cookie);
+  logger.log('cookie');
+  logger.log(cookie);
 
   var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
     return _utils._.getQueryParamByName(queryName, query) || _utils._.getQueryParamByName(cookieName, cookie);
@@ -2626,11 +3353,7 @@ function getUtm(queryParams, cookieParams) {
 exports['default'] = getUtm;
 module.exports = exports['default'];
 
-},{"./utils":10}],12:[function(require,module,exports){
-/**
- * Created by Xingheng on 1/31/17.
- */
-
+},{"./utils":13}],15:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -2638,6 +3361,10 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 var _utils = require('./utils');
+
+// eslint-disable-line
+
+var logger = (0, _utils.console_with_prefix)('web3capture');
 
 function computeUrl(provider) {
   if (provider && provider.host) {
@@ -2668,13 +3395,13 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
 
   if (payload) {
     if (typeof payload === 'string') {
-      _utils.console.log('request post data is string');
-      _utils.console.log(payload);
+      logger.log('request post data is string');
+      logger.log(payload);
       try {
         requestModel['body'] = _utils._.JSONDecode(payload);
       } catch (err) {
-        _utils.console.log('JSON decode failed');
-        _utils.console.log(err);
+        logger.log('JSON decode failed');
+        logger.log(err);
         requestModel['transfer_encoding'] = 'base64';
         requestModel['body'] = _utils._.base64Encode(payload);
       }
@@ -2735,20 +3462,20 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
  */
 function captureWeb3Requests(myWeb3, recorder, options) {
   if (myWeb3['currentProvider']) {
-    _utils.console.log('found my currentProvider, patching it');
+    logger.log('found my currentProvider, patching it');
     var CPDR = myWeb3['currentProvider'];
 
     var send = CPDR['send'];
     var sendAsync = CPDR['sendAsync'];
 
     CPDR['send'] = function (payload) {
-      _utils.console.log('patched send is called');
-      _utils.console.log(payload);
+      logger.log('patched send is called');
+      logger.log(payload);
       var _startTime = new Date().toISOString();
       var result = send.apply(CPDR, arguments);
 
-      _utils.console.log('patch send result is back');
-      _utils.console.log(result);
+      logger.log('patch send result is back');
+      logger.log(result);
       var _endTime = new Date().toISOString();
       if (recorder) {
         recorder(createEventModel(CPDR, _startTime, _endTime, payload, result));
@@ -2758,27 +3485,24 @@ function captureWeb3Requests(myWeb3, recorder, options) {
     };
 
     CPDR['sendAsync'] = function (payload, callback) {
-      _utils.console.log('patched sendAsync is called');
-      _utils.console.log(payload);
+      logger.log('patched sendAsync is called');
+      logger.log(payload);
       var _startTime = new Date().toISOString();
       var provider = CPDR;
 
       var _callback = function _callback(err, result) {
         var _endTime = new Date().toISOString();
 
-        _utils.console.log('inside patched callback');
-        _utils.console.log(result);
+        logger.log('inside patched callback');
+        logger.log(result);
         if (recorder) {
-          _utils.console.log('about to record event');
           recorder(createEventModel(provider, _startTime, _endTime, payload, result, err));
         }
-
-        _utils.console.log('triggering original callback');
-
-        callback(err, result);
+        if (callback) {
+          callback(err, result);
+        }
       };
 
-      _utils.console.log(payload);
       sendAsync.apply(CPDR, [payload, _callback]);
     };
 
@@ -2795,4 +3519,4 @@ function captureWeb3Requests(myWeb3, recorder, options) {
 exports['default'] = captureWeb3Requests;
 module.exports = exports['default'];
 
-},{"./utils":10}]},{},[1]);
+},{"./utils":13}]},{},[1]);

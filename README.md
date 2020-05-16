@@ -24,22 +24,22 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 ```html
 <script src="//unpkg.com/moesif-browser-js@^1/moesif.min.js"></script>
 <script type="text/javascript">
-// Initialize the SDK. Must be called before any other methods
-moesif.init({
-  applicationId: 'Your Moesif Application Id'
-  // add other option here
-});
+  // Initialize the SDK. Must be called before any other methods
+  moesif.init({
+    applicationId: "Your Moesif Application Id",
+    // add other option here
+  });
 
-// Optionally, start logging AJAX API Calls
-moesif.start();
+  // Optionally, start logging AJAX API Calls
+  moesif.start();
 
-// Identify the user with Moesif such as when user logs in
-moesif.identifyUser('12345');
-  
-// Log UI actions like clicked sign up  
-moesif.track('clicked_sign_up', {
-  button_label: 'Get Started'
-});  
+  // Identify the user with Moesif such as when user logs in
+  moesif.identifyUser("12345");
+
+  // Log UI actions like clicked sign up
+  moesif.track("clicked_sign_up", {
+    button_label: "Get Started",
+  });
 </script>
 ```
 
@@ -61,11 +61,11 @@ npm install --save moesif-browser-js
 You can then require the lib like a standard NPM module:
 
 ```javascript
-var moesif = require('moesif-browser-js');
+var moesif = require("moesif-browser-js");
 
 // Initialize the SDK. Must be called before any other methods
 moesif.init({
-  applicationId: 'Your Moesif Application Id'
+  applicationId: "Your Moesif Application Id",
   // add other option here
 });
 
@@ -73,12 +73,12 @@ moesif.init({
 moesif.start();
 
 // Identify the user with Moesif such as when user logs in
-moesif.identifyUser('12345');
-  
-// Log UI actions like clicked sign up  
-moesif.track('clicked_sign_up', {
-  button_label: 'Get Started'
-});  
+moesif.identifyUser("12345");
+
+// Log UI actions like clicked sign up
+moesif.track("clicked_sign_up", {
+  button_label: "Get Started",
+});
 ```
 
 With the `require` method, the `moesif` object is not attached to any global scope, but you can attach to the global window object easily:
@@ -98,15 +98,15 @@ and then clicking _Installation_.
 While optional, in addition to identifying the user id, you can also pass in user demographic and other info as a custom object.
 
 ```javascript
-moesif.identifyUser('12345', {
-  email: 'john@acmeinc.com',
-  firstName: 'John',
-  lastName: 'Doe',
-  title: 'Software Engineer',
+moesif.identifyUser("12345", {
+  email: "john@acmeinc.com",
+  firstName: "John",
+  lastName: "Doe",
+  title: "Software Engineer",
   salesInfo: {
-      stage: 'Customer',
-      lifetimeValue: 24000,
-      accountOwner: 'mary@contoso.com',
+    stage: "Customer",
+    lifetimeValue: 24000,
+    accountOwner: "mary@contoso.com",
   },
 });
 ```
@@ -120,22 +120,23 @@ A user can be linked to a company which can be helpful to track account level us
 // The second argument is a object used to store a company info like plan, MRR, and company demographics.
 // The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.
 metadata = {
-  orgName: 'Acme, Inc',
-  planName: 'Free Plan',
-  dealStage: 'Lead',
+  orgName: "Acme, Inc",
+  planName: "Free Plan",
+  dealStage: "Lead",
   mrr: 24000,
   demographics: {
     alexaRanking: 500000,
-    employeeCount: 47
-  }
+    employeeCount: 47,
+  },
 };
 
-moesif.identifyCompany('67890', metadata, 'acmeinc.com');
+moesif.identifyCompany("67890", metadata, "acmeinc.com");
 ```
 
 ## List of Methods on the `moesif` Object
 
 #### init, (obj) => null
+
 Initialize the SDK with your Application Id and any other options. On initialization, the SDK will capture initial user context like device and attribution information. Must be called before any other methods like `start()` or `identifyUser`.
 
 ```
@@ -153,20 +154,21 @@ When a user logs into your website and you have their user id, identify the user
 You can also add custom metadata containing fields like the customer's name and email as the second argument.
 
 ```javascript
-moesif.identifyUser('12345', {
-  email: 'john@acmeinc.com',
-  firstName: 'John',
-  lastName: 'Doe',
-  title: 'Software Engineer',
+moesif.identifyUser("12345", {
+  email: "john@acmeinc.com",
+  firstName: "John",
+  lastName: "Doe",
+  title: "Software Engineer",
   salesInfo: {
-      stage: 'Customer',
-      lifetimeValue: 24000,
-      accountOwner: 'mary@contoso.com',
+    stage: "Customer",
+    lifetimeValue: 24000,
+    accountOwner: "mary@contoso.com",
   },
 });
 ```
 
 #### identifyCompany, (string, object, string) => null
+
 Similar to `identifyUser`, but for tracking companies which is recommended for B2B companies.
 You can use both `identifyUser` and `identifyCompany` or just one. If both are used, the user is linked as a member of the company.
 
@@ -176,17 +178,17 @@ The third argument is a string containing company website or email domain. If se
 
 ```javascript
 metadata = {
-  orgName: 'Acme, Inc',
-  planName: 'Free Plan',
-  dealStage: 'Lead',
+  orgName: "Acme, Inc",
+  planName: "Free Plan",
+  dealStage: "Lead",
   mrr: 24000,
   demographics: {
     alexaRanking: 500000,
-    employeeCount: 47
-  }
+    employeeCount: 47,
+  },
 };
 
-moesif.identifyCompany('67890', metadata, 'acmeinc.com');
+moesif.identifyCompany("67890", metadata, "acmeinc.com");
 ```
 
 #### identifySession, (string) => null
@@ -196,12 +198,12 @@ The Moesif SDK wil track sessions automatically, but if you have a specific sess
 The new session token will continue to be used until `identifySession` is called again.
 
 ```javascript
-moesif.identifySession('d23xdefc3ijhcv93hf4h38f90h43f');
+moesif.identifySession("d23xdefc3ijhcv93hf4h38f90h43f");
 ```
 
 #### track, (string, object) => null
 
-Track user actions such as "clicked sign up" or "made a purchase". By tracking user actions in addition to API usage via one of the [Moesif server SDKs](https://www.moesif.com/implementation), you'll be able to understand the entire customer journey from inital sign up to first API call.  First argument is an action name as a string, which is required. Second parameter is an optional metadata object related to this action event. [See API Reference](https://www.moesif.com/docs/api#track-a-user-action)
+Track user actions such as "clicked sign up" or "made a purchase". By tracking user actions in addition to API usage via one of the [Moesif server SDKs](https://www.moesif.com/implementation), you'll be able to understand the entire customer journey from inital sign up to first API call. First argument is an action name as a string, which is required. Second parameter is an optional metadata object related to this action event. [See API Reference](https://www.moesif.com/docs/api#track-a-user-action)
 
 ```
 moesif.track('clicked_sign_up', {
@@ -235,7 +237,7 @@ Sets the web3 JSON-RPC to use the web3 object passed in. If no argument is passe
 in, it will try to restart capturing using the global `web3` object. Return `true` if successful.
 
 ```javascript
-moesif.useWeb3(myWeb3Object)
+moesif.useWeb3(myWeb3Object);
 ```
 
 ## Configuration options
@@ -264,32 +266,30 @@ Optional function that allow you to append arbitrary JSON metadata to API calls 
 full options example:
 
 ```javascript
-
 var options = {
-  applicationId: 'Your Moesif Application Id',
-  skip: function(event) {
-    if (event.request.uri.includes('google')) {
+  applicationId: "Your Moesif Application Id",
+  skip: function (event) {
+    if (event.request.uri.includes("google")) {
       return true;
     }
     return false;
   },
-  maskContent: function(event) {
-    if (event.request.headers['secret']) {
-      event.request.headers['secret'] = '';
+  maskContent: function (event) {
+    if (event.request.headers["secret"]) {
+      event.request.headers["secret"] = "";
     }
     return event;
   },
-  getMetadata: function(event) {
-    if (event.request.uri.includes('stripe')) {
+  getMetadata: function (event) {
+    if (event.request.uri.includes("stripe")) {
       return {
-        type: 'payment'
+        type: "payment",
       };
     }
-  }
+  },
 };
 
 moesif.init(options);
-
 ```
 
 #### disableFetch, boolean, optional, default false.
@@ -297,11 +297,23 @@ moesif.init(options);
 Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
 Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
 
+#### batch, boolean, optional, default false.
+
+Will start batching the tracking of API Events and User Actions to sent to Moesif. The identifyUser and identifyCompanies are not batched.
+
+#### batchSize, number, optional, default 50
+
+Even if set, the batchSize is used on a best effort basis. If the payloads sizes get too big, the batchSize maybe auto adjusted.
+
+#### batchIntervalMs, number in milliseconds, optional, default 5000
+
+The maximum interval to flush the queue when the batch size have not been reached.
+
 ## Ethereum DApp support
 
 DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API like any other Single Page App. For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js) which Moesif supports natively.
 
-Moesif will capture interactions with the Ethereum blockchain just like any other API to undersand usage and monitor for any issues affecting your Dapp. Because this data is binary, there are additional set up steps needed to convert these API interactions into something human readable. [Checkout Moesif's Ethereum Web3 documentation for more info](https://www.moesif.com/docs/platform/ethereum-web3/).
+Moesif will capture interactions with the Ethereum blockchain just like any other API to understand usage and monitor for any issues affecting your Dapp. Because this data is binary, there are additional set up steps needed to convert these API interactions into something human readable. [Checkout Moesif's Ethereum Web3 documentation for more info](https://www.moesif.com/docs/platform/ethereum-web3/).
 
 There is also a tutorial available on [Building an Ethereum DApp with Integrated Web3 Monitoring](https://www.moesif.com/blog/blockchain/ethereum/Tutorial-for-building-Ethereum-Dapp-with-Integrated-Error-Monitoring/).
 
@@ -316,7 +328,7 @@ For advanced scenarios where your code uses a different `web3` object than the d
 The web3 object can change if you let users modify the selected web3 provider or change their network. An example is below:
 
 ```javascript
-if (typeof web3 !== 'undefined') {
+if (typeof web3 !== "undefined") {
   myWeb3 = new Web3(web3.currentProvider);
   // No action needed by Moesif
 } else {
@@ -350,24 +362,27 @@ As an example:
 
 ## Examples
 
+- Several examples for how to import this library are in the example folder of this repo, _moesif-min_ folder have more examples usage.
 - Example setup for [react-boilerplate](https://github.com/Moesif/moesif-react-boilerplate-example). For React apps, if you set up server side rendering, please ensure that this library is only initiated on the client side.
 - Example setup for an [Etherum Dapp](https://github.com/Moesif/moesif-ethereum-js-example).
 
 ## Credits for moesif-browser-js
 
-Some of the build scripts and directory structure is based on Mixpanel's Javascript Client Library,
+Some of the build scripts, utilities, and directory structure is based on Mixpanel's Javascript Client Library,
 which is under Apache 2.0 license.
+
 Some utilities are based on underscore.
+
+To modify and build this library, please see instructions in Build.md
 
 ## Other integrations
 
-To view more more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
+To view more more documentation on integration options, please visit **[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).**
 
 [ico-built-for]: https://img.shields.io/badge/built%20for-javascript-blue.svg
 [ico-downloads]: https://img.shields.io/npm/dt/moesif-browser-js.svg
 [ico-license]: https://img.shields.io/badge/License-Apache%202.0-green.svg
 [ico-source]: https://img.shields.io/github/last-commit/moesif/moesif-browser-js.svg?style=social
-
 [link-built-for]: https://developer.mozilla.org/en-US/docs/Web/JavaScript
 [link-downloads]: https://www.npmjs.com/package/moesif-browser-js
 [link-license]: https://raw.githubusercontent.com/Moesif/moesif-browser-js/master/LICENSE

@@ -1,9 +1,6 @@
-/**
- * Created by Xingheng on 1/31/17.
- */
+import { _, console_with_prefix } from './utils'; // eslint-disable-line
 
-import { _, console } from './utils';
-
+var logger = console_with_prefix('web3capture');
 
 function computeUrl(provider) {
   if (provider && provider.host) {
@@ -34,13 +31,13 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
 
   if (payload) {
     if (typeof payload === 'string') {
-      console.log('request post data is string');
-      console.log(payload);
+      logger.log('request post data is string');
+      logger.log(payload);
       try {
         requestModel['body'] = _.JSONDecode(payload);
       } catch(err) {
-        console.log('JSON decode failed');
-        console.log(err);
+        logger.log('JSON decode failed');
+        logger.log(err);
         requestModel['transfer_encoding'] = 'base64';
         requestModel['body'] = _.base64Encode(payload);
       }
@@ -101,20 +98,20 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
  */
 function captureWeb3Requests(myWeb3, recorder, options) {
   if (myWeb3['currentProvider']) {
-    console.log('found my currentProvider, patching it');
+    logger.log('found my currentProvider, patching it');
     var CPDR = myWeb3['currentProvider'];
 
     var send = CPDR['send'];
     var sendAsync = CPDR['sendAsync'];
 
     CPDR['send'] = function(payload) {
-      console.log('patched send is called');
-      console.log(payload);
+      logger.log('patched send is called');
+      logger.log(payload);
       var _startTime = (new Date()).toISOString();
       var result = send.apply(CPDR, arguments);
 
-      console.log('patch send result is back');
-      console.log(result);
+      logger.log('patch send result is back');
+      logger.log(result);
       var _endTime = (new Date()).toISOString();
       if (recorder) {
         recorder(createEventModel(CPDR, _startTime, _endTime, payload, result));
@@ -124,27 +121,24 @@ function captureWeb3Requests(myWeb3, recorder, options) {
     };
 
     CPDR['sendAsync'] = function(payload, callback) {
-      console.log('patched sendAsync is called');
-      console.log(payload);
+      logger.log('patched sendAsync is called');
+      logger.log(payload);
       var _startTime = (new Date()).toISOString();
       var provider = CPDR;
 
       var _callback = function(err, result) {
         var _endTime = (new Date()).toISOString();
 
-        console.log('inside patched callback');
-        console.log(result);
+        logger.log('inside patched callback');
+        logger.log(result);
         if (recorder) {
-          console.log('about to record event');
           recorder(createEventModel(provider, _startTime, _endTime, payload, result, err));
         }
-
-        console.log('triggering original callback');
-
-        callback(err, result);
+        if (callback) {
+          callback(err, result);
+        }
       };
 
-      console.log(payload);
       sendAsync.apply(CPDR, [payload, _callback]);
     };
 

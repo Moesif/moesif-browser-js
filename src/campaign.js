@@ -1,7 +1,8 @@
-import { _, console } from './utils';
-
+import { _, console_with_prefix } from './utils'; // eslint-disable-line
 import getReferrer from './referrer';
 import getUtm from './utm';
+
+var logger = console_with_prefix('campaign');
 
 function _getUrlParams() {
   return location && location.search;
@@ -39,7 +40,7 @@ function getCampaignData(opt) {
 
     return result;
   } catch (err) {
-    console.error(err);
+    logger.log(err);
   }
 }
 

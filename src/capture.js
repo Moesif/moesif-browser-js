@@ -2,8 +2,9 @@
  * Created by Xingheng on 1/31/17.
  */
 
-import { _, console } from './utils';
+import { _, console_with_prefix } from './utils'; // eslint-disable-line camelcase
 
+var logger = console_with_prefix('capture');
 
 var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
@@ -53,13 +54,13 @@ function captureXMLHttpRequest(recorder) {
 
           if (postData) {
             if (typeof postData === 'string') {
-              console.log('request post data is string');
-              console.log(postData);
+              logger.log('request post data is string');
+              logger.log(postData);
               try {
                 requestModel['body'] = _.JSONDecode(postData);
               } catch(err) {
-                console.log('JSON decode failed');
-                console.log(err);
+                logger.log('JSON decode failed');
+                logger.log(err);
                 requestModel['transfer_encoding'] = 'base64';
                 requestModel['body'] = _.base64Encode(postData);
               }
