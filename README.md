@@ -373,6 +373,8 @@ which is under Apache 2.0 license.
 
 Some utilities are based on underscore.
 
+To modify and build this library, please see instructions in Build.md
+
 ## Other integrations
 
 To view more more documentation on integration options, please visit **[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).**
