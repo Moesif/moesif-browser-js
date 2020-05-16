@@ -42,7 +42,7 @@
       Click on the button below should send an request to a placeholder API
       server. The even should by captured by moesif and send to Moesif.
     </p>
-    <button id="send">Send an event to placeholder api server</button>
+    <button id="send">Send an event to placeholder api server (automatically instrumented)</button>
     <br />
     <button id="track">Send tracked UI action</button>
     <br />
@@ -60,6 +60,7 @@
       var COMPANY_ID_COUNT = 1;
 
       $("#send").click(function () {
+        // any api calls is automatically instrumented.
         $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
           method: "GET",
         }).then(function (data) {});
@@ -67,7 +68,10 @@
       });
 
       $("#track").click(function () {
-        console.log("about to start track");
+        // you can use this API to track
+        // user actions such as button clicks,
+        // or sign ups etc.
+        // these user actions are defined by you.
         moesif.track("button_click", {
           foo: "bar",
           count: ACTION_COUNT,
@@ -76,8 +80,6 @@
       });
 
       $("#iduser").click(function () {
-        console.log('about to identify user');
-
         moesif.identifyUser("user" + USER_ID_COUNT, {
           foo: "bar" + USER_ID_COUNT,
           first_name: "name" + USER_ID_COUNT,
@@ -86,7 +88,6 @@
       });
 
       $("#idcompany").click(function () {
-        console.log('about to identify company');
         moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
           foo: "bar" + COMPANY_ID_COUNT,
           company_domain: "company-acme" + COMPANY_ID_COUNT + ".co",
