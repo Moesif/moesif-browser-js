@@ -63,7 +63,10 @@
         // any api calls is automatically instrumented.
         $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
           method: "GET",
-        }).then(function (data) {});
+        }).then(function (data) {
+          console.log('ajax call returned');
+          console.log(data);
+        });
         POST_COUNT = (POST_COUNT + 1) % 100;
       });
 

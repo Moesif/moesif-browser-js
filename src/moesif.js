@@ -126,6 +126,8 @@ export default function () {
       ops.disableGclid = options['disableGclid'];
       ops.disableUtm = options['disableUtm'];
 
+      ops.eagerBodyLogging = options['eagerBodyLogging'];
+
       ops.batchEnabled = options['batchEnabled'] || false;
 
       ops['batch_size'] = options['batchSize'] || 25,
@@ -287,7 +289,7 @@ export default function () {
       }
 
       console.log('moesif starting');
-      this._stopRecording = patchAjaxWithCapture(recorder);
+      this._stopRecording = patchAjaxWithCapture(recorder, this._options);
 
       if (!this._options.disableFetch) {
         console.log('also instrumenting fetch API');
@@ -488,7 +490,7 @@ export default function () {
 
       if (!_self._options.skip(event) && !isMoesif(event)) {
         // sendEvent(logData, _self._options.applicationId, _self._options.callback);
-        console.log('sending or queuing' + event['request']['uri']);
+        console.log('sending or queuing: ' + event['request']['uri']);
         var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
         _self._sendOrBatch(
           logData,

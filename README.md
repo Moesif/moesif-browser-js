@@ -309,6 +309,10 @@ Even if set, the batchSize is used on a best effort basis. If the payloads sizes
 
 The maximum interval to flush the queue when the batch size have not been reached.
 
+#### eagerBodyLogging, boolean, optional, default false
+
+If there are issues with logging body for some frameworks where they intercept the response body, turn this option on to capture the response body.
+
 ## Ethereum DApp support
 
 DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API like any other Single Page App. For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js) which Moesif supports natively.

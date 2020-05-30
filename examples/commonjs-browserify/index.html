@@ -33,7 +33,8 @@
         $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
           method: "GET",
         }).then(function (data) {
-          // console.log(data);
+          console.log('ajax results is here.');
+          console.log(data);
         });
         POST_COUNT = (POST_COUNT + 1) % 100;
       });
