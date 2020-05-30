@@ -330,19 +330,18 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
       } else if (xhrInstance.response) {
         // if there is no responseText, but response exists, we'll try process it.
         logger.log('no responseText trying with xhr.response');
-        if (xhrInstance.responseType === 'json') {
-          logger.log('responseType is json. then directly assign');
-          responseModel['body'] = xhrInstance.response;
-        } else if (_utils._.isString(xhrInstance.response)) {
+        if (_utils._.isString(xhrInstance.response)) {
           logger.log('response is string. attempt to parse');
           parsedBody = (0, _parsers.attemptParseText)(xhrInstance.response);
           responseModel['body'] = parsedBody['body'];
           responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
-        } else if (xhrInstance.responseType === 'arraybuffer') {
-          logger.log('responseType is buffer. attempt to parse');
+        } else if (_utils._.isArrayBuffer(xhrInstance.response)) {
+          logger.log('response is arraybuffer. attempt to parse');
           parsedBody = (0, _parsers.attemptParseBuffer)(xhrInstance.response);
           responseModel['body'] = parsedBody['body'];
           responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
+        } else if (_utils._.isArray(xhrInstance.response) || _utils._.isObject(xhrInstance.response)) {
+          responseModel['body'] = xhrInstance.response;
         }
       }
 
@@ -2057,6 +2056,11 @@ _.inherit = function (subclass, superclass) {
     subclass.prototype.constructor = subclass;
     subclass.superclass = superclass.prototype;
     return subclass;
+};
+
+_.isArrayBuffer = function (value) {
+    var hasArrayBuffer = typeof ArrayBuffer === 'function';
+    return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
 };
 
 _.isObject = function (obj) {
