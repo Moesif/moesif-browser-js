@@ -311,7 +311,7 @@ The maximum interval to flush the queue when the batch size have not been reache
 
 #### eagerBodyLogging, boolean, optional, default false
 
-If there are issues with logging body for some frameworks where they intercept the response body, turn this option on to capture the response body.
+Some complex frameworks like Angular monkey patch to intercept the response body. If you are an Angular user or find that the response is not being captured, turn this option on to eagerly capture the response info.
 
 ## Ethereum DApp support
 
@@ -342,6 +342,11 @@ if (typeof web3 !== "undefined") {
   moesif.useWeb3(myWeb3);
 }
 ```
+
+## Troubleshooting
+
+### Response not being logged
+Certain frameworks like Angular monkey patch the XMLHttpRequest heavily. In these cases, enable the eagerBodyLogging option to eagerly capture the response info. 
 
 ### Duplicate API events
 
