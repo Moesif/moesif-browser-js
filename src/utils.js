@@ -267,6 +267,12 @@ _.inherit = function(subclass, superclass) {
     return subclass;
 };
 
+_.isArrayBuffer = function(value) {
+  var toString = Object.prototype.toString;
+  var hasArrayBuffer = typeof ArrayBuffer === 'function';
+  return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
+};
+
 _.isObject = function(obj) {
     return (obj === Object(obj) && !_.isArray(obj));
 };

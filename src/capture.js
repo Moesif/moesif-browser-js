@@ -3,6 +3,7 @@
  */
 
 import { _, console_with_prefix } from './utils'; // eslint-disable-line camelcase
+import { attemptParseBuffer, attemptParseText } from './parsers';
 
 var logger = console_with_prefix('capture');
 
@@ -28,14 +29,10 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
         if (typeof postData === 'string') {
           logger.log('request post data is string');
           logger.log(postData);
-          try {
-            requestModel['body'] = _.JSONDecode(postData);
-          } catch(err) {
-            logger.log('JSON decode failed');
-            logger.log(err);
-            requestModel['transfer_encoding'] = 'base64';
-            requestModel['body'] = _.base64Encode(postData);
-          }
+
+          var parseResult = attemptParseText(postData);
+          requestModel['transfer_encoding'] = parseResult['transfer_encoding'];
+          requestModel['body'] = parseResult['body'];
         } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
           requestModel['body'] = postData;
         }
@@ -58,42 +55,36 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
         'headers': responseHeaders
       };
 
+      logger.log('responseType: ' + xhrInstance.responseType);
       logger.log('responseText: ' + xhrInstance.responseText);
-      logger.log('response.json: ' + (xhrInstance.response ? xhrInstance.response.json : 'response is null'));
-      logger.log('response.text: ' + (xhrInstance.response ? xhrInstance.response.text : 'response is null'));
+      logger.log('response: ' + xhrInstance.response);
 
       // responseText is accessible only if responseType is '' or 'text' and on older browsers
-      var rawText = (xhrInstance._method !== 'HEAD' && (xhrInstance.responseType === '' || xhrInstance.responseType === 'text'))
-        || typeof xhrInstance.responseType === 'undefined'
-        ? xhrInstance.responseText
-        : null;
+      // but we attempt to grab it anyways.
+      var rawText = xhrInstance.responseText;
 
+      var parsedBody = {};
 
       if (rawText) {
         // responseText is string or null
-        try {
-          responseModel['body'] = _.JSONDecode(rawText);
-        } catch(err) {
-          responseModel['transfer_encoding'] = 'base64';
-          responseModel['body'] = _.base64Encode(rawText);
-        }
-        // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
-        //   responseModel['body'] = parseBody(this.responseText);
-        // } else {
-        //   responseModel['transfer_encoding'] = 'base64';
-        //   responseModel['body'] = _.base64Encode(this.responseText);
-        // }
+        parsedBody = attemptParseText(rawText);
+        responseModel['body'] = parsedBody['body'];
+        responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
       } else if (xhrInstance.response) {
-        // if there is no rawText, but response exists, we'll process it.
-        if (_.isObject(xhrInstance.response)) {
-          responseModel['body'] = _.JSONDecode(xhrInstance.responseText);
-        } else if (_.isString(xhrInstance.response)) {
-          try {
-            responseModel['body'] = _.JSONDecode(xhrInstance.response);
-          } catch(err) {
-            responseModel['transfer_encoding'] = 'base64';
-            responseModel['body'] = _.base64Encode(xhrInstance.response);
-          }
+        // if there is no responseText, but response exists, we'll try process it.
+        logger.log('no responseText trying with xhr.response');
+        if (_.isString(xhrInstance.response)) {
+          logger.log('response is string. attempt to parse');
+          parsedBody = attemptParseText(xhrInstance.response);
+          responseModel['body'] = parsedBody['body'];
+          responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
+        } else if (_.isArrayBuffer(xhrInstance.response)) {
+          logger.log('response is arraybuffer. attempt to parse');
+          parsedBody = attemptParseBuffer(xhrInstance.response);
+          responseModel['body'] = parsedBody['body'];
+          responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
+        } else if (_.isArray(xhrInstance.response) || _.isObject(xhrInstance.response)) {
+          responseModel['body'] = xhrInstance.response;
         }
       }
 
@@ -105,6 +96,57 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
       recorder(event);
     }
   }
+}
+
+function isJsonHeader(headers) {
+  if (headers) {
+    if(headers['content-type'] && headers['content-type'].indexOf('json') >= 0) {
+      return true;
+    }
+    if(headers['Content-Type'] && headers['Content-Type'].indexOf('json') >= 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isStartJson(body) {
+  if(body && typeof body === 'string') {
+    var trimmedBody = _.trim(body);
+    if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0 ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parseResponseHeaders(headerStr) {
+  var headers = {};
+  if (!headerStr) {
+    return headers;
+  }
+  var headerPairs = headerStr.split('\u000d\u000a');
+  for (var i = 0; i < headerPairs.length; i++) {
+    var headerPair = headerPairs[i];
+    var index = headerPair.indexOf('\u003a\u0020');
+    if (index > 0) {
+      var key = headerPair.substring(0, index);
+      headers[key] = headerPair.substring(index + 2);
+    }
+  }
+  return headers;
+}
+
+function convertToFullUrl(url) {
+  if (url && typeof url === 'string') {
+    var trimedUrl = _.trim(url);
+    if (trimedUrl.indexOf('http') !== 0) {
+      return HTTP_PROTOCOL + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
+    } else {
+      return url;
+    }
+  }
+  return url;
 }
 
 /**
@@ -180,72 +222,6 @@ function captureXMLHttpRequest(recorder, options) {
 
   // so caller have a handle to undo the patch if needed.
   return undoPatch;
-}
-
-function isJsonHeader(headers) {
-  if (headers) {
-    if(headers['content-type'] && headers['content-type'].indexOf('json') >= 0) {
-      return true;
-    }
-    if(headers['Content-Type'] && headers['Content-Type'].indexOf('json') >= 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isStartJson(body) {
-  if(body && typeof body === 'string') {
-    var trimmedBody = _.trim(body);
-    if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0 ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function parseBody(body) {
-  try {
-    return _.JSONDecode(body);
-  } catch(err) {
-    return {
-      'moesif_error': {
-        'code': 'moesif_parse_err',
-        'msg': 'Can not parse body',
-        'src': 'moesif-browser-js',
-        'args': body
-      }
-    };
-  }
-}
-
-function parseResponseHeaders(headerStr) {
-  var headers = {};
-  if (!headerStr) {
-    return headers;
-  }
-  var headerPairs = headerStr.split('\u000d\u000a');
-  for (var i = 0; i < headerPairs.length; i++) {
-    var headerPair = headerPairs[i];
-    var index = headerPair.indexOf('\u003a\u0020');
-    if (index > 0) {
-      var key = headerPair.substring(0, index);
-      headers[key] = headerPair.substring(index + 2);
-    }
-  }
-  return headers;
-}
-
-function convertToFullUrl(url) {
-  if (url && typeof url === 'string') {
-    var trimedUrl = _.trim(url);
-    if (trimedUrl.indexOf('http') !== 0) {
-      return HTTP_PROTOCOL + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
-    } else {
-      return url;
-    }
-  }
-  return url;
 }
 
 export default captureXMLHttpRequest;

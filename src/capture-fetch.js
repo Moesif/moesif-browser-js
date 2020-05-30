@@ -1,46 +1,7 @@
 import { _, console_with_prefix } from './utils'; // eslint-disable-line camelcase
+import { attemptParseBuffer } from './parsers';
 
-var logger = console_with_prefix('captureFetch');
-
-/**
- * @param {*} buffer
- * this checks the buffer and
- * returns something to start building the response or request model
- * with body filled in.
- */
-function processBodyAndInitializedModel(buffer) {
-  if (!buffer) return {};
-  logger.log('about to decode buffer');
-  logger.log(buffer);
-  logger.log(buffer.byteLength);
-
-  if (buffer.byteLength <= 0) {
-    // empty body.
-    return {};
-  }
-
-  try {
-    var decoder = new TextDecoder('utf-8');
-    var text = decoder.decode(buffer);
-
-    try {
-      return { 'body': _.JSONDecode(text) };
-    } catch (err) {
-      logger.error(err);
-      return {
-        'transfer_encoding': 'base64',
-        'body': _.base64Encode(text)
-      };
-    }
-  } catch (err) {
-    logger.error(err);
-    logger.log(buffer);
-    return {
-      'transfer_encoding': 'base64',
-      'body': 'can not be decoded'
-    };
-  }
-}
+var logger = console_with_prefix('capture fetch');
 
 /**
  *
@@ -60,10 +21,6 @@ function parseHeaders(headers) {
 
     entry = entries.next();
   }
-
-  // for (var pair of headers.entries()) {
-  //   result[pair[0]] = pair[1];
-  // }
 
   return result;
 }
@@ -90,7 +47,8 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
           Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function(
             bodies
           ) {
-            var processedBodies = bodies.map(processBodyAndInitializedModel);
+            // attemptParseBuffer will return either {}, { body }, or { body, transfer_enconding }
+            var processedBodies = bodies.map(attemptParseBuffer);
 
             var requestModel = Object.assign(processedBodies[0], {
               'uri': savedRequest.url,
@@ -140,12 +98,6 @@ function interceptor(recorder, fetch, arg1, arg2) {
   var endTime = null;
 
   var promise = null;
-  // promise = Promise.resolve([arg1, arg2]);
-
-  // reigster the fetch call.
-  // promise = promise.then(function(ar1, ar2) {
-  //   return fetch(ar1, ar2);
-  // });
 
   promise = fetch(arg1, arg2);
 

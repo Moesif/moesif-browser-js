@@ -3,7 +3,7 @@
 
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.6.1'
+    LIB_VERSION: '1.6.2'
 };
 
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -268,6 +268,12 @@ _.inherit = function(subclass, superclass) {
     subclass.prototype.constructor = subclass;
     subclass.superclass = superclass.prototype;
     return subclass;
+};
+
+_.isArrayBuffer = function(value) {
+  var toString = Object.prototype.toString;
+  var hasArrayBuffer = typeof ArrayBuffer === 'function';
+  return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
 };
 
 _.isObject = function(obj) {
@@ -1554,6 +1560,61 @@ _['info']['properties'] = _.info.properties;
 
 // eslint-disable-line camelcase
 
+var logger$1 = console_with_prefix('parsers');
+
+var attemptParseText = function(text) {
+  try {
+    return { 'body': _.JSONDecode(text) };
+  } catch(err) {
+    logger$1.log('JSON decode failed');
+    logger$1.log(err);
+    return {
+      'transfer_encoding': 'base64',  // eslint-disable-line camelcase
+      'body': _.base64Encode(text)
+    };
+  }
+};
+
+/**
+ * @param {*} buffer
+ * this checks the buffer and
+ * returns something to start building the response or request model
+ * with body filled in.
+ */
+var attemptParseBuffer = function (buffer) {
+  if (!buffer) return {};
+  logger$1.log('about to decode buffer');
+  logger$1.log(buffer);
+  logger$1.log(buffer.byteLength);
+
+  if (buffer.byteLength <= 0) {
+    // empty body.
+    return {};
+  }
+
+  try {
+    var decoder = new TextDecoder('utf-8');
+    var text = decoder.decode(buffer);
+
+    try {
+      return { 'body': _.JSONDecode(text) };
+    } catch (err) {
+      logger$1.error(err);
+      return {
+        'transfer_encoding': 'base64',
+        'body': _.base64Encode(text)
+      };
+    }
+  } catch (err) {
+    logger$1.error(err);
+    logger$1.log(buffer);
+    return {
+      'transfer_encoding': 'base64',
+      'body': 'can not be decoded'
+    };
+  }
+};
+
 var logger = console_with_prefix('capture');
 
 var HTTP_PROTOCOL$1 = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
@@ -1578,14 +1639,10 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
         if (typeof postData === 'string') {
           logger.log('request post data is string');
           logger.log(postData);
-          try {
-            requestModel['body'] = _.JSONDecode(postData);
-          } catch(err) {
-            logger.log('JSON decode failed');
-            logger.log(err);
-            requestModel['transfer_encoding'] = 'base64';
-            requestModel['body'] = _.base64Encode(postData);
-          }
+
+          var parseResult = attemptParseText(postData);
+          requestModel['transfer_encoding'] = parseResult['transfer_encoding'];
+          requestModel['body'] = parseResult['body'];
         } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
           requestModel['body'] = postData;
         }
@@ -1608,42 +1665,36 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
         'headers': responseHeaders
       };
 
+      logger.log('responseType: ' + xhrInstance.responseType);
       logger.log('responseText: ' + xhrInstance.responseText);
-      logger.log('response.json: ' + (xhrInstance.response ? xhrInstance.response.json : 'response is null'));
-      logger.log('response.text: ' + (xhrInstance.response ? xhrInstance.response.text : 'response is null'));
+      logger.log('response: ' + xhrInstance.response);
 
       // responseText is accessible only if responseType is '' or 'text' and on older browsers
-      var rawText = (xhrInstance._method !== 'HEAD' && (xhrInstance.responseType === '' || xhrInstance.responseType === 'text'))
-        || typeof xhrInstance.responseType === 'undefined'
-        ? xhrInstance.responseText
-        : null;
+      // but we attempt to grab it anyways.
+      var rawText = xhrInstance.responseText;
 
+      var parsedBody = {};
 
       if (rawText) {
         // responseText is string or null
-        try {
-          responseModel['body'] = _.JSONDecode(rawText);
-        } catch(err) {
-          responseModel['transfer_encoding'] = 'base64';
-          responseModel['body'] = _.base64Encode(rawText);
-        }
-        // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
-        //   responseModel['body'] = parseBody(this.responseText);
-        // } else {
-        //   responseModel['transfer_encoding'] = 'base64';
-        //   responseModel['body'] = _.base64Encode(this.responseText);
-        // }
+        parsedBody = attemptParseText(rawText);
+        responseModel['body'] = parsedBody['body'];
+        responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
       } else if (xhrInstance.response) {
-        // if there is no rawText, but response exists, we'll process it.
-        if (_.isObject(xhrInstance.response)) {
-          responseModel['body'] = _.JSONDecode(xhrInstance.responseText);
-        } else if (_.isString(xhrInstance.response)) {
-          try {
-            responseModel['body'] = _.JSONDecode(xhrInstance.response);
-          } catch(err) {
-            responseModel['transfer_encoding'] = 'base64';
-            responseModel['body'] = _.base64Encode(xhrInstance.response);
-          }
+        // if there is no responseText, but response exists, we'll try process it.
+        logger.log('no responseText trying with xhr.response');
+        if (_.isString(xhrInstance.response)) {
+          logger.log('response is string. attempt to parse');
+          parsedBody = attemptParseText(xhrInstance.response);
+          responseModel['body'] = parsedBody['body'];
+          responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
+        } else if (_.isArrayBuffer(xhrInstance.response)) {
+          logger.log('response is arraybuffer. attempt to parse');
+          parsedBody = attemptParseBuffer(xhrInstance.response);
+          responseModel['body'] = parsedBody['body'];
+          responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
+        } else if (_.isArray(xhrInstance.response) || _.isObject(xhrInstance.response)) {
+          responseModel['body'] = xhrInstance.response;
         }
       }
 
@@ -1655,6 +1706,35 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
       recorder(event);
     }
   }
+}
+
+function parseResponseHeaders(headerStr) {
+  var headers = {};
+  if (!headerStr) {
+    return headers;
+  }
+  var headerPairs = headerStr.split('\u000d\u000a');
+  for (var i = 0; i < headerPairs.length; i++) {
+    var headerPair = headerPairs[i];
+    var index = headerPair.indexOf('\u003a\u0020');
+    if (index > 0) {
+      var key = headerPair.substring(0, index);
+      headers[key] = headerPair.substring(index + 2);
+    }
+  }
+  return headers;
+}
+
+function convertToFullUrl(url) {
+  if (url && typeof url === 'string') {
+    var trimedUrl = _.trim(url);
+    if (trimedUrl.indexOf('http') !== 0) {
+      return HTTP_PROTOCOL$1 + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
+    } else {
+      return url;
+    }
+  }
+  return url;
 }
 
 /**
@@ -1732,38 +1812,9 @@ function captureXMLHttpRequest(recorder, options) {
   return undoPatch;
 }
 
-function parseResponseHeaders(headerStr) {
-  var headers = {};
-  if (!headerStr) {
-    return headers;
-  }
-  var headerPairs = headerStr.split('\u000d\u000a');
-  for (var i = 0; i < headerPairs.length; i++) {
-    var headerPair = headerPairs[i];
-    var index = headerPair.indexOf('\u003a\u0020');
-    if (index > 0) {
-      var key = headerPair.substring(0, index);
-      headers[key] = headerPair.substring(index + 2);
-    }
-  }
-  return headers;
-}
-
-function convertToFullUrl(url) {
-  if (url && typeof url === 'string') {
-    var trimedUrl = _.trim(url);
-    if (trimedUrl.indexOf('http') !== 0) {
-      return HTTP_PROTOCOL$1 + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
-    } else {
-      return url;
-    }
-  }
-  return url;
-}
-
 // eslint-disable-line
 
-var logger$1 = console_with_prefix('web3capture');
+var logger$2 = console_with_prefix('web3capture');
 
 function computeUrl(provider) {
   if (provider && provider.host) {
@@ -1794,13 +1845,13 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
 
   if (payload) {
     if (typeof payload === 'string') {
-      logger$1.log('request post data is string');
-      logger$1.log(payload);
+      logger$2.log('request post data is string');
+      logger$2.log(payload);
       try {
         requestModel['body'] = _.JSONDecode(payload);
       } catch(err) {
-        logger$1.log('JSON decode failed');
-        logger$1.log(err);
+        logger$2.log('JSON decode failed');
+        logger$2.log(err);
         requestModel['transfer_encoding'] = 'base64';
         requestModel['body'] = _.base64Encode(payload);
       }
@@ -1861,20 +1912,20 @@ function createEventModel(provider, startTime, endTime, payload, result, error) 
  */
 function captureWeb3Requests(myWeb3, recorder, options) {
   if (myWeb3['currentProvider']) {
-    logger$1.log('found my currentProvider, patching it');
+    logger$2.log('found my currentProvider, patching it');
     var CPDR = myWeb3['currentProvider'];
 
     var send = CPDR['send'];
     var sendAsync = CPDR['sendAsync'];
 
     CPDR['send'] = function(payload) {
-      logger$1.log('patched send is called');
-      logger$1.log(payload);
+      logger$2.log('patched send is called');
+      logger$2.log(payload);
       var _startTime = (new Date()).toISOString();
       var result = send.apply(CPDR, arguments);
 
-      logger$1.log('patch send result is back');
-      logger$1.log(result);
+      logger$2.log('patch send result is back');
+      logger$2.log(result);
       var _endTime = (new Date()).toISOString();
       if (recorder) {
         recorder(createEventModel(CPDR, _startTime, _endTime, payload, result));
@@ -1884,16 +1935,16 @@ function captureWeb3Requests(myWeb3, recorder, options) {
     };
 
     CPDR['sendAsync'] = function(payload, callback) {
-      logger$1.log('patched sendAsync is called');
-      logger$1.log(payload);
+      logger$2.log('patched sendAsync is called');
+      logger$2.log(payload);
       var _startTime = (new Date()).toISOString();
       var provider = CPDR;
 
       var _callback = function(err, result) {
         var _endTime = (new Date()).toISOString();
 
-        logger$1.log('inside patched callback');
-        logger$1.log(result);
+        logger$2.log('inside patched callback');
+        logger$2.log(result);
         if (recorder) {
           recorder(createEventModel(provider, _startTime, _endTime, payload, result, err));
         }
@@ -1915,49 +1966,7 @@ function captureWeb3Requests(myWeb3, recorder, options) {
   // so caller have a handle to undo the patch if needed.
 }
 
-// eslint-disable-line camelcase
-
-var logger$2 = console_with_prefix('captureFetch');
-
-/**
- * @param {*} buffer
- * this checks the buffer and
- * returns something to start building the response or request model
- * with body filled in.
- */
-function processBodyAndInitializedModel(buffer) {
-  if (!buffer) return {};
-  logger$2.log('about to decode buffer');
-  logger$2.log(buffer);
-  logger$2.log(buffer.byteLength);
-
-  if (buffer.byteLength <= 0) {
-    // empty body.
-    return {};
-  }
-
-  try {
-    var decoder = new TextDecoder('utf-8');
-    var text = decoder.decode(buffer);
-
-    try {
-      return { 'body': _.JSONDecode(text) };
-    } catch (err) {
-      logger$2.error(err);
-      return {
-        'transfer_encoding': 'base64',
-        'body': _.base64Encode(text)
-      };
-    }
-  } catch (err) {
-    logger$2.error(err);
-    logger$2.log(buffer);
-    return {
-      'transfer_encoding': 'base64',
-      'body': 'can not be decoded'
-    };
-  }
-}
+var logger$3 = console_with_prefix('capture fetch');
 
 /**
  *
@@ -1966,21 +1975,17 @@ function processBodyAndInitializedModel(buffer) {
  */
 function parseHeaders(headers) {
   var result = {};
-  logger$2.log('parseheaders is called');
+  logger$3.log('parseheaders is called');
 
   var entries = headers.entries();
 
   var entry = entries.next();
   while (!entry.done) {
-    logger$2.log(entry.value); // 1 3 5 7 9
+    logger$3.log(entry.value); // 1 3 5 7 9
     result[entry.value[0]] = entry.value[1];
 
     entry = entries.next();
   }
-
-  // for (var pair of headers.entries()) {
-  //   result[pair[0]] = pair[1];
-  // }
 
   return result;
 }
@@ -1988,9 +1993,9 @@ function parseHeaders(headers) {
 function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
   try {
     setTimeout(function() {
-      logger$2.log('interception is here.');
-      logger$2.log(savedRequest);
-      logger$2.log(savedResponse);
+      logger$3.log('interception is here.');
+      logger$3.log(savedRequest);
+      logger$3.log(savedResponse);
       if (savedRequest && savedResponse) {
         // try to exract out information:
         // var reqHeaders = {};
@@ -2007,7 +2012,8 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
           Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function(
             bodies
           ) {
-            var processedBodies = bodies.map(processBodyAndInitializedModel);
+            // attemptParseBuffer will return either {}, { body }, or { body, transfer_enconding }
+            var processedBodies = bodies.map(attemptParseBuffer);
 
             var requestModel = Object.assign(processedBodies[0], {
               'uri': savedRequest.url,
@@ -2022,8 +2028,8 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
               'headers': parseHeaders(savedResponse.headers)
             });
 
-            logger$2.log(requestModel);
-            logger$2.log(responseModel);
+            logger$3.log(requestModel);
+            logger$3.log(responseModel);
 
             var event = {
               'request': requestModel,
@@ -2033,15 +2039,15 @@ function processSavedRequestResponse(savedRequest, savedResponse, startTime, end
             recorder(event);
           });
         } catch (err) {
-          logger$2.error('error processing body');
+          logger$3.error('error processing body');
         }
       } else {
-        logger$2.log('savedRequest');
+        logger$3.log('savedRequest');
       }
     }, 50);
   } catch (err) {
-    logger$2.error('error processing saved fetch request and response, but move on anyways.');
-    logger$2.log(err);
+    logger$3.error('error processing saved fetch request and response, but move on anyways.');
+    logger$3.log(err);
   }
 }
 
@@ -2057,12 +2063,6 @@ function interceptor(recorder, fetch, arg1, arg2) {
   var endTime = null;
 
   var promise = null;
-  // promise = Promise.resolve([arg1, arg2]);
-
-  // reigster the fetch call.
-  // promise = promise.then(function(ar1, ar2) {
-  //   return fetch(ar1, ar2);
-  // });
 
   promise = fetch(arg1, arg2);
 
@@ -2087,14 +2087,14 @@ function patch(recorder, env) {
   var myenv = env || window || self;
 
   if (myenv['fetch']) {
-    logger$2.log('found fetch method.');
+    logger$3.log('found fetch method.');
     if (!myenv['fetch']['polyfill']) {
       // basically, if it is polyfill, it means
       // that it is using XMLhttpRequest underneath,
       // then no need to patch fetch.
       var oldFetch = myenv['fetch'];
 
-      logger$2.log('fetch is not polyfilled so instrumenting it');
+      logger$3.log('fetch is not polyfilled so instrumenting it');
 
       myenv['fetch'] = (function(fetch) {
         return function(arg1, arg2) {
@@ -2110,11 +2110,11 @@ function patch(recorder, env) {
     } else {
       // should not patch if it is polyfilled.
       // since it would duplicate the data.
-      logger$2.log('skip patching fetch since it is polyfilled');
+      logger$3.log('skip patching fetch since it is polyfilled');
       return null;
     }
   } else {
-    logger$2.log('there is no fetch found, so skipping instrumentation.');
+    logger$3.log('there is no fetch found, so skipping instrumentation.');
   }
 }
 
@@ -2150,7 +2150,7 @@ function getReferrer() {
 
 // eslint-disable-line
 
-var logger$4 = console_with_prefix('utm');
+var logger$5 = console_with_prefix('utm');
 
 var Constants = {  // UTM Params
   UTM_SOURCE: 'utm_source',
@@ -2168,8 +2168,8 @@ function getUtmData(rawCookie, query) {
   // Translate the utmz cookie format into url query string format.
   var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
 
-  logger$4.log('cookie');
-  logger$4.log(cookie);
+  logger$5.log('cookie');
+  logger$5.log(cookie);
 
   var fetchParam = function fetchParam(queryName, query, cookieName, cookie) {
     return _.getQueryParamByName(queryName, query) ||
@@ -2205,7 +2205,7 @@ function getUtm(queryParams, cookieParams) {
   return utmProperties;
 }
 
-var logger$3 = console_with_prefix('campaign');
+var logger$4 = console_with_prefix('campaign');
 
 function _getUrlParams() {
   return location && location.search;
@@ -2243,13 +2243,13 @@ function getCampaignData(opt) {
 
     return result;
   } catch (err) {
-    logger$3.log(err);
+    logger$4.log(err);
   }
 }
 
 // eslint-disable-line
 
-var logger$7 = console_with_prefix('lock');
+var logger$8 = console_with_prefix('lock');
 
 /**
  * SharedLock: a mutex built on HTML5 localStorage, to ensure that only one browser
@@ -2301,7 +2301,7 @@ SharedLock.prototype.withLock = function(lockedCB, errorCB, pid) {
 
     var delay = function(cb) {
         if (new Date().getTime() - startTime > timeoutMS) {
-            logger$7.error('Timeout waiting for mutex on ' + key + '; clearing lock. [' + i + ']');
+            logger$8.error('Timeout waiting for mutex on ' + key + '; clearing lock. [' + i + ']');
             storage.removeItem(keyZ);
             storage.removeItem(keyY);
             loop();
@@ -2390,7 +2390,7 @@ SharedLock.prototype.withLock = function(lockedCB, errorCB, pid) {
     }
 };
 
-var logger$6 = console_with_prefix('batch');
+var logger$7 = console_with_prefix('batch');
 
 /**
  * RequestQueue: queue for batching API requests with localStorage backup for retries.
@@ -2446,18 +2446,18 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
             succeeded = this.saveToStorage(storedQueue);
             if (succeeded) {
                 // only add to in-memory queue when storage succeeds
-                logger$6.log('succeeded saving to storage');
+                logger$7.log('succeeded saving to storage');
                 this.memQueue.push(queueEntry);
             }
         } catch(err) {
-            logger$6.error('Error enqueueing item', item);
+            logger$7.error('Error enqueueing item', item);
             succeeded = false;
         }
         if (cb) {
             cb(succeeded);
         }
     }, this), function lockFailure(err) {
-        logger$6.error('Error acquiring storage lock', err);
+        logger$7.error('Error acquiring storage lock', err);
         if (cb) {
             cb(false);
         }
@@ -2478,7 +2478,7 @@ RequestQueue.prototype.fillBatch = function(batchSize) {
         // and the worst that could happen is a duplicate send of some
         // orphaned events, which will be deduplicated on the server side
         var storedQueue = this.readFromStorage();
-        logger$6.log('current storedQueue size ' + storedQueue.length);
+        logger$7.log('current storedQueue size ' + storedQueue.length);
         if (storedQueue.length) {
             // item IDs already in batch; don't duplicate out of storage
             var idsInBatch = {}; // poor man's Set
@@ -2527,18 +2527,18 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
         try {
             var storedQueue = this.readFromStorage();
             storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
-            logger$6.log('new storedQueue ' + storedQueue && storedQueue.length);
+            logger$7.log('new storedQueue ' + storedQueue && storedQueue.length);
             succeeded = this.saveToStorage(storedQueue);
         } catch(err) {
-            logger$6.error('Error removing items', ids);
+            logger$7.error('Error removing items', ids);
             succeeded = false;
         }
         if (cb) {
-            logger$6.log('triggering callback of removalItems');
+            logger$7.log('triggering callback of removalItems');
             cb(succeeded);
         }
     }, this), function lockFailure(err) {
-        logger$6.error('Error acquiring storage lock', err);
+        logger$7.error('Error acquiring storage lock', err);
         if (cb) {
             cb(false);
         }
@@ -2552,19 +2552,19 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
 RequestQueue.prototype.readFromStorage = function() {
     var storageEntry;
     try {
-        logger$6.log('trying to get storage with storage key ' + this.storageKey);
+        logger$7.log('trying to get storage with storage key ' + this.storageKey);
         storageEntry = this.storage.getItem(this.storageKey);
         if (storageEntry) {
             storageEntry = JSONParse(storageEntry);
             if (!_.isArray(storageEntry)) {
-                logger$6.error('Invalid storage entry:', storageEntry);
+                logger$7.error('Invalid storage entry:', storageEntry);
                 storageEntry = null;
             }
         } else {
-          logger$6.log('storageEntry is empty');
+          logger$7.log('storageEntry is empty');
         }
     } catch (err) {
-        logger$6.error('Error retrieving queue', err);
+        logger$7.error('Error retrieving queue', err);
         storageEntry = null;
     }
     return storageEntry || [];
@@ -2578,7 +2578,7 @@ RequestQueue.prototype.saveToStorage = function(queue) {
         this.storage.setItem(this.storageKey, JSONStringify(queue));
         return true;
     } catch (err) {
-        logger$6.error('Error saving queue', err);
+        logger$7.error('Error saving queue', err);
         return false;
     }
 };
@@ -2596,7 +2596,7 @@ RequestQueue.prototype.clear = function() {
 // maximum interval between request retries after exponential backoff
 var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
-var logger$5 = console_with_prefix('batch');
+var logger$6 = console_with_prefix('batch');
 
 /**
  * RequestBatcher: manages the queueing, flushing, retry etc of requests of one
@@ -2689,14 +2689,14 @@ RequestBatcher.prototype.scheduleFlush = function(flushMS) {
 RequestBatcher.prototype.flush = function(options) {
     try {
         if (this.requestInProgress) {
-            logger$5.log('Flush: Request already in progress');
+            logger$6.log('Flush: Request already in progress');
             return;
         }
 
         options = options || {};
         var currentBatchSize = this.batchSize;
         var batch = this.queue.fillBatch(currentBatchSize);
-        logger$5.log('current batch size is ' + batch.length);
+        logger$6.log('current batch size is ' + batch.length);
 
         if (batch.length < 1) {
             this.resetFlush();
@@ -2721,7 +2721,7 @@ RequestBatcher.prototype.flush = function(options) {
                     res.error === 'timeout' &&
                     new Date().getTime() - startTime >= timeoutMS
                 ) {
-                    logger$5.error('Network timeout; retrying');
+                    logger$6.error('Network timeout; retrying');
                     this.flush();
                 } else if (
                     _.isObject(res) &&
@@ -2738,17 +2738,17 @@ RequestBatcher.prototype.flush = function(options) {
                         }
                     }
                     retryMS = Math.min(MAX_RETRY_INTERVAL_MS, retryMS);
-                    logger$5.error('Error; retry in ' + retryMS + ' ms');
+                    logger$6.error('Error; retry in ' + retryMS + ' ms');
                     this.scheduleFlush(retryMS);
                 } else if (_.isObject(res) && res.xhr_req && res.xhr_req['status'] === 413) {
                     // 413 Payload Too Large
                     if (batch.length > 1) {
                         var halvedBatchSize = Math.max(1, Math.floor(currentBatchSize / 2));
                         this.batchSize = Math.min(this.batchSize, halvedBatchSize, batch.length - 1);
-                        logger$5.error('413 response; reducing batch size to ' + this.batchSize);
+                        logger$6.error('413 response; reducing batch size to ' + this.batchSize);
                         this.resetFlush();
                     } else {
-                        logger$5.error('Single-event request too large; dropping', batch);
+                        logger$6.error('Single-event request too large; dropping', batch);
                         this.resetBatchSize();
                         removeItemsFromQueue = true;
                     }
@@ -2766,7 +2766,7 @@ RequestBatcher.prototype.flush = function(options) {
                 }
 
             } catch(err) {
-                logger$5.error('Error handling API response', err);
+                logger$6.error('Error handling API response', err);
                 this.resetFlush();
             }
         }, this);
@@ -2779,11 +2779,11 @@ RequestBatcher.prototype.flush = function(options) {
         if (options.sendBeacon) {
             requestOptions.transport = 'sendBeacon';
         }
-        logger$5.log('Moesif Request:', this.endpoint, dataForRequest);
+        logger$6.log('Moesif Request:', this.endpoint, dataForRequest);
         this.sendRequest(this.endpoint, dataForRequest, requestOptions, batchSendCallback);
 
     } catch(err) {
-        logger$5.error('Error flushing request queue', err);
+        logger$6.error('Error flushing request queue', err);
         this.resetFlush();
     }
 };

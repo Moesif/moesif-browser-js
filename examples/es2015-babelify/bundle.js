@@ -79,7 +79,173 @@ function getCampaignData(opt) {
 exports['default'] = getCampaignData;
 module.exports = exports['default'];
 
-},{"./referrer":9,"./utils":13,"./utm":14}],3:[function(require,module,exports){
+},{"./referrer":10,"./utils":14,"./utm":15}],3:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
+// eslint-disable-line camelcase
+
+var _parsers = require('./parsers');
+
+var logger = (0, _utils.console_with_prefix)('capture fetch');
+
+/**
+ *
+ * @param {*} headers
+ * headers must be a Headers object.
+ */
+function parseHeaders(headers) {
+  var result = {};
+  logger.log('parseheaders is called');
+
+  var entries = headers.entries();
+
+  var entry = entries.next();
+  while (!entry.done) {
+    logger.log(entry.value); // 1 3 5 7 9
+    result[entry.value[0]] = entry.value[1];
+
+    entry = entries.next();
+  }
+
+  return result;
+}
+
+function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
+  try {
+    setTimeout(function () {
+      logger.log('interception is here.');
+      logger.log(savedRequest);
+      logger.log(savedResponse);
+      if (savedRequest && savedResponse) {
+        // try to exract out information:
+        // var reqHeaders = {};
+        // var resHeaders = {};
+
+        // for (var pair of savedRequest.headers.entries()) {
+        //   reqHeaders[pair[0]] = pair[1];
+        // }
+
+        // for (var pair2 of savedResponse.headers.entries()) {
+        //   resHeaders[pair2[0]] = pair2[1];
+        // }
+        try {
+          Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function (bodies) {
+            // attemptParseBuffer will return either {}, { body }, or { body, transfer_enconding }
+            var processedBodies = bodies.map(_parsers.attemptParseBuffer);
+
+            var requestModel = Object.assign(processedBodies[0], {
+              'uri': savedRequest.url,
+              'verb': savedRequest.method,
+              'time': startTime,
+              'headers': parseHeaders(savedRequest.headers)
+            });
+
+            var responseModel = Object.assign(processedBodies[1], {
+              'status': savedResponse.status,
+              'time': endTime,
+              'headers': parseHeaders(savedResponse.headers)
+            });
+
+            logger.log(requestModel);
+            logger.log(responseModel);
+
+            var event = {
+              'request': requestModel,
+              'response': responseModel
+            };
+
+            recorder(event);
+          });
+        } catch (err) {
+          logger.error('error processing body');
+        }
+      } else {
+        logger.log('savedRequest');
+      }
+    }, 50);
+  } catch (err) {
+    logger.error('error processing saved fetch request and response, but move on anyways.');
+    logger.log(err);
+  }
+}
+
+function interceptor(recorder, fetch, arg1, arg2) {
+  var savedRequest = null;
+
+  try {
+    savedRequest = new Request(arg1, arg2);
+  } catch (err) {
+    // for internal errors only.
+  }
+  var startTime = new Date().toISOString();
+  var endTime = null;
+
+  var promise = null;
+
+  promise = fetch(arg1, arg2);
+
+  var savedResponse = null;
+  // add handlers for response.
+  promise = promise.then(function (response) {
+    //
+    savedResponse = response.clone();
+    endTime = new Date().toISOString();
+
+    processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder);
+
+    return response;
+  });
+
+  return promise;
+}
+
+// var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+
+function patch(recorder, env) {
+  var myenv = env || window || self;
+
+  if (myenv['fetch']) {
+    logger.log('found fetch method.');
+    if (!myenv['fetch']['polyfill']) {
+      // basically, if it is polyfill, it means
+      // that it is using XMLhttpRequest underneath,
+      // then no need to patch fetch.
+      var oldFetch = myenv['fetch'];
+
+      logger.log('fetch is not polyfilled so instrumenting it');
+
+      myenv['fetch'] = (function (fetch) {
+        return function (arg1, arg2) {
+          return interceptor(recorder, fetch, arg1, arg2);
+        };
+      })(myenv['fetch']);
+
+      var unpatch = function unpatch() {
+        myenv['fetch'] = oldFetch;
+      };
+
+      return unpatch;
+    } else {
+      // should not patch if it is polyfilled.
+      // since it would duplicate the data.
+      logger.log('skip patching fetch since it is polyfilled');
+      return null;
+    }
+  } else {
+    logger.log('there is no fetch found, so skipping instrumentation.');
+  }
+}
+
+exports['default'] = patch;
+module.exports = exports['default'];
+
+},{"./parsers":9,"./utils":14}],4:[function(require,module,exports){
 /**
  * Created by Xingheng on 1/31/17.
  */
@@ -93,6 +259,8 @@ Object.defineProperty(exports, '__esModule', {
 var _utils = require('./utils');
 
 // eslint-disable-line camelcase
+
+var _parsers = require('./parsers');
 
 var logger = (0, _utils.console_with_prefix)('capture');
 
@@ -118,14 +286,10 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
         if (typeof postData === 'string') {
           logger.log('request post data is string');
           logger.log(postData);
-          try {
-            requestModel['body'] = _utils._.JSONDecode(postData);
-          } catch (err) {
-            logger.log('JSON decode failed');
-            logger.log(err);
-            requestModel['transfer_encoding'] = 'base64';
-            requestModel['body'] = _utils._.base64Encode(postData);
-          }
+
+          var parseResult = (0, _parsers.attemptParseText)(postData);
+          requestModel['transfer_encoding'] = parseResult['transfer_encoding'];
+          requestModel['body'] = parseResult['body'];
         } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
           requestModel['body'] = postData;
         }
@@ -148,40 +312,38 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
         'headers': responseHeaders
       };
 
+      logger.log('responseType: ' + xhrInstance.responseType);
       logger.log('responseText: ' + xhrInstance.responseText);
-      logger.log('response.json: ' + (xhrInstance.response ? xhrInstance.response.json : 'response is null'));
-      logger.log('response.text: ' + (xhrInstance.response ? xhrInstance.response.text : 'response is null'));
+      logger.log('response: ' + xhrInstance.response);
 
       // responseText is accessible only if responseType is '' or 'text' and on older browsers
-      var rawText = xhrInstance._method !== 'HEAD' && (xhrInstance.responseType === '' || xhrInstance.responseType === 'text') || typeof xhrInstance.responseType === 'undefined' ? xhrInstance.responseText : null;
+      // but we attempt to grab it anyways.
+      var rawText = xhrInstance.responseText;
+
+      var parsedBody = {};
 
       if (rawText) {
         // responseText is string or null
-        try {
-          responseModel['body'] = _utils._.JSONDecode(rawText);
-        } catch (err) {
-          responseModel['transfer_encoding'] = 'base64';
-          responseModel['body'] = _utils._.base64Encode(rawText);
-        }
-        // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
-        //   responseModel['body'] = parseBody(this.responseText);
-        // } else {
-        //   responseModel['transfer_encoding'] = 'base64';
-        //   responseModel['body'] = _.base64Encode(this.responseText);
-        // }
+        parsedBody = (0, _parsers.attemptParseText)(rawText);
+        responseModel['body'] = parsedBody['body'];
+        responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
       } else if (xhrInstance.response) {
-          // if there is no rawText, but response exists, we'll process it.
-          if (_utils._.isObject(xhrInstance.response)) {
-            responseModel['body'] = _utils._.JSONDecode(xhrInstance.responseText);
-          } else if (_utils._.isString(xhrInstance.response)) {
-            try {
-              responseModel['body'] = _utils._.JSONDecode(xhrInstance.response);
-            } catch (err) {
-              responseModel['transfer_encoding'] = 'base64';
-              responseModel['body'] = _utils._.base64Encode(xhrInstance.response);
-            }
-          }
+        // if there is no responseText, but response exists, we'll try process it.
+        logger.log('no responseText trying with xhr.response');
+        if (_utils._.isString(xhrInstance.response)) {
+          logger.log('response is string. attempt to parse');
+          parsedBody = (0, _parsers.attemptParseText)(xhrInstance.response);
+          responseModel['body'] = parsedBody['body'];
+          responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
+        } else if (_utils._.isArrayBuffer(xhrInstance.response)) {
+          logger.log('response is arraybuffer. attempt to parse');
+          parsedBody = (0, _parsers.attemptParseBuffer)(xhrInstance.response);
+          responseModel['body'] = parsedBody['body'];
+          responseModel['transfer_encoding'] = parsedBody['transfer_encoding'];
+        } else if (_utils._.isArray(xhrInstance.response) || _utils._.isObject(xhrInstance.response)) {
+          responseModel['body'] = xhrInstance.response;
         }
+      }
 
       var event = {
         'request': requestModel,
@@ -191,6 +353,57 @@ function handleRequestFinished(xhrInstance, postData, recorder) {
       recorder(event);
     }
   }
+}
+
+function isJsonHeader(headers) {
+  if (headers) {
+    if (headers['content-type'] && headers['content-type'].indexOf('json') >= 0) {
+      return true;
+    }
+    if (headers['Content-Type'] && headers['Content-Type'].indexOf('json') >= 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isStartJson(body) {
+  if (body && typeof body === 'string') {
+    var trimmedBody = _utils._.trim(body);
+    if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parseResponseHeaders(headerStr) {
+  var headers = {};
+  if (!headerStr) {
+    return headers;
+  }
+  var headerPairs = headerStr.split('\r\n');
+  for (var i = 0; i < headerPairs.length; i++) {
+    var headerPair = headerPairs[i];
+    var index = headerPair.indexOf(': ');
+    if (index > 0) {
+      var key = headerPair.substring(0, index);
+      headers[key] = headerPair.substring(index + 2);
+    }
+  }
+  return headers;
+}
+
+function convertToFullUrl(url) {
+  if (url && typeof url === 'string') {
+    var trimedUrl = _utils._.trim(url);
+    if (trimedUrl.indexOf('http') !== 0) {
+      return HTTP_PROTOCOL + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
+    } else {
+      return url;
+    }
+  }
+  return url;
 }
 
 /**
@@ -268,289 +481,10 @@ function captureXMLHttpRequest(recorder, options) {
   return undoPatch;
 }
 
-function isJsonHeader(headers) {
-  if (headers) {
-    if (headers['content-type'] && headers['content-type'].indexOf('json') >= 0) {
-      return true;
-    }
-    if (headers['Content-Type'] && headers['Content-Type'].indexOf('json') >= 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isStartJson(body) {
-  if (body && typeof body === 'string') {
-    var trimmedBody = _utils._.trim(body);
-    if (trimmedBody.indexOf('[') === 0 || trimmedBody.indexOf('{') === 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function parseBody(body) {
-  try {
-    return _utils._.JSONDecode(body);
-  } catch (err) {
-    return {
-      'moesif_error': {
-        'code': 'moesif_parse_err',
-        'msg': 'Can not parse body',
-        'src': 'moesif-browser-js',
-        'args': body
-      }
-    };
-  }
-}
-
-function parseResponseHeaders(headerStr) {
-  var headers = {};
-  if (!headerStr) {
-    return headers;
-  }
-  var headerPairs = headerStr.split('\r\n');
-  for (var i = 0; i < headerPairs.length; i++) {
-    var headerPair = headerPairs[i];
-    var index = headerPair.indexOf(': ');
-    if (index > 0) {
-      var key = headerPair.substring(0, index);
-      headers[key] = headerPair.substring(index + 2);
-    }
-  }
-  return headers;
-}
-
-function convertToFullUrl(url) {
-  if (url && typeof url === 'string') {
-    var trimedUrl = _utils._.trim(url);
-    if (trimedUrl.indexOf('http') !== 0) {
-      return HTTP_PROTOCOL + window.location.host + '/' + trimedUrl.replace(/^\./, '').replace(/^\//, '');
-    } else {
-      return url;
-    }
-  }
-  return url;
-}
-
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
-},{"./utils":13}],4:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-
-var _utils = require('./utils');
-
-// eslint-disable-line camelcase
-
-var logger = (0, _utils.console_with_prefix)('captureFetch');
-
-/**
- * @param {*} buffer
- * this checks the buffer and
- * returns something to start building the response or request model
- * with body filled in.
- */
-function processBodyAndInitializedModel(buffer) {
-  if (!buffer) return {};
-  logger.log('about to decode buffer');
-  logger.log(buffer);
-  logger.log(buffer.byteLength);
-
-  if (buffer.byteLength <= 0) {
-    // empty body.
-    return {};
-  }
-
-  try {
-    var decoder = new TextDecoder('utf-8');
-    var text = decoder.decode(buffer);
-
-    try {
-      return { 'body': _utils._.JSONDecode(text) };
-    } catch (err) {
-      logger.error(err);
-      return {
-        'transfer_encoding': 'base64',
-        'body': _utils._.base64Encode(text)
-      };
-    }
-  } catch (err) {
-    logger.error(err);
-    logger.log(buffer);
-    return {
-      'transfer_encoding': 'base64',
-      'body': 'can not be decoded'
-    };
-  }
-}
-
-/**
- *
- * @param {*} headers
- * headers must be a Headers object.
- */
-function parseHeaders(headers) {
-  var result = {};
-  logger.log('parseheaders is called');
-
-  var entries = headers.entries();
-
-  var entry = entries.next();
-  while (!entry.done) {
-    logger.log(entry.value); // 1 3 5 7 9
-    result[entry.value[0]] = entry.value[1];
-
-    entry = entries.next();
-  }
-
-  // for (var pair of headers.entries()) {
-  //   result[pair[0]] = pair[1];
-  // }
-
-  return result;
-}
-
-function processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder) {
-  try {
-    setTimeout(function () {
-      logger.log('interception is here.');
-      logger.log(savedRequest);
-      logger.log(savedResponse);
-      if (savedRequest && savedResponse) {
-        // try to exract out information:
-        // var reqHeaders = {};
-        // var resHeaders = {};
-
-        // for (var pair of savedRequest.headers.entries()) {
-        //   reqHeaders[pair[0]] = pair[1];
-        // }
-
-        // for (var pair2 of savedResponse.headers.entries()) {
-        //   resHeaders[pair2[0]] = pair2[1];
-        // }
-        try {
-          Promise.all([savedRequest.arrayBuffer(), savedResponse.arrayBuffer()]).then(function (bodies) {
-            var processedBodies = bodies.map(processBodyAndInitializedModel);
-
-            var requestModel = Object.assign(processedBodies[0], {
-              'uri': savedRequest.url,
-              'verb': savedRequest.method,
-              'time': startTime,
-              'headers': parseHeaders(savedRequest.headers)
-            });
-
-            var responseModel = Object.assign(processedBodies[1], {
-              'status': savedResponse.status,
-              'time': endTime,
-              'headers': parseHeaders(savedResponse.headers)
-            });
-
-            logger.log(requestModel);
-            logger.log(responseModel);
-
-            var event = {
-              'request': requestModel,
-              'response': responseModel
-            };
-
-            recorder(event);
-          });
-        } catch (err) {
-          logger.error('error processing body');
-        }
-      } else {
-        logger.log('savedRequest');
-      }
-    }, 50);
-  } catch (err) {
-    logger.error('error processing saved fetch request and response, but move on anyways.');
-    logger.log(err);
-  }
-}
-
-function interceptor(recorder, fetch, arg1, arg2) {
-  var savedRequest = null;
-
-  try {
-    savedRequest = new Request(arg1, arg2);
-  } catch (err) {
-    // for internal errors only.
-  }
-  var startTime = new Date().toISOString();
-  var endTime = null;
-
-  var promise = null;
-  // promise = Promise.resolve([arg1, arg2]);
-
-  // reigster the fetch call.
-  // promise = promise.then(function(ar1, ar2) {
-  //   return fetch(ar1, ar2);
-  // });
-
-  promise = fetch(arg1, arg2);
-
-  var savedResponse = null;
-  // add handlers for response.
-  promise = promise.then(function (response) {
-    //
-    savedResponse = response.clone();
-    endTime = new Date().toISOString();
-
-    processSavedRequestResponse(savedRequest, savedResponse, startTime, endTime, recorder);
-
-    return response;
-  });
-
-  return promise;
-}
-
-// var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
-
-function patch(recorder, env) {
-  var myenv = env || window || self;
-
-  if (myenv['fetch']) {
-    logger.log('found fetch method.');
-    if (!myenv['fetch']['polyfill']) {
-      // basically, if it is polyfill, it means
-      // that it is using XMLhttpRequest underneath,
-      // then no need to patch fetch.
-      var oldFetch = myenv['fetch'];
-
-      logger.log('fetch is not polyfilled so instrumenting it');
-
-      myenv['fetch'] = (function (fetch) {
-        return function (arg1, arg2) {
-          return interceptor(recorder, fetch, arg1, arg2);
-        };
-      })(myenv['fetch']);
-
-      var unpatch = function unpatch() {
-        myenv['fetch'] = oldFetch;
-      };
-
-      return unpatch;
-    } else {
-      // should not patch if it is polyfilled.
-      // since it would duplicate the data.
-      logger.log('skip patching fetch since it is polyfilled');
-      return null;
-    }
-  } else {
-    logger.log('there is no fetch found, so skipping instrumentation.');
-  }
-}
-
-exports['default'] = patch;
-module.exports = exports['default'];
-
-},{"./utils":13}],5:[function(require,module,exports){
+},{"./parsers":9,"./utils":14}],5:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -558,7 +492,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.6.1'
+    LIB_VERSION: '1.6.2'
 };
 
 exports['default'] = Config;
@@ -660,7 +594,7 @@ var _web3capture = require('./web3capture');
 
 var _web3capture2 = _interopRequireDefault(_web3capture);
 
-var _captureFetch = require('./captureFetch');
+var _captureFetch = require('./capture-fetch');
 
 var _captureFetch2 = _interopRequireDefault(_captureFetch);
 
@@ -1161,7 +1095,76 @@ exports['default'] = function () {
 
 module.exports = exports['default'];
 
-},{"./campaign":2,"./capture":3,"./captureFetch":4,"./config":5,"./request-batcher":10,"./utils":13,"./web3capture":15}],9:[function(require,module,exports){
+},{"./campaign":2,"./capture":4,"./capture-fetch":3,"./config":5,"./request-batcher":11,"./utils":14,"./web3capture":16}],9:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
+// eslint-disable-line camelcase
+
+var logger = (0, _utils.console_with_prefix)('parsers');
+
+var attemptParseText = function attemptParseText(text) {
+  try {
+    return { 'body': _utils._.JSONDecode(text) };
+  } catch (err) {
+    logger.log('JSON decode failed');
+    logger.log(err);
+    return {
+      'transfer_encoding': 'base64', // eslint-disable-line camelcase
+      'body': _utils._.base64Encode(text)
+    };
+  }
+};
+
+/**
+ * @param {*} buffer
+ * this checks the buffer and
+ * returns something to start building the response or request model
+ * with body filled in.
+ */
+var attemptParseBuffer = function attemptParseBuffer(buffer) {
+  if (!buffer) return {};
+  logger.log('about to decode buffer');
+  logger.log(buffer);
+  logger.log(buffer.byteLength);
+
+  if (buffer.byteLength <= 0) {
+    // empty body.
+    return {};
+  }
+
+  try {
+    var decoder = new TextDecoder('utf-8');
+    var text = decoder.decode(buffer);
+
+    try {
+      return { 'body': _utils._.JSONDecode(text) };
+    } catch (err) {
+      logger.error(err);
+      return {
+        'transfer_encoding': 'base64',
+        'body': _utils._.base64Encode(text)
+      };
+    }
+  } catch (err) {
+    logger.error(err);
+    logger.log(buffer);
+    return {
+      'transfer_encoding': 'base64',
+      'body': 'can not be decoded'
+    };
+  }
+};
+
+exports.attemptParseBuffer = attemptParseBuffer;
+exports.attemptParseText = attemptParseText;
+
+},{"./utils":14}],10:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1203,7 +1206,7 @@ function getReferrer() {
 exports['default'] = getReferrer;
 module.exports = exports['default'];
 
-},{"./utils":13}],10:[function(require,module,exports){
+},{"./utils":14}],11:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1406,7 +1409,7 @@ RequestBatcher.prototype.flush = function (options) {
 
 exports.RequestBatcher = RequestBatcher;
 
-},{"./request-queue":11,"./utils":13}],11:[function(require,module,exports){
+},{"./request-queue":12,"./utils":14}],12:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1626,7 +1629,7 @@ RequestQueue.prototype.clear = function () {
 
 exports.RequestQueue = RequestQueue;
 
-},{"./shared-lock":12,"./utils":13}],12:[function(require,module,exports){
+},{"./shared-lock":13,"./utils":14}],13:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1781,7 +1784,7 @@ SharedLock.prototype.withLock = function (lockedCB, errorCB, pid) {
 
 exports.SharedLock = SharedLock;
 
-},{"./utils":13}],13:[function(require,module,exports){
+},{"./utils":14}],14:[function(require,module,exports){
 /* eslint camelcase: "off", eqeqeq: "off" */
 'use strict';
 
@@ -2053,6 +2056,12 @@ _.inherit = function (subclass, superclass) {
     subclass.prototype.constructor = subclass;
     subclass.superclass = superclass.prototype;
     return subclass;
+};
+
+_.isArrayBuffer = function (value) {
+    var toString = Object.prototype.toString;
+    var hasArrayBuffer = typeof ArrayBuffer === 'function';
+    return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
 };
 
 _.isObject = function (obj) {
@@ -3348,7 +3357,7 @@ exports.JSONParse = JSONParse;
 exports.JSONStringify = JSONStringify;
 exports.cheap_guid = cheap_guid;
 
-},{"./config":5}],14:[function(require,module,exports){
+},{"./config":5}],15:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -3416,7 +3425,7 @@ function getUtm(queryParams, cookieParams) {
 exports['default'] = getUtm;
 module.exports = exports['default'];
 
-},{"./utils":13}],15:[function(require,module,exports){
+},{"./utils":14}],16:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -3582,4 +3591,4 @@ function captureWeb3Requests(myWeb3, recorder, options) {
 exports['default'] = captureWeb3Requests;
 module.exports = exports['default'];
 
-},{"./utils":13}]},{},[1]);
+},{"./utils":14}]},{},[1]);
