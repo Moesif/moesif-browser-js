@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.6.0'
+        LIB_VERSION: '1.6.1'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -1561,6 +1561,105 @@
 
     var HTTP_PROTOCOL$1 = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
+    function handleRequestFinished(xhrInstance, postData, recorder) {
+      logger.log('processResponse for' + xhrInstance._url);
+      var endTime = (new Date()).toISOString();
+
+      if (recorder) {
+        // avoid apiRequest.io and moesif.com
+        var myUrl = xhrInstance._url ? xhrInstance._url.toLowerCase() : xhrInstance._url;
+        if(myUrl && myUrl.indexOf('moesif.com') < 0 && myUrl.indexOf('apirequest.io') < 0) {
+
+          var requestModel = {
+            'uri': convertToFullUrl(xhrInstance._url),
+            'verb': xhrInstance._method,
+            'time': xhrInstance._startTime,
+            'headers': xhrInstance._requestHeaders
+          };
+
+          if (postData) {
+            if (typeof postData === 'string') {
+              logger.log('request post data is string');
+              logger.log(postData);
+              try {
+                requestModel['body'] = _.JSONDecode(postData);
+              } catch(err) {
+                logger.log('JSON decode failed');
+                logger.log(err);
+                requestModel['transfer_encoding'] = 'base64';
+                requestModel['body'] = _.base64Encode(postData);
+              }
+            } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
+              requestModel['body'] = postData;
+            }
+          }
+          var rawResponseHeaders = xhrInstance.getAllResponseHeaders();
+
+          logger.log('rawResponseHeaders are ' + rawResponseHeaders);
+
+          var responseHeaders = parseResponseHeaders(rawResponseHeaders);
+
+          var _status = xhrInstance.status;
+          // handle IE9 bug: http://stackoverflow.com/questions/10046972/msie-returns-status-code-of-1223-for-ajax-request
+          if (_status === 1223) {
+            _status = 204;
+          }
+
+          var responseModel = {
+            'status': _status,
+            'time': endTime,
+            'headers': responseHeaders
+          };
+
+          logger.log('responseText: ' + xhrInstance.responseText);
+          logger.log('response.json: ' + (xhrInstance.response ? xhrInstance.response.json : 'response is null'));
+          logger.log('response.text: ' + (xhrInstance.response ? xhrInstance.response.text : 'response is null'));
+
+          // responseText is accessible only if responseType is '' or 'text' and on older browsers
+          var rawText = (xhrInstance._method !== 'HEAD' && (xhrInstance.responseType === '' || xhrInstance.responseType === 'text'))
+            || typeof xhrInstance.responseType === 'undefined'
+            ? xhrInstance.responseText
+            : null;
+
+
+          if (rawText) {
+            // responseText is string or null
+            try {
+              responseModel['body'] = _.JSONDecode(rawText);
+            } catch(err) {
+              responseModel['transfer_encoding'] = 'base64';
+              responseModel['body'] = _.base64Encode(rawText);
+            }
+            // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
+            //   responseModel['body'] = parseBody(this.responseText);
+            // } else {
+            //   responseModel['transfer_encoding'] = 'base64';
+            //   responseModel['body'] = _.base64Encode(this.responseText);
+            // }
+          } else if (xhrInstance.response) {
+            // if there is no rawText, but response exists, we'll process it.
+            if (_.isObject(xhrInstance.response)) {
+              responseModel['body'] = _.JSONDecode(xhrInstance.responseText);
+            } else if (_.isString(xhrInstance.response)) {
+              try {
+                responseModel['body'] = _.JSONDecode(xhrInstance.response);
+              } catch(err) {
+                responseModel['transfer_encoding'] = 'base64';
+                responseModel['body'] = _.base64Encode(xhrInstance.response);
+              }
+            }
+          }
+
+          var event = {
+            'request': requestModel,
+            'response': responseModel
+          };
+
+          recorder(event);
+        }
+      }
+    }
+
     /**
      * @param recorder
      * @returns {undoPatch}
@@ -1568,8 +1667,10 @@
      * The recorder is a function that takes an Event and records it.
      *
      */
-    function captureXMLHttpRequest(recorder) {
+    function captureXMLHttpRequest(recorder, options) {
       var XHR = XMLHttpRequest.prototype;
+
+      var shouldPatchOnReadyState = options && options.eagerBodyLogging;
 
       var open = XHR.open;
       var send = XHR.send;
@@ -1577,6 +1678,7 @@
 
       // Collect data:
       XHR.open = function(method, url) {
+        logger.log('XHR open triggered');
         this._method = method;
         this._url = url;
         this._requestHeaders = {};
@@ -1590,72 +1692,36 @@
       };
 
       XHR.send = function(postData) {
-        this.addEventListener('load', function() {
-          var endTime = (new Date()).toISOString();
+        logger.log('XHR send started for ' + this._url);
 
-          if (recorder) {
-            // avoid apiRequest.io and moesif.com
-            var myUrl = this._url ? this._url.toLowerCase() : this._url;
-            if(myUrl && myUrl.indexOf('moesif.com') < 0 && myUrl.indexOf('apirequest.io') < 0) {
+        var _self = this;
 
-              var requestModel = {
-                'uri': convertToFullUrl(this._url),
-                'verb': this._method,
-                'time': this._startTime,
-                'headers': this._requestHeaders
-              };
-
-              if (postData) {
-                if (typeof postData === 'string') {
-                  logger.log('request post data is string');
-                  logger.log(postData);
-                  try {
-                    requestModel['body'] = _.JSONDecode(postData);
-                  } catch(err) {
-                    logger.log('JSON decode failed');
-                    logger.log(err);
-                    requestModel['transfer_encoding'] = 'base64';
-                    requestModel['body'] = _.base64Encode(postData);
-                  }
-                } else if (typeof postData === 'object' || Array.isArray(postData) || typeof postData === 'number' || typeof postData === 'boolean') {
-                  requestModel['body'] = postData;
-                }
-              }
-
-              var responseHeaders = parseResponseHeaders(this.getAllResponseHeaders());
-
-              var responseModel = {
-                'status': this.status,
-                'time': endTime,
-                'headers': responseHeaders
-              };
-
-              if (this.responseText) {
-                // responseText is string or null
-                try {
-                  responseModel['body'] = _.JSONDecode(this.responseText);
-                } catch(err) {
-                  responseModel['transfer_encoding'] = 'base64';
-                  responseModel['body'] = _.base64Encode(this.responseText);
-                }
-
-                // if (isJsonHeader(responseHeaders) || isStartJson(this.responseText)) {
-                //   responseModel['body'] = parseBody(this.responseText);
-                // } else {
-                //   responseModel['transfer_encoding'] = 'base64';
-                //   responseModel['body'] = _.base64Encode(this.responseText);
-                // }
-              }
-
-              var event = {
-                'request': requestModel,
-                'response': responseModel
-              };
-
-              recorder(event);
+        // in case of eagerBodyLogging, we'll
+        // patch onreadystatechange which is more of
+        // replacement or if addEventListener does not exist.
+        if (shouldPatchOnReadyState || !this.addEventListener) {
+          var _onreadystatechange = this.onreadystatechange;
+          this.onreadystatechange = function() {
+            var readyState = _self.readyState;
+            logger.log('readyState ' + readyState);
+            if (readyState === XMLHttpRequest.DONE) {
+              logger.log('XHR onreadystatechange DONE triggered for ' + _self._url);
+              handleRequestFinished(_self, postData, recorder);
             }
-          }
-        });
+
+            if (_onreadystatechange && _.isFunction(_onreadystatechange)) {
+              logger.log('trigger old onreadystatechange');
+              return _onreadystatechange.apply(this, arguments);
+            }
+          };
+        } else {
+          // this only adds another listener.
+          this.addEventListener('loadend', function() {
+            logger.log('XHR loadend triggered for ' + _self._url);
+            handleRequestFinished(_self, postData, recorder);
+          });
+        }
+
         return send.apply(this, arguments);
       };
 
@@ -1665,8 +1731,8 @@
         XHR.setRequestHeader = setRequestHeader;
       };
 
-      return undoPatch;
       // so caller have a handle to undo the patch if needed.
+      return undoPatch;
     }
 
     function parseResponseHeaders(headerStr) {
@@ -2830,6 +2896,8 @@
           ops.disableGclid = options['disableGclid'];
           ops.disableUtm = options['disableUtm'];
 
+          ops.eagerBodyLogging = options['eagerBodyLogging'];
+
           ops.batchEnabled = options['batchEnabled'] || false;
 
           ops['batch_size'] = options['batchSize'] || 25,
@@ -2991,7 +3059,7 @@
           }
 
           console.log('moesif starting');
-          this._stopRecording = captureXMLHttpRequest(recorder);
+          this._stopRecording = captureXMLHttpRequest(recorder, this._options);
 
           if (!this._options.disableFetch) {
             console.log('also instrumenting fetch API');
@@ -3192,7 +3260,7 @@
 
           if (!_self._options.skip(event) && !isMoesif(event)) {
             // sendEvent(logData, _self._options.applicationId, _self._options.callback);
-            console.log('sending or queuing' + event['request']['uri']);
+            console.log('sending or queuing: ' + event['request']['uri']);
             var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
             _self._sendOrBatch(
               logData,
