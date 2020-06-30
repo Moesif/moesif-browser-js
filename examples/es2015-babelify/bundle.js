@@ -492,7 +492,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.6.2'
+    LIB_VERSION: '1.6.3'
 };
 
 exports['default'] = Config;
@@ -942,7 +942,9 @@ exports['default'] = function () {
 
       this.updateUser(userObject, this._options.applicationId, this._options.callback);
       try {
-        localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+        if (userId) {
+          localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+        }
       } catch (err) {
         _utils.console.error('error saving to local storage');
       }
@@ -976,14 +978,22 @@ exports['default'] = function () {
       this.updateCompany(companyObject, this._options.applicationId, this._options.callback);
 
       try {
-        localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+        if (companyId) {
+          localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+        }
       } catch (err) {
         _utils.console.error('error saving to local storage');
       }
     },
     'identifySession': function identifySession(session) {
       this._session = session;
-      localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+      if (session) {
+        try {
+          localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+        } catch (err) {
+          _utils.console.error('local storage error');
+        }
+      }
     },
     'track': function track(actionName, metadata) {
       var _self = this;
