@@ -2,7 +2,7 @@ define(function () { 'use strict';
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.6.2'
+        LIB_VERSION: '1.6.3'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -3127,7 +3127,9 @@ define(function () { 'use strict';
 
           this.updateUser(userObject, this._options.applicationId, this._options.callback);
           try {
-            localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+            if (userId) {
+              localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+            }
           } catch (err) {
             console.error('error saving to local storage');
           }
@@ -3166,14 +3168,22 @@ define(function () { 'use strict';
           this.updateCompany(companyObject, this._options.applicationId, this._options.callback);
 
           try {
-            localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+            if (companyId) {
+              localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+            }
           } catch (err) {
             console.error('error saving to local storage');
           }
         },
         'identifySession': function (session) {
           this._session = session;
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+          if (session) {
+            try {
+              localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+            } catch (err) {
+              console.error('local storage error');
+            }
+          }
         },
         'track': function (actionName, metadata) {
           var _self = this;

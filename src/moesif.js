@@ -361,7 +361,9 @@ export default function () {
 
       this.updateUser(userObject, this._options.applicationId, this._options.callback);
       try {
-        localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+        if (userId) {
+          localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+        }
       } catch (err) {
         console.error('error saving to local storage');
       }
@@ -400,14 +402,22 @@ export default function () {
       this.updateCompany(companyObject, this._options.applicationId, this._options.callback);
 
       try {
-        localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+        if (companyId) {
+          localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+        }
       } catch (err) {
         console.error('error saving to local storage');
       }
     },
     'identifySession': function (session) {
       this._session = session;
-      localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+      if (session) {
+        try {
+          localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+        } catch (err) {
+          console.error('local storage error');
+        }
+      }
     },
     'track': function (actionName, metadata) {
       var _self = this;
