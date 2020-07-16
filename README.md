@@ -7,19 +7,23 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-The Moesif browser SDK enables you to track user behavior and their website actions and send to [Moesif's](https://www.moesif.com) API analytics service. This SDK can be used in conjunction with a [Moesif server SDK](https://www.moesif.com/implementation) to monitor API usage. This enables you map out the entire customer journey from from _clicked sign up_ to _made first API call._
+The Moesif browser SDK enables you to track user behavior and their website actions and send to [Moesif's](https://www.moesif.com) API analytics service.
+You can install the SDK on your website, blog, and developer docs to deeply understand how customers adopt and use your platform.
+
+_If you provide an API, this SDK can be used alongside a [Moesif server SDK](https://www.moesif.com/implementation) to also monitor API traffic and get a complete picture 
+of product usage across your APIs and website. This enables you map out the entire customer journey from sign up to first API call.__
 
 The SDK also pulls useful data from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
-If required, this SDK can also log outgoing AJAX API calls to third party APIs with the `start()` method. API logging has native support for RESTful, GraphQL, Ethereum Web3, JSON-RPC, and other APIs
-
-Full documentation on Moesif integration is available [here](https://www.moesif.com/docs).
+If you want to automatically log AJAX API calls, you can also call the `start()` method. API logging has native support for RESTful, GraphQL, Ethereum Web3, JSON-RPC, and other APIs
 
 [Source Code on GitHub](https://github.com/moesif/moesif-browser-js)
 
 ## How to install
 
-### Using CDN to load the library
+_This SDK is designed to run in a browser. To monitor Node.js APIs, use [moesif-express](https://www.moesif.com/docs/server-integration/nodejs/).
+
+### Installation via script tag
 
 ```html
 <script src="//unpkg.com/moesif-browser-js@^1/moesif.min.js"></script>
@@ -29,9 +33,6 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
     applicationId: "Your Moesif Application Id",
     // add other option here
   });
-
-  // Optionally, start logging AJAX API Calls
-  moesif.start();
 
   // Identify the user with Moesif such as when user logs in
   moesif.identifyUser("12345");
@@ -43,16 +44,13 @@ Full documentation on Moesif integration is available [here](https://www.moesif.
 </script>
 ```
 
-Put the above script tags in between the `<head>` tags of your html page.
+Put the above script tags in between the `<head>` tags of your HTML page.
 It will attach a global `moesif` object. You can access it either via `moesif` or `window.moesif`.
 
 ### Alternative installation via NPM
 
-This SDK is also available as a [package on NPM](https://www.npmjs.com/package/moesif-browser-js).
-The moesif-browser-js SDK is indended for running on the client side. For instrumneting APIs on the server side, there is a separate SDK, [moesif-express](https://www.npmjs.com/package/moesif-express) available on NPM.
-
-To install into a project using NPM with a front-end packager such as
-[Browserify](http://browserify.org/) or [Webpack](https://webpack.github.io/):
+The SDK is also available on [NPM](https://www.npmjs.com/package/moesif-browser-js) which can be used if you're using 
+a front-end packager like [Browserify](http://browserify.org/) or [Webpack](https://webpack.github.io/):
 
 ```sh
 npm install --save moesif-browser-js
@@ -68,9 +66,6 @@ moesif.init({
   applicationId: "Your Moesif Application Id",
   // add other option here
 });
-
-// Optionally, start logging AJAX API Calls
-moesif.start();
 
 // Identify the user with Moesif such as when user logs in
 moesif.identifyUser("12345");
@@ -93,9 +88,23 @@ and then clicking _Installation_.
 
 ## How to use
 
-### Storing user metadata
+### Track user actions
 
-While optional, in addition to identifying the user id, you can also pass in user demographic and other info as a custom object.
+User (or company) actions are something that a customer did such as "Clicked Sign Up", "Viewed SDK Documentation", or "Purchased a Plan". 
+
+```javascript
+// The first argument is required and contains the action name as a string. 
+// The second argument is optional and contains custom event metadata such as button label.
+moesif.track('Clicked Sign Up', {
+  button_label: 'Get Started',
+  sign_up_method: 'Google SSO'
+});
+```
+
+### Set the user id
+
+When you know the user's id such as after sign in, call `identifyUser`.
+In addition to setting the user id, you can also save user demographics or other info as a custom object.
 
 ```javascript
 moesif.identifyUser("12345", {
@@ -111,9 +120,10 @@ moesif.identifyUser("12345", {
 });
 ```
 
-### Storing company metadata
+### Set the company id
 
-A user can be linked to a company which can be helpful to track account level usage if your are a B2B company.
+In addition to identifying users, you can also identify the company this user belongs to.
+This enables tracking account level usage.
 
 ```javascript
 // Only the first argument is a string containing the company id. This is the only required field.
@@ -133,13 +143,23 @@ metadata = {
 moesif.identifyCompany("67890", metadata, "acmeinc.com");
 ```
 
+### Track AJAX calls
+If you want to automatically log AJAX API calls, you can do so via the `start` function.
+
+```javascript
+// Start capturing AJAX API Calls.
+moesif.start();
+```
+
 ## List of Methods on the `moesif` Object
 
 #### init, (obj) => null
 
-Initialize the SDK with your Application Id and any other options. On initialization, the SDK will capture initial user context like device and attribution information. Must be called before any other methods like `start()` or `identifyUser`.
+Initialize the SDK with your Application Id and any other options.
+On initialization, the SDK will capture user context like device and marketing attribution. 
+This method must be called before any other methods like `start()` or `identifyUser`.
 
-```
+```javascript
 var options = {
   applicationId: 'Your Moesif Application Id'
 };
@@ -154,17 +174,7 @@ When a user logs into your website and you have their user id, identify the user
 You can also add custom metadata containing fields like the customer's name and email as the second argument.
 
 ```javascript
-moesif.identifyUser("12345", {
-  email: "john@acmeinc.com",
-  firstName: "John",
-  lastName: "Doe",
-  title: "Software Engineer",
-  salesInfo: {
-    stage: "Customer",
-    lifetimeValue: 24000,
-    accountOwner: "mary@contoso.com",
-  },
-});
+moesif.identifyUser("12345", metadata);
 ```
 
 #### identifyCompany, (string, object, string) => null
@@ -177,23 +187,12 @@ The second argument is a object used to store a company info like plan, MRR, and
 The third argument is a string containing company website or email domain. If set, Moesif will enrich your profiles with publicly available info.
 
 ```javascript
-metadata = {
-  orgName: "Acme, Inc",
-  planName: "Free Plan",
-  dealStage: "Lead",
-  mrr: 24000,
-  demographics: {
-    alexaRanking: 500000,
-    employeeCount: 47,
-  },
-};
-
 moesif.identifyCompany("67890", metadata, "acmeinc.com");
 ```
 
 #### identifySession, (string) => null
 
-The Moesif SDK wil track sessions automatically, but if you have a specific session token you want to track, you can pass to Moesif directly.
+The Moesif SDK tracks browser sessions automatically and saves in a Cookie. You can override with a specific session token.
 
 The new session token will continue to be used until `identifySession` is called again.
 
@@ -205,7 +204,7 @@ moesif.identifySession("d23xdefc3ijhcv93hf4h38f90h43f");
 
 Track user actions such as "clicked sign up" or "made a purchase". By tracking user actions in addition to API usage via one of the [Moesif server SDKs](https://www.moesif.com/implementation), you'll be able to understand the entire customer journey from inital sign up to first API call. First argument is an action name as a string, which is required. Second parameter is an optional metadata object related to this action event. [See API Reference](https://www.moesif.com/docs/api#track-a-user-action)
 
-```
+```javascript
 moesif.track('clicked_sign_up', {
   button_label: 'Get Started'
 });
@@ -213,23 +212,24 @@ moesif.track('clicked_sign_up', {
 
 #### start, () => null
 
-```
-moesif.start()
-```
-
-When you call `start()`, this SDK will log API calls to:
+When you call `start()`, the SDK will log AJAX API calls, including:
 
 - Your own APIs (such as an API powering your Single Page App)
 - 3rd party APIs (such as to Stripe and Twilio)
 - Decentralized APIs such as DApps communicating with Ethereum Web3/interactions with smart contracts
 
+```javascript
+moesif.start()
+```
+
 #### stop, () => null
+
+Stops logging AJAX API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed. 
+However, you can call `stop` directly if you want more control. Call `start` again to restart API logging.
 
 ```
 moesif.stop()
 ```
-
-Stops logging API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed. However, you can call `stop` directly if you want more control. Call `start` again to restart logging.
 
 #### useWeb3, (web3) => boolean
 
@@ -372,7 +372,7 @@ As an example:
 ## Examples
 
 - Several examples for how to import this library are in the example folder of this repo, _moesif-min_ folder have more examples usage.
-- Example setup for [react-boilerplate](https://github.com/Moesif/moesif-react-boilerplate-example). For React apps, if you set up server side rendering, please ensure that this library is only initiated on the client side.
+- Example setup for [react-boilerplate](https://github.com/Moesif/moesif-react-boilerplate-example). For React apps, if you set up server-side rendering, please ensure that this library is only initiated on the client-side.
 - Example setup for an [Etherum Dapp](https://github.com/Moesif/moesif-ethereum-js-example).
 
 ## Credits for moesif-browser-js
