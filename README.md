@@ -11,7 +11,7 @@ The Moesif browser SDK enables you to track user behavior and their website acti
 You can install the SDK on your website, blog, and developer docs to deeply understand how customers adopt and use your platform.
 
 _If you provide an API, this SDK can be used alongside a [Moesif server SDK](https://www.moesif.com/implementation) to also monitor API traffic and get a complete picture 
-of product usage across your APIs and website. This enables you map out the entire customer journey from sign up to first API call.__
+of product usage across your APIs and website. This enables you map out the entire customer journey from sign up to first API call._
 
 The SDK also pulls useful data from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
@@ -21,7 +21,7 @@ If you want to automatically log AJAX API calls, you can also call the `start()`
 
 ## How to install
 
-_This SDK is designed to run in a browser. To monitor Node.js APIs, use [moesif-express](https://www.moesif.com/docs/server-integration/nodejs/).
+_This SDK is designed to run in a browser. To monitor Node.js APIs, use [moesif-express](https://www.moesif.com/docs/server-integration/nodejs/)._
 
 ### Installation via script tag
 
