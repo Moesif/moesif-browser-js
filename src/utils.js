@@ -233,7 +233,6 @@ _.toArray = function(iterable) {
 };
 
 _.map = function(arr, callback) {
-  if (nativeMap && arr.map === nativeMap) {
     if (nativeMap && arr.map === nativeMap) {
         return arr.map(callback);
     } else {
