@@ -54,7 +54,7 @@
         // user actions such as button clicks,
         // or sign ups etc.
         // these user actions are defined by you.
-        moesif.track("button_click", {
+        window.moesif.track("button_click", {
           foo: "bar",
           count: ACTION_COUNT,
         });
@@ -62,7 +62,7 @@
       });
 
       $("#iduser").click(function () {
-        moesif.identifyUser("user" + USER_ID_COUNT, {
+        window.moesif.identifyUser("user" + USER_ID_COUNT, {
           foo: "bar" + USER_ID_COUNT,
           first_name: "name" + USER_ID_COUNT,
         });
@@ -70,7 +70,7 @@
       });
 
       $("#idcompany").click(function () {
-        moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
+        window.moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
           foo: "bar" + COMPANY_ID_COUNT,
           company_domain: "company-acme" + COMPANY_ID_COUNT + ".co",
         });

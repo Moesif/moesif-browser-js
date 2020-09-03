@@ -3654,14 +3654,7 @@ moesif.init({
 
 moesif.start();
 
-// console.log('test superagent');
-// superagent.get('http://localhost:4250/heroes').then((result) => {
-//   console.log('superagent return is here');
-//   console.log(result);
-// }).catch((err) => {
-//   console.log('superagent failed');
-//   console.log(err);
-// });
+window.moesif = moesif;
 
 },{"./moesif.cjs.js":1,"superagent":6}],3:[function(require,module,exports){
 
