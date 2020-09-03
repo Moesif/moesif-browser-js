@@ -135,7 +135,7 @@ export default function () {
 
 
       // storage persistence based options.
-      // or none.
+      // cookie, localStorage, or none.
       ops['persistence'] = options['persistence'] || 'localStorage';
 
       // below persistence options only applies to cookie.
