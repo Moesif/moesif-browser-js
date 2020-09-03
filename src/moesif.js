@@ -10,7 +10,7 @@ import getCampaignData from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
 import { getPersistenceFunction, getFromPersistence, clearCookies, STORAGE_CONSTANTS } from './persistence';
-import getAnonymousId from './anonymousId';
+import { getAnonymousId, regenerateAnonymousId } from './anonymousId';
 
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
@@ -559,6 +559,10 @@ export default function () {
     },
     'clearCookies': function () {
       clearCookies();
+    },
+    'resetAnonymousId': function () {
+      this._anonymousId = regenerateAnonymousId(this._persist);
+      return this._anonymousId;
     }
   };
 }
