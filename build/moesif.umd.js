@@ -2437,6 +2437,14 @@
       _.cookie.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
     }
 
+    function clearLocalStorage() {
+      _.localStorage.remove(STORAGE_CONSTANTS.STORED_USER_ID);
+      _.localStorage.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
+      _.localStorage.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+      _.localStorage.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
+      _.localStorage.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+    }
+
     var logger$4 = console_with_prefix('campaign');
 
     function _getUrlParams() {
@@ -3059,19 +3067,21 @@
         }
     };
 
+    function regenerateAnonymousId(persist) {
+      var newId = _.UUID();
+      if (persist) {
+        persist(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, newId);
+      }
+      return newId;
+    }
+
     function getAnonymousId(persist) {
       var storedAnonId = getFromPersistence(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
       if (storedAnonId) {
         return storedAnonId;
       }
 
-      var newId = _.UUID();
-
-      if (persist) {
-        persist(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, newId);
-      }
-
-      return newId;
+      return regenerateAnonymousId(persist);
     }
 
     var MOESIF_CONSTANTS = {
@@ -3610,6 +3620,13 @@
         },
         'clearCookies': function () {
           clearCookies();
+        },
+        'clearStorage': function () {
+          clearLocalStorage();
+        },
+        'resetAnonymousId': function () {
+          this._anonymousId = regenerateAnonymousId(this._persist);
+          return this._anonymousId;
         }
       };
     }

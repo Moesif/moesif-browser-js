@@ -24,23 +24,25 @@ var _utils = require('./utils');
 
 var _persistence = require('./persistence');
 
+function regenerateAnonymousId(persist) {
+  var newId = _utils._.UUID();
+  if (persist) {
+    persist(_persistence.STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, newId);
+  }
+  return newId;
+}
+
 function getAnonymousId(persist) {
   var storedAnonId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
   if (storedAnonId) {
     return storedAnonId;
   }
 
-  var newId = _utils._.UUID();
-
-  if (persist) {
-    persist(_persistence.STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, newId);
-  }
-
-  return newId;
+  return regenerateAnonymousId(persist);
 }
 
-exports['default'] = getAnonymousId;
-module.exports = exports['default'];
+exports.getAnonymousId = getAnonymousId;
+exports.regenerateAnonymousId = regenerateAnonymousId;
 
 },{"./persistence":11,"./utils":16}],3:[function(require,module,exports){
 'use strict';
@@ -682,8 +684,6 @@ var _persistence = require('./persistence');
 
 var _anonymousId = require('./anonymousId');
 
-var _anonymousId2 = _interopRequireDefault(_anonymousId);
-
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: 'api.moesif.net',
@@ -822,7 +822,7 @@ exports['default'] = function () {
         this._userId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_USER_ID);
         this._session = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_SESSION_ID);
         this._companyId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_COMPANY_ID);
-        this._anonymousId = (0, _anonymousId2['default'])(this._persist);
+        this._anonymousId = (0, _anonymousId.getAnonymousId)(this._persist);
         this._campaign = (0, _campaign2['default'])(ops, this._persist);
       } catch (err) {
         _utils.console.error('error loading saved data from local storage but continue');
@@ -1195,6 +1195,13 @@ exports['default'] = function () {
     },
     'clearCookies': function clearCookies() {
       (0, _persistence.clearCookies)();
+    },
+    'clearStorage': function clearStorage() {
+      (0, _persistence.clearLocalStorage)();
+    },
+    'resetAnonymousId': function resetAnonymousId() {
+      this._anonymousId = (0, _anonymousId.regenerateAnonymousId)(this._persist);
+      return this._anonymousId;
     }
   };
 };
@@ -1335,10 +1342,19 @@ function clearCookies() {
   _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
 }
 
+function clearLocalStorage() {
+  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_USER_ID);
+  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
+  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
+  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+}
+
 exports.getFromPersistence = getFromPersistence;
 exports.getPersistenceFunction = getPersistenceFunction;
 exports.STORAGE_CONSTANTS = STORAGE_CONSTANTS;
 exports.clearCookies = clearCookies;
+exports.clearLocalStorage = clearLocalStorage;
 
 },{"./config":6,"./utils":16}],12:[function(require,module,exports){
 'use strict';
