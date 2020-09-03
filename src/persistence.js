@@ -10,7 +10,7 @@ var STORAGE_CONSTANTS = {
 };
 
 function getPersistenceFunction(opt) {
-  var storageType = opt['storage_type'];
+  var storageType = opt['persistence'];
   if (storageType !== 'cookie' && storageType !== 'localStorage') {
     console.critical('Unknown persistence type ' + storageType + '; falling back to cookie');
     storageType = config['persistence'] = 'localStorage';
@@ -33,6 +33,10 @@ function getPersistenceFunction(opt) {
         opt['cookie_domain']
       );
     };
+  }
+
+  if (storageType === 'none') {
+    setFunction = function () {};
   }
 
   return setFunction;

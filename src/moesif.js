@@ -9,6 +9,7 @@ import patchFetchWithCapture from './capture-fetch';
 import getCampaignData from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
+import { getPersistenceFunction, getFromPersistence, clearCookies, STORAGE_CONSTANTS } from './persistence';
 import getAnonymousId from './anonymousId';
 
 var MOESIF_CONSTANTS = {
@@ -19,10 +20,7 @@ var MOESIF_CONSTANTS = {
   ACTION_ENDPOINT: '/v1/actions',
   ACTION_BATCH_ENDPOINT: '/v1/actions/batch',
   USER_ENDPOINT: '/v1/users',
-  COMPANY_ENDPOINT: '/v1/companies',
-  STORED_USER_ID: 'moesif_stored_user_id',
-  STORED_COMPANY_ID: 'moesif_stored_company_id',
-  STORED_SESSION_ID: 'moesif_stored_session_id'
+  COMPANY_ENDPOINT: '/v1/companies'
 };
 
 /*
@@ -137,6 +135,7 @@ export default function () {
 
 
       // storage persistence based options.
+      // or none.
       ops['persistence'] = options['persistence'] || 'localStorage';
 
       // below persistence options only applies to cookie.
@@ -151,11 +150,13 @@ export default function () {
       this.requestBatchers = {};
 
       this._options = ops;
+      this._persist = getPersistenceFunction(ops);
       try {
-        this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
-        this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
-        this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
-        this._campaign = getCampaignData(ops);
+        this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID);
+        this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID);
+        this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID);
+        this._anonymousId = getAnonymousId(this._persist);
+        this._campaign = getCampaignData(ops, this._persist);
       } catch(err) {
         console.error('error loading saved data from local storage but continue');
       }
@@ -194,7 +195,6 @@ export default function () {
       var method = (options && options.method) || 'POST';
 
       // right now we onlu support USE_XHR
-
       try {
         var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
         xmlhttp.open(method, url);
@@ -373,10 +373,12 @@ export default function () {
         userObject['company_id'] = this._companyId;
       }
 
+      userObject['anonymous_id'] = this._anonymousId;
+
       this.updateUser(userObject, this._options.applicationId, this._options.callback);
       try {
         if (userId) {
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+          this._persist(STORAGE_CONSTANTS.STORED_USER_ID, userId);
         }
       } catch (err) {
         console.error('error saving to local storage');
@@ -417,7 +419,7 @@ export default function () {
 
       try {
         if (companyId) {
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+          this._persist(STORAGE_CONSTANTS.STORED_COMPANY_ID, companyId);
         }
       } catch (err) {
         console.error('error saving to local storage');
@@ -427,7 +429,7 @@ export default function () {
       this._session = session;
       if (session) {
         try {
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+          this._persist(STORAGE_CONSTANTS.STORED_SESSION_ID, session);
         } catch (err) {
           console.error('local storage error');
         }
@@ -448,6 +450,8 @@ export default function () {
       }
       if (_self._userId) {
         actionObject['user_id'] = _self._userId;
+      } else {
+        actionObject['anonymous_id'] = _self._anonymousId;
       }
       if (this._session) {
         actionObject['session_token'] = this._session;
@@ -485,7 +489,10 @@ export default function () {
       var logData = Object.assign({}, event);
       if (_self._getUserId()) {
         logData['user_id'] = _self._getUserId();
+      } else {
+        logData['anonymous_id'] = _self._anonymousId;
       }
+
       if (_self._getCompanyId()) {
         logData['company_id'] = _self._getCompanyId();
       }
@@ -549,6 +556,9 @@ export default function () {
         this._stopFetchRecording();
         this._stopFetchRecording = null;
       }
+    },
+    'clearCookies': function () {
+      clearCookies();
     }
   };
 }
