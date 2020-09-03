@@ -134,6 +134,19 @@ export default function () {
       ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
       ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
 
+
+      // storage persistence based options.
+      ops['persistence'] = options['persistence'] || 'localStorage';
+
+      // below persistence options only applies to cookie.
+      ops['cross_site_cookie'] = options['cross_site_cookie']  || false;
+      // the default value for this is true.
+      ops['cross_subdomain_cookie'] = options['cross_subdomain_cookie'] === false ? false : true;
+      ops['cookie_expiration'] = options['cookie_expiration'] || 365;
+      ops['secure_cookie'] = options['secure_cookie'] || false;
+      ops['cookie_domain'] = options['cookie_domain'] || '';
+
+
       this.requestBatchers = {};
 
       this._options = ops;
