@@ -3664,7 +3664,7 @@ var moesif = require('./moesif.cjs.js');
 var superagent = require('superagent');
 
 moesif.init({
-  applicationId: 'Your Application',
+  applicationId: 'Your Application Id',
   batchEnabled: true,
   batchSize: 5,
   persistence: 'cookie',
