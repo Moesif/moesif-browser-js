@@ -580,6 +580,7 @@ export default function () {
       this._companyId = null;
       this._userId = null;
       this._session = null;
+      this._campaign = null;
     }
   };
 }
