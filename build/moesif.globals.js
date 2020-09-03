@@ -2,20 +2,28 @@
     'use strict';
 
     var Config = {
-        DEBUG: false,
-        LIB_VERSION: '1.6.3'
+        DEBUG: true,
+        LIB_VERSION: '1.7.0'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
     var win;
     if (typeof(window) === 'undefined') {
+        var loc = {
+            hostname: ''
+        };
         win = {
-            navigator: {}
+            navigator: { userAgent: '' },
+            document: {
+                location: loc,
+                referrer: ''
+            },
+            screen: { width: 0, height: 0 },
+            location: loc
         };
     } else {
         win = window;
     }
-
 
     /*
      * Saved references to long variable names, so that closure compiler can
@@ -31,6 +39,8 @@
     var windowConsole = win.console;
     var navigator$1 = win.navigator;
     var document$1 = win.document;
+    var windowOpera = win.opera;
+    var screen = win.screen;
     var userAgent = navigator$1.userAgent;
     var nativeBind = FuncProto.bind;
     var nativeForEach = ArrayProto.forEach;
@@ -47,7 +57,7 @@
 
     // Console override
     var console = {
-        /** @type {function(...[*])} */
+        /** @type {function(...*)} */
         log: function() {
             if (Config.DEBUG && !_.isUndefined(windowConsole) && windowConsole) {
                 try {
@@ -59,7 +69,7 @@
                 }
             }
         },
-        /** @type {function(...[*])} */
+        /** @type {function(...*)} */
         error: function() {
             if (Config.DEBUG && !_.isUndefined(windowConsole) && windowConsole) {
                 var args = ['Moesif error:'].concat(_.toArray(arguments));
@@ -72,7 +82,7 @@
                 }
             }
         },
-        /** @type {function(...[*])} */
+        /** @type {function(...*)} */
         critical: function() {
             if (!_.isUndefined(windowConsole) && windowConsole) {
                 var args = ['Moesif error:'].concat(_.toArray(arguments));
@@ -85,6 +95,20 @@
                 }
             }
         }
+    };
+
+    var log_func_with_prefix = function(func, prefix) {
+        return function() {
+            arguments[0] = '[' + prefix + '] ' + arguments[0];
+            return func.apply(console, arguments);
+        };
+    };
+    var console_with_prefix = function(prefix) {
+        return {
+            log: log_func_with_prefix(console.log, prefix),
+            error: log_func_with_prefix(console.error, prefix),
+            critical: log_func_with_prefix(console.critical, prefix)
+        };
     };
 
 
@@ -124,13 +148,9 @@
         }
     };
 
-    _.isEmptyString = function isEmptyString(str) {
-      return (!str || str.length === 0);
-    };
-
     /**
      * @param {*=} obj
-     * @param {function(...[*])=} iterator
+     * @param {function(...*)=} iterator
      * @param {Object=} context
      */
     _.each = function(obj, iterator, context) {
@@ -216,15 +236,26 @@
     };
 
     _.map = function(arr, callback) {
-      if (nativeMap && arr.map === nativeMap) {
-          return arr.map(callback);
-      } else {
-          var results = [];
-          _.each(arr, function(item) {
-              results.push(callback(item));
-          });
-          return results;
-      }
+        if (nativeMap && arr.map === nativeMap) {
+            return arr.map(callback);
+        } else {
+            var results = [];
+            _.each(arr, function(item) {
+                results.push(callback(item));
+            });
+            return results;
+        }
+    };
+
+    _.keys = function(obj) {
+        var results = [];
+        if (obj === null) {
+            return results;
+        }
+        _.each(obj, function(value, key) {
+            results[results.length] = key;
+        });
+        return results;
     };
 
     _.values = function(obj) {
@@ -270,12 +301,6 @@
         return subclass;
     };
 
-    _.isArrayBuffer = function(value) {
-      var toString = Object.prototype.toString;
-      var hasArrayBuffer = typeof ArrayBuffer === 'function';
-      return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
-    };
-
     _.isObject = function(obj) {
         return (obj === Object(obj) && !_.isArray(obj));
     };
@@ -290,6 +315,10 @@
             return true;
         }
         return false;
+    };
+
+    _.isEmptyString = function isEmptyString(str) {
+      return (!str || str.length === 0);
     };
 
     _.isUndefined = function(obj) {
@@ -348,7 +377,10 @@
             try {
                 return f.apply(this, arguments);
             } catch (e) {
-                console.critical('Implementation error. Please contact support@moesif.com.');
+                console.critical('Implementation error. Please turn on debug and contact support@Moesif.com.');
+                if (Config.DEBUG){
+                    console.critical(e);
+                }
             }
         };
     };
@@ -408,7 +440,7 @@
         return function(mixed_val) {
             var value = mixed_val;
             var quote = function(string) {
-                var escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+                var escapable = /[\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g; // eslint-disable-line no-control-regex
                 var meta = { // table of character substitutions
                     '\b': '\\b',
                     '\t': '\\t',
@@ -492,7 +524,7 @@
                                 gap ? '[\n' + gap +
                                 partial.join(',\n' + gap) + '\n' +
                                 mind + ']' :
-                                '[' + partial.join(',') + ']';
+                                    '[' + partial.join(',') + ']';
                             gap = mind;
                             return v;
                         }
@@ -525,7 +557,11 @@
         };
     })();
 
-    _.JSONDecode = (function() { // https://github.com/douglascrockford/JSON-js/blob/master/json_parse.js
+    /**
+     * From https://github.com/douglascrockford/JSON-js/blob/master/json_parse.js
+     * Slightly modified to throw a real Error rather than a POJO
+     */
+    _.JSONDecode = (function() {
         var at, // The index of the current character
             ch, // The current character
             escapee = {
@@ -540,12 +576,10 @@
             },
             text,
             error = function(m) {
-                throw {
-                    name: 'SyntaxError',
-                    message: m,
-                    at: at,
-                    text: text
-                };
+                var e = new SyntaxError(m);
+                e.at = at;
+                e.text = text;
+                throw e;
             },
             next = function(c) {
                 // If a c parameter is provided, verify that it matches the current character.
@@ -932,25 +966,23 @@
         return tmp_arr.join(arg_separator);
     };
 
-    _.getQueryParamByName = function(name, query) {
-      // expects a name
-      // and a query string. aka location part.
-      name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-      var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-      var results = regex.exec(query);
-      return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
-    };
-
     _.getQueryParam = function(url, param) {
         // Expects a raw URL
-        param = param.replace(/[\[]/, '\\\[').replace(/[\]]/, '\\\]');
+
+        param = param.replace(/[[]/, '\\[').replace(/[\]]/, '\\]');
         var regexS = '[\\?&]' + param + '=([^&#]*)',
             regex = new RegExp(regexS),
             results = regex.exec(url);
         if (results === null || (results && typeof(results[1]) !== 'string' && results[1].length)) {
             return '';
         } else {
-            return decodeURIComponent(results[1]).replace(/\+/g, ' ');
+            var result = results[1];
+            try {
+                result = decodeURIComponent(result);
+            } catch(err) {
+                console.error('Skipping decoding for malformed query param: ' + result);
+            }
+            return result.replace(/\+/g, ' ');
         }
     };
 
@@ -987,16 +1019,16 @@
             return cookie;
         },
 
-        set_seconds: function(name, value, seconds, cross_subdomain, is_secure) {
+        set_seconds: function(name, value, seconds, is_cross_subdomain, is_secure, is_cross_site, domain_override) {
             var cdomain = '',
                 expires = '',
                 secure = '';
 
-            if (cross_subdomain) {
-                var matches = document$1.location.hostname.match(/[a-z0-9][a-z0-9\-]+\.[a-z\.]{2,6}$/i),
-                    domain = matches ? matches[0] : '';
-
-                cdomain = ((domain) ? '; domain=.' + domain : '');
+            if (domain_override) {
+                cdomain = '; domain=' + domain_override;
+            } else if (is_cross_subdomain) {
+                var domain = extract_domain(document$1.location.hostname);
+                cdomain = domain ? '; domain=.' + domain : '';
             }
 
             if (seconds) {
@@ -1005,21 +1037,25 @@
                 expires = '; expires=' + date.toGMTString();
             }
 
+            if (is_cross_site) {
+                is_secure = true;
+                secure = '; SameSite=None';
+            }
             if (is_secure) {
-                secure = '; secure';
+                secure += '; secure';
             }
 
             document$1.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/' + cdomain + secure;
         },
 
-        set: function(name, value, days, cross_subdomain, is_secure) {
+        set: function(name, value, days, is_cross_subdomain, is_secure, is_cross_site, domain_override) {
             var cdomain = '', expires = '', secure = '';
 
-            if (cross_subdomain) {
-                var matches = document$1.location.hostname.match(/[a-z0-9][a-z0-9\-]+\.[a-z\.]{2,6}$/i),
-                    domain = matches ? matches[0] : '';
-
-                cdomain   = ((domain) ? '; domain=.' + domain : '');
+            if (domain_override) {
+                cdomain = '; domain=' + domain_override;
+            } else if (is_cross_subdomain) {
+                var domain = extract_domain(document$1.location.hostname);
+                cdomain = domain ? '; domain=.' + domain : '';
             }
 
             if (days) {
@@ -1028,8 +1064,12 @@
                 expires = '; expires=' + date.toGMTString();
             }
 
+            if (is_cross_site) {
+                is_secure = true;
+                secure = '; SameSite=None';
+            }
             if (is_secure) {
-                secure = '; secure';
+                secure += '; secure';
             }
 
             var new_cookie_val = name + '=' + encodeURIComponent(value) + expires + '; path=/' + cdomain + secure;
@@ -1037,8 +1077,8 @@
             return new_cookie_val;
         },
 
-        remove: function(name, cross_subdomain) {
-            _.cookie.set(name, '', -1, cross_subdomain);
+        remove: function(name, is_cross_subdomain, domain_override) {
+            _.cookie.set(name, '', -1, is_cross_subdomain, false, false, domain_override);
         }
     };
 
@@ -1068,6 +1108,14 @@
 
     // _.localStorage
     _.localStorage = {
+        is_supported: function(force_check) {
+            var supported = localStorageSupported(null, force_check);
+            if (!supported) {
+                console.error('localStorage unsupported; falling back to cookie store');
+            }
+            return supported;
+        },
+
         error: function(msg) {
             console.error('localStorage error: ' + msg);
         },
@@ -1106,6 +1154,87 @@
             }
         }
     };
+
+    _.register_event = (function() {
+        // written by Dean Edwards, 2005
+        // with input from Tino Zijdel - crisp@xs4all.nl
+        // with input from Carl Sverre - mail@carlsverre.com
+        // with input from Moesif
+        // http://dean.edwards.name/weblog/2005/10/add-event/
+        // https://gist.github.com/1930440
+
+        /**
+         * @param {Object} element
+         * @param {string} type
+         * @param {function(...*)} handler
+         * @param {boolean=} oldSchool
+         * @param {boolean=} useCapture
+         */
+        var register_event = function(element, type, handler, oldSchool, useCapture) {
+            if (!element) {
+                console.error('No valid element provided to register_event');
+                return;
+            }
+
+            if (element.addEventListener && !oldSchool) {
+                element.addEventListener(type, handler, !!useCapture);
+            } else {
+                var ontype = 'on' + type;
+                var old_handler = element[ontype]; // can be undefined
+                element[ontype] = makeHandler(element, handler, old_handler);
+            }
+        };
+
+        function makeHandler(element, new_handler, old_handlers) {
+            var handler = function(event) {
+                event = event || fixEvent(window.event);
+
+                // this basically happens in firefox whenever another script
+                // overwrites the onload callback and doesn't pass the event
+                // object to previously defined callbacks.  All the browsers
+                // that don't define window.event implement addEventListener
+                // so the dom_loaded handler will still be fired as usual.
+                if (!event) {
+                    return undefined;
+                }
+
+                var ret = true;
+                var old_result, new_result;
+
+                if (_.isFunction(old_handlers)) {
+                    old_result = old_handlers(event);
+                }
+                new_result = new_handler.call(element, event);
+
+                if ((false === old_result) || (false === new_result)) {
+                    ret = false;
+                }
+
+                return ret;
+            };
+
+            return handler;
+        }
+
+        function fixEvent(event) {
+            if (event) {
+                event.preventDefault = fixEvent.preventDefault;
+                event.stopPropagation = fixEvent.stopPropagation;
+            }
+            return event;
+        }
+        fixEvent.preventDefault = function() {
+            this.returnValue = false;
+        };
+        fixEvent.stopPropagation = function() {
+            this.cancelBubble = true;
+        };
+
+        return register_event;
+    })();
+
+
+    var TOKEN_MATCH_REGEX = new RegExp('^(\\w*)\\[(\\w+)([=~\\|\\^\\$\\*]?)=?"?([^\\]"]*)"?\\]$');
 
     _.dom_query = (function() {
         /* document.getElementsBySelector(selector)
@@ -1203,7 +1332,7 @@
                     continue; // Skip to next token
                 }
                 // Code to deal with attribute selectors
-                var token_match = token.match(/^(\w*)\[(\w+)([=~\|\^\$\*]?)=?"?([^\]"]*)"?\]$/);
+                var token_match = token.match(TOKEN_MATCH_REGEX);
                 if (token_match) {
                     tagName = token_match[1];
                     var attrName = token_match[2];
@@ -1363,7 +1492,10 @@
                 return 'BlackBerry';
             } else if (_.includes(user_agent, 'IEMobile') || _.includes(user_agent, 'WPDesktop')) {
                 return 'Internet Explorer Mobile';
-            } else if (_.includes(user_agent, 'Edge')) {
+            } else if (_.includes(user_agent, 'SamsungBrowser/')) {
+                // https://developer.samsung.com/internet/user-agent-string-format
+                return 'Samsung Internet';
+            } else if (_.includes(user_agent, 'Edge') || _.includes(user_agent, 'Edg/')) {
                 return 'Microsoft Edge';
             } else if (_.includes(user_agent, 'FBIOS')) {
                 return 'Facebook Mobile';
@@ -1404,7 +1536,7 @@
             var browser = _.info.browser(userAgent, vendor, opera);
             var versionRegexs = {
                 'Internet Explorer Mobile': /rv:(\d+(\.\d+)?)/,
-                'Microsoft Edge': /Edge\/(\d+(\.\d+)?)/,
+                'Microsoft Edge': /Edge?\/(\d+(\.\d+)?)/,
                 'Chrome': /Chrome\/(\d+(\.\d+)?)/,
                 'Chrome iOS': /CriOS\/(\d+(\.\d+)?)/,
                 'UC Browser' : /(UCBrowser|UCWEB)\/(\d+(\.\d+)?)/,
@@ -1416,6 +1548,7 @@
                 'Konqueror': /Konqueror:(\d+(\.\d+)?)/,
                 'BlackBerry': /BlackBerry (\d+(\.\d+)?)/,
                 'Android Mobile': /android\s(\d+(\.\d+)?)/,
+                'Samsung Internet': /SamsungBrowser\/(\d+(\.\d+)?)/,
                 'Internet Explorer': /(rv:|MSIE )(\d+(\.\d+)?)/,
                 'Mozilla': /rv:(\d+(\.\d+)?)/
             };
@@ -1447,6 +1580,8 @@
                 return 'Mac OS X';
             } else if (/Linux/.test(a)) {
                 return 'Linux';
+            } else if (/CrOS/.test(a)) {
+                return 'Chrome OS';
             } else {
                 return '';
             }
@@ -1481,26 +1616,28 @@
         properties: function() {
             return _.extend(_.strip_empty_properties({
                 '$os': _.info.os(),
-                '$browser': _.info.browser(userAgent, navigator$1.vendor, window.opera),
+                '$browser': _.info.browser(userAgent, navigator$1.vendor, windowOpera),
                 '$referrer': document$1.referrer,
                 '$referring_domain': _.info.referringDomain(document$1.referrer),
                 '$device': _.info.device(userAgent)
             }), {
-                '$current_url': window.location.href,
-                '$browser_version': _.info.browserVersion(userAgent, navigator$1.vendor, window.opera),
+                '$current_url': win.location.href,
+                '$browser_version': _.info.browserVersion(userAgent, navigator$1.vendor, windowOpera),
                 '$screen_height': screen.height,
                 '$screen_width': screen.width,
                 'mp_lib': 'web',
-                '$lib_version': Config.LIB_VERSION
+                '$lib_version': Config.LIB_VERSION,
+                '$insert_id': cheap_guid(),
+                'time': _.timestamp() / 1000 // epoch time in seconds
             });
         },
 
         people_properties: function() {
             return _.extend(_.strip_empty_properties({
                 '$os': _.info.os(),
-                '$browser': _.info.browser(userAgent, navigator$1.vendor, window.opera)
+                '$browser': _.info.browser(userAgent, navigator$1.vendor, windowOpera)
             }), {
-                '$browser_version': _.info.browserVersion(userAgent, navigator$1.vendor, window.opera)
+                '$browser_version': _.info.browserVersion(userAgent, navigator$1.vendor, windowOpera)
             });
         },
 
@@ -1508,30 +1645,65 @@
             return _.strip_empty_properties({
                 'mp_page': page,
                 'mp_referrer': document$1.referrer,
-                'mp_browser': _.info.browser(userAgent, navigator$1.vendor, window.opera),
+                'mp_browser': _.info.browser(userAgent, navigator$1.vendor, windowOpera),
                 'mp_platform': _.info.os()
             });
         }
     };
 
     var cheap_guid = function(maxlen) {
-      var guid = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-      return maxlen ? guid.substring(0, maxlen) : guid;
+        var guid = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+        return maxlen ? guid.substring(0, maxlen) : guid;
     };
 
-    var log_func_with_prefix = function(func, prefix) {
-      return function() {
-          arguments[0] = '[' + prefix + '] ' + arguments[0];
-          return func.apply(console, arguments);
-      };
-    };
+    /**
+     * Check deterministically whether to include or exclude from a feature rollout/test based on the
+     * given string and the desired percentage to include.
+     * @param {String} str - string to run the check against (for instance a project's token)
+     * @param {String} feature - name of feature (for inclusion in hash, to ensure different results
+     * for different features)
+     * @param {Number} percent_allowed - percentage chance that a given string will be included
+     * @returns {Boolean} whether the given string should be included
+     */
+    var determine_eligibility = _.safewrap(function(str, feature, percent_allowed) {
+        str = str + feature;
 
-    var console_with_prefix = function(prefix) {
-      return {
-          log: log_func_with_prefix(console.log, prefix),
-          error: log_func_with_prefix(console.error, prefix),
-          critical: log_func_with_prefix(console.critical, prefix)
-      };
+        // Bernstein's hash: http://www.cse.yorku.ca/~oz/hash.html#djb2
+        var hash = 5381;
+        for (var i = 0; i < str.length; i++) {
+            hash = ((hash << 5) + hash) + str.charCodeAt(i);
+            hash = hash & hash;
+        }
+        var dart = (hash >>> 0) % 100;
+        return dart < percent_allowed;
+    });
+
+    // naive way to extract domain name (example.com) from full hostname (my.sub.example.com)
+    var SIMPLE_DOMAIN_MATCH_REGEX = /[a-z0-9][a-z0-9-]*\.[a-z]+$/i;
+    // this next one attempts to account for some ccSLDs, e.g. extracting oxford.ac.uk from www.oxford.ac.uk
+    var DOMAIN_MATCH_REGEX = /[a-z0-9][a-z0-9-]+\.[a-z.]{2,6}$/i;
+    /**
+     * Attempts to extract main domain name from full hostname, using a few blunt heuristics. For
+     * common TLDs like .com/.org that always have a simple SLD.TLD structure (example.com), we
+     * simply extract the last two .-separated parts of the hostname (SIMPLE_DOMAIN_MATCH_REGEX).
+     * For others, we attempt to account for short ccSLD+TLD combos (.ac.uk) with the legacy
+     * DOMAIN_MATCH_REGEX (kept to maintain backwards compatibility with existing Moesif
+     * integrations). The only _reliable_ way to extract domain from hostname is with an up-to-date
+     * list like at https://publicsuffix.org/ so for cases that this helper fails at, the SDK
+     * offers the 'cookie_domain' config option to set it explicitly.
+     * @example
+     * extract_domain('my.sub.example.com')
+     * // 'example.com'
+     */
+    var extract_domain = function(hostname) {
+        var domain_regex = DOMAIN_MATCH_REGEX;
+        var parts = hostname.split('.');
+        var tld = parts[parts.length - 1];
+        if (tld.length > 4 || tld === 'com' || tld === 'org') {
+            domain_regex = SIMPLE_DOMAIN_MATCH_REGEX;
+        }
+        var matches = hostname.match(domain_regex);
+        return matches ? matches[0] : '';
     };
 
     var JSONStringify = null;
@@ -1543,20 +1715,19 @@
     JSONStringify = JSONStringify || _.JSONEncode;
     JSONParse = JSONParse || _.JSONDecode;
 
-
     // EXPORTS (for closure compiler)
-    _['toArray']            = _.toArray;
-    _['isObject']           = _.isObject;
-    _['JSONEncode']         = _.JSONEncode;
-    _['JSONDecode']         = _.JSONDecode;
-    _['isBlockedUA']        = _.isBlockedUA;
-    _['isEmptyObject']      = _.isEmptyObject;
-    _['isEmptyString']      = _.isEmptyString;
-    _['each']               = _.each;
-    _['info']               = _.info;
-    _['info']['device']     = _.info.device;
-    _['info']['browser']    = _.info.browser;
-    _['info']['properties'] = _.info.properties;
+    _['toArray']                = _.toArray;
+    _['isObject']               = _.isObject;
+    _['JSONEncode']             = _.JSONEncode;
+    _['JSONDecode']             = _.JSONDecode;
+    _['isBlockedUA']            = _.isBlockedUA;
+    _['isEmptyObject']          = _.isEmptyObject;
+    _['isEmptyString']          = _.isEmptyString;
+    _['info']                   = _.info;
+    _['info']['device']         = _.info.device;
+    _['info']['browser']        = _.info.browser;
+    _['info']['browserVersion'] = _.info.browserVersion;
+    _['info']['properties']     = _.info.properties;
 
     // eslint-disable-line camelcase
 
@@ -2205,6 +2376,64 @@
       return utmProperties;
     }
 
+    var STORAGE_CONSTANTS = {
+      STORED_USER_ID: 'moesif_stored_user_id',
+      STORED_COMPANY_ID: 'moesif_stored_company_id',
+      STORED_SESSION_ID: 'moesif_stored_session_id',
+      STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
+      STORED_CAMPAIGN_DATA: 'moesif_campaign_data'
+    };
+
+    function getPersistenceFunction(opt) {
+      var storageType = opt['persistence'];
+      if (storageType !== 'cookie' && storageType !== 'localStorage') {
+        console.critical('Unknown persistence type ' + storageType + '; falling back to cookie');
+        storageType = Config['persistence'] = 'localStorage';
+      }
+
+      // we default to localStorage unless cookie is specificied.
+      var setFunction = function (key, value) {
+         _.localStorage.set(key, value);
+      };
+
+      if (storageType === 'cookie' || !_.localStorage.is_supported()) {
+        setFunction = function(key, value) {
+          _.cookie.set(
+            key,
+            value,
+            opt['cookie_expiration'],
+            opt['cross_domain_cookie'],
+            opt['secure_cookie'],
+            opt['cross_site_cookie'],
+            opt['cookie_domain']
+          );
+        };
+      }
+
+      if (storageType === 'none') {
+        setFunction = function () {};
+      }
+
+      return setFunction;
+    }
+
+    // this tries to get from either cookie or localStorage.
+    // whichever have data.
+    function getFromPersistence(key) {
+      if (_.localStorage.is_supported()) {
+        return _.localStorage.get(key) || _.cookie.get(key);
+      }
+      return _.cookie.get(key);
+    }
+
+    function clearCookies() {
+      _.cookie.remove(STORAGE_CONSTANTS.STORED_USER_ID);
+      _.cookie.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
+      _.cookie.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+      _.cookie.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
+      _.cookie.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+    }
+
     var logger$4 = console_with_prefix('campaign');
 
     function _getUrlParams() {
@@ -2219,7 +2448,7 @@
       return gclid;
     }
 
-    function getCampaignData(opt) {
+    function getCampaignDataFromUrlOrCookie(opt) {
       try {
         var result = {};
 
@@ -2245,6 +2474,45 @@
       } catch (err) {
         logger$4.log(err);
       }
+    }
+
+    function mergeCampaignData(saved, current) {
+      if (!current) {
+        return saved;
+      }
+
+      if (!saved) {
+        return current;
+      }
+
+      return  _.extend({}, saved, current);
+    }
+
+    function getCampaignData(opt, persist) {
+      var storedCampaignData = null;
+      var storedCampaignString = null;
+      try {
+        storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+        if (storedCampaignString && storedCampaignString !== 'null') {
+          storedCampaignData = _.JSONDeCode(storedCampaignString);
+        }
+      } catch (err) {
+        logger$4.error('failed to decode campaign data ' + storedCampaignString);
+        logger$4.error(err);
+      }
+      var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
+      var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
+
+      try {
+        if (persist && merged && merged !== 'null') {
+          persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, _.JSONEncode(merged));
+        }
+      } catch (err) {
+        logger$4.error('failed to persist campaign data');
+        logger$4.error(err);
+      }
+
+      return merged;
     }
 
     // eslint-disable-line
@@ -2788,6 +3056,21 @@
         }
     };
 
+    function getAnonymousId(persist) {
+      var storedAnonId = getFromPersistence(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+      if (storedAnonId) {
+        return storedAnonId;
+      }
+
+      var newId = _.UUID();
+
+      if (persist) {
+        persist(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, newId);
+      }
+
+      return newId;
+    }
+
     var MOESIF_CONSTANTS = {
       //The base Uri for API calls
       HOST: 'api.moesif.net',
@@ -2796,10 +3079,7 @@
       ACTION_ENDPOINT: '/v1/actions',
       ACTION_BATCH_ENDPOINT: '/v1/actions/batch',
       USER_ENDPOINT: '/v1/users',
-      COMPANY_ENDPOINT: '/v1/companies',
-      STORED_USER_ID: 'moesif_stored_user_id',
-      STORED_COMPANY_ID: 'moesif_stored_company_id',
-      STORED_SESSION_ID: 'moesif_stored_session_id'
+      COMPANY_ENDPOINT: '/v1/companies'
     };
 
     /*
@@ -2901,14 +3181,30 @@
           ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
           ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
 
+
+          // storage persistence based options.
+          // cookie, localStorage, or none.
+          ops['persistence'] = options['persistence'] || 'localStorage';
+
+          // below persistence options only applies to cookie.
+          ops['cross_site_cookie'] = options['cross_site_cookie']  || false;
+          // the default value for this is true.
+          ops['cross_subdomain_cookie'] = options['cross_subdomain_cookie'] === false ? false : true;
+          ops['cookie_expiration'] = options['cookie_expiration'] || 365;
+          ops['secure_cookie'] = options['secure_cookie'] || false;
+          ops['cookie_domain'] = options['cookie_domain'] || '';
+
+
           this.requestBatchers = {};
 
           this._options = ops;
+          this._persist = getPersistenceFunction(ops);
           try {
-            this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
-            this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
-            this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
-            this._campaign = getCampaignData(ops);
+            this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID);
+            this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID);
+            this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID);
+            this._anonymousId = getAnonymousId(this._persist);
+            this._campaign = getCampaignData(ops, this._persist);
           } catch(err) {
             console.error('error loading saved data from local storage but continue');
           }
@@ -2947,7 +3243,6 @@
           var method = (options && options.method) || 'POST';
 
           // right now we onlu support USE_XHR
-
           try {
             var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
             xmlhttp.open(method, url);
@@ -3126,10 +3421,12 @@
             userObject['company_id'] = this._companyId;
           }
 
+          userObject['anonymous_id'] = this._anonymousId;
+
           this.updateUser(userObject, this._options.applicationId, this._options.callback);
           try {
             if (userId) {
-              localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+              this._persist(STORAGE_CONSTANTS.STORED_USER_ID, userId);
             }
           } catch (err) {
             console.error('error saving to local storage');
@@ -3170,7 +3467,7 @@
 
           try {
             if (companyId) {
-              localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+              this._persist(STORAGE_CONSTANTS.STORED_COMPANY_ID, companyId);
             }
           } catch (err) {
             console.error('error saving to local storage');
@@ -3180,7 +3477,7 @@
           this._session = session;
           if (session) {
             try {
-              localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+              this._persist(STORAGE_CONSTANTS.STORED_SESSION_ID, session);
             } catch (err) {
               console.error('local storage error');
             }
@@ -3201,6 +3498,8 @@
           }
           if (_self._userId) {
             actionObject['user_id'] = _self._userId;
+          } else {
+            actionObject['anonymous_id'] = _self._anonymousId;
           }
           if (this._session) {
             actionObject['session_token'] = this._session;
@@ -3238,7 +3537,10 @@
           var logData = Object.assign({}, event);
           if (_self._getUserId()) {
             logData['user_id'] = _self._getUserId();
+          } else {
+            logData['anonymous_id'] = _self._anonymousId;
           }
+
           if (_self._getCompanyId()) {
             logData['company_id'] = _self._getCompanyId();
           }
@@ -3302,6 +3604,9 @@
             this._stopFetchRecording();
             this._stopFetchRecording = null;
           }
+        },
+        'clearCookies': function () {
+          clearCookies();
         }
       };
     }

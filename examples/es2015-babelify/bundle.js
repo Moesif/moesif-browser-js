@@ -13,7 +13,36 @@ _srcLoaderModule2['default'].init({
 
 _srcLoaderModule2['default'].start();
 
-},{"../../src/loader-module":6}],2:[function(require,module,exports){
+},{"../../src/loader-module":7}],2:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _utils = require('./utils');
+
+var _persistence = require('./persistence');
+
+function getAnonymousId(persist) {
+  var storedAnonId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+  if (storedAnonId) {
+    return storedAnonId;
+  }
+
+  var newId = _utils._.UUID();
+
+  if (persist) {
+    persist(_persistence.STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, newId);
+  }
+
+  return newId;
+}
+
+exports['default'] = getAnonymousId;
+module.exports = exports['default'];
+
+},{"./persistence":11,"./utils":16}],3:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -34,6 +63,8 @@ var _utm = require('./utm');
 
 var _utm2 = _interopRequireDefault(_utm);
 
+var _persistence = require('./persistence');
+
 var logger = (0, _utils.console_with_prefix)('campaign');
 
 function _getUrlParams() {
@@ -48,7 +79,7 @@ function getGclid(urlParams) {
   return gclid;
 }
 
-function getCampaignData(opt) {
+function getCampaignDataFromUrlOrCookie(opt) {
   try {
     var result = {};
 
@@ -76,10 +107,49 @@ function getCampaignData(opt) {
   }
 }
 
+function mergeCampaignData(saved, current) {
+  if (!current) {
+    return saved;
+  }
+
+  if (!saved) {
+    return current;
+  }
+
+  return _utils._.extend({}, saved, current);
+}
+
+function getCampaignData(opt, persist) {
+  var storedCampaignData = null;
+  var storedCampaignString = null;
+  try {
+    storedCampaignString = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+    if (storedCampaignString && storedCampaignString !== 'null') {
+      storedCampaignData = _utils._.JSONDeCode(storedCampaignString);
+    }
+  } catch (err) {
+    logger.error('failed to decode campaign data ' + storedCampaignString);
+    logger.error(err);
+  }
+  var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
+  var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
+
+  try {
+    if (persist && merged && merged !== 'null') {
+      persist(_persistence.STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, _utils._.JSONEncode(merged));
+    }
+  } catch (err) {
+    logger.error('failed to persist campaign data');
+    logger.error(err);
+  }
+
+  return merged;
+}
+
 exports['default'] = getCampaignData;
 module.exports = exports['default'];
 
-},{"./referrer":10,"./utils":14,"./utm":15}],3:[function(require,module,exports){
+},{"./persistence":11,"./referrer":12,"./utils":16,"./utm":17}],4:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -245,7 +315,7 @@ function patch(recorder, env) {
 exports['default'] = patch;
 module.exports = exports['default'];
 
-},{"./parsers":9,"./utils":14}],4:[function(require,module,exports){
+},{"./parsers":10,"./utils":16}],5:[function(require,module,exports){
 /**
  * Created by Xingheng on 1/31/17.
  */
@@ -484,21 +554,21 @@ function captureXMLHttpRequest(recorder, options) {
 exports['default'] = captureXMLHttpRequest;
 module.exports = exports['default'];
 
-},{"./parsers":9,"./utils":14}],5:[function(require,module,exports){
+},{"./parsers":10,"./utils":16}],6:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
     value: true
 });
 var Config = {
-    DEBUG: false,
-    LIB_VERSION: '1.6.3'
+    DEBUG: true,
+    LIB_VERSION: '1.7.0'
 };
 
 exports['default'] = Config;
 module.exports = exports['default'];
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 /* eslint camelcase: "off" */
 'use strict';
 
@@ -513,7 +583,7 @@ var moesif = (0, _moesifCore.init_as_module)();
 exports['default'] = moesif;
 module.exports = exports['default'];
 
-},{"./moesif-core":7}],7:[function(require,module,exports){
+},{"./moesif-core":8}],8:[function(require,module,exports){
 /* eslint camelcase: "off" */
 'use strict';
 
@@ -571,7 +641,7 @@ function init_as_module() {
   return (0, _moesif2['default'])();
 }
 
-},{"./moesif":8}],8:[function(require,module,exports){
+},{"./moesif":9}],9:[function(require,module,exports){
 /**
  * Created by Xingheng
  */
@@ -608,6 +678,12 @@ var _config2 = _interopRequireDefault(_config);
 
 var _requestBatcher = require('./request-batcher');
 
+var _persistence = require('./persistence');
+
+var _anonymousId = require('./anonymousId');
+
+var _anonymousId2 = _interopRequireDefault(_anonymousId);
+
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
   HOST: 'api.moesif.net',
@@ -616,10 +692,7 @@ var MOESIF_CONSTANTS = {
   ACTION_ENDPOINT: '/v1/actions',
   ACTION_BATCH_ENDPOINT: '/v1/actions/batch',
   USER_ENDPOINT: '/v1/users',
-  COMPANY_ENDPOINT: '/v1/companies',
-  STORED_USER_ID: 'moesif_stored_user_id',
-  STORED_COMPANY_ID: 'moesif_stored_company_id',
-  STORED_SESSION_ID: 'moesif_stored_session_id'
+  COMPANY_ENDPOINT: '/v1/companies'
 };
 
 /*
@@ -729,14 +802,28 @@ exports['default'] = function () {
       ops['batch_size'] = options['batchSize'] || 25, ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
       ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
 
+      // storage persistence based options.
+      // cookie, localStorage, or none.
+      ops['persistence'] = options['persistence'] || 'localStorage';
+
+      // below persistence options only applies to cookie.
+      ops['cross_site_cookie'] = options['cross_site_cookie'] || false;
+      // the default value for this is true.
+      ops['cross_subdomain_cookie'] = options['cross_subdomain_cookie'] === false ? false : true;
+      ops['cookie_expiration'] = options['cookie_expiration'] || 365;
+      ops['secure_cookie'] = options['secure_cookie'] || false;
+      ops['cookie_domain'] = options['cookie_domain'] || '';
+
       this.requestBatchers = {};
 
       this._options = ops;
+      this._persist = (0, _persistence.getPersistenceFunction)(ops);
       try {
-        this._userId = localStorage.getItem(MOESIF_CONSTANTS.STORED_USER_ID);
-        this._session = localStorage.getItem(MOESIF_CONSTANTS.STORED_SESSION_ID);
-        this._companyId = localStorage.getItem(MOESIF_CONSTANTS.STORED_COMPANY_ID);
-        this._campaign = (0, _campaign2['default'])(ops);
+        this._userId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_USER_ID);
+        this._session = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_SESSION_ID);
+        this._companyId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_COMPANY_ID);
+        this._anonymousId = (0, _anonymousId2['default'])(this._persist);
+        this._campaign = (0, _campaign2['default'])(ops, this._persist);
       } catch (err) {
         _utils.console.error('error loading saved data from local storage but continue');
       }
@@ -775,7 +862,6 @@ exports['default'] = function () {
       var method = options && options.method || 'POST';
 
       // right now we onlu support USE_XHR
-
       try {
         var xmlhttp = new XMLHttpRequest(); // new HttpRequest instance
         xmlhttp.open(method, url);
@@ -940,10 +1026,12 @@ exports['default'] = function () {
         userObject['company_id'] = this._companyId;
       }
 
+      userObject['anonymous_id'] = this._anonymousId;
+
       this.updateUser(userObject, this._options.applicationId, this._options.callback);
       try {
         if (userId) {
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_USER_ID, userId);
+          this._persist(_persistence.STORAGE_CONSTANTS.STORED_USER_ID, userId);
         }
       } catch (err) {
         _utils.console.error('error saving to local storage');
@@ -979,7 +1067,7 @@ exports['default'] = function () {
 
       try {
         if (companyId) {
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_COMPANY_ID, companyId);
+          this._persist(_persistence.STORAGE_CONSTANTS.STORED_COMPANY_ID, companyId);
         }
       } catch (err) {
         _utils.console.error('error saving to local storage');
@@ -989,7 +1077,7 @@ exports['default'] = function () {
       this._session = session;
       if (session) {
         try {
-          localStorage.setItem(MOESIF_CONSTANTS.STORED_SESSION_ID, session);
+          this._persist(_persistence.STORAGE_CONSTANTS.STORED_SESSION_ID, session);
         } catch (err) {
           _utils.console.error('local storage error');
         }
@@ -1010,6 +1098,8 @@ exports['default'] = function () {
       }
       if (_self._userId) {
         actionObject['user_id'] = _self._userId;
+      } else {
+        actionObject['anonymous_id'] = _self._anonymousId;
       }
       if (this._session) {
         actionObject['session_token'] = this._session;
@@ -1041,7 +1131,10 @@ exports['default'] = function () {
       var logData = Object.assign({}, event);
       if (_self._getUserId()) {
         logData['user_id'] = _self._getUserId();
+      } else {
+        logData['anonymous_id'] = _self._anonymousId;
       }
+
       if (_self._getCompanyId()) {
         logData['company_id'] = _self._getCompanyId();
       }
@@ -1099,13 +1192,16 @@ exports['default'] = function () {
         this._stopFetchRecording();
         this._stopFetchRecording = null;
       }
+    },
+    'clearCookies': function clearCookies() {
+      (0, _persistence.clearCookies)();
     }
   };
 };
 
 module.exports = exports['default'];
 
-},{"./campaign":2,"./capture":4,"./capture-fetch":3,"./config":5,"./request-batcher":11,"./utils":14,"./web3capture":16}],9:[function(require,module,exports){
+},{"./anonymousId":2,"./campaign":3,"./capture":5,"./capture-fetch":4,"./config":6,"./persistence":11,"./request-batcher":13,"./utils":16,"./web3capture":18}],10:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1174,7 +1270,77 @@ var attemptParseBuffer = function attemptParseBuffer(buffer) {
 exports.attemptParseBuffer = attemptParseBuffer;
 exports.attemptParseText = attemptParseText;
 
-},{"./utils":14}],10:[function(require,module,exports){
+},{"./utils":16}],11:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _config = require('./config');
+
+var _config2 = _interopRequireDefault(_config);
+
+var _utils = require('./utils');
+
+var STORAGE_CONSTANTS = {
+  STORED_USER_ID: 'moesif_stored_user_id',
+  STORED_COMPANY_ID: 'moesif_stored_company_id',
+  STORED_SESSION_ID: 'moesif_stored_session_id',
+  STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
+  STORED_CAMPAIGN_DATA: 'moesif_campaign_data'
+};
+
+function getPersistenceFunction(opt) {
+  var storageType = opt['persistence'];
+  if (storageType !== 'cookie' && storageType !== 'localStorage') {
+    _utils.console.critical('Unknown persistence type ' + storageType + '; falling back to cookie');
+    storageType = _config2['default']['persistence'] = 'localStorage';
+  }
+
+  // we default to localStorage unless cookie is specificied.
+  var setFunction = function setFunction(key, value) {
+    _utils._.localStorage.set(key, value);
+  };
+
+  if (storageType === 'cookie' || !_utils._.localStorage.is_supported()) {
+    setFunction = function (key, value) {
+      _utils._.cookie.set(key, value, opt['cookie_expiration'], opt['cross_domain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
+    };
+  }
+
+  if (storageType === 'none') {
+    setFunction = function () {};
+  }
+
+  return setFunction;
+}
+
+// this tries to get from either cookie or localStorage.
+// whichever have data.
+function getFromPersistence(key) {
+  if (_utils._.localStorage.is_supported()) {
+    return _utils._.localStorage.get(key) || _utils._.cookie.get(key);
+  }
+  return _utils._.cookie.get(key);
+}
+
+function clearCookies() {
+  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_USER_ID);
+  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
+  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
+  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+}
+
+exports.getFromPersistence = getFromPersistence;
+exports.getPersistenceFunction = getPersistenceFunction;
+exports.STORAGE_CONSTANTS = STORAGE_CONSTANTS;
+exports.clearCookies = clearCookies;
+
+},{"./config":6,"./utils":16}],12:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1216,7 +1382,7 @@ function getReferrer() {
 exports['default'] = getReferrer;
 module.exports = exports['default'];
 
-},{"./utils":14}],11:[function(require,module,exports){
+},{"./utils":16}],13:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1419,7 +1585,7 @@ RequestBatcher.prototype.flush = function (options) {
 
 exports.RequestBatcher = RequestBatcher;
 
-},{"./request-queue":12,"./utils":14}],12:[function(require,module,exports){
+},{"./request-queue":14,"./utils":16}],14:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1639,7 +1805,7 @@ RequestQueue.prototype.clear = function () {
 
 exports.RequestQueue = RequestQueue;
 
-},{"./shared-lock":13,"./utils":14}],13:[function(require,module,exports){
+},{"./shared-lock":15,"./utils":16}],15:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -1794,7 +1960,7 @@ SharedLock.prototype.withLock = function (lockedCB, errorCB, pid) {
 
 exports.SharedLock = SharedLock;
 
-},{"./utils":14}],14:[function(require,module,exports){
+},{"./utils":16}],16:[function(require,module,exports){
 /* eslint camelcase: "off", eqeqeq: "off" */
 'use strict';
 
@@ -1811,11 +1977,20 @@ var _config2 = _interopRequireDefault(_config);
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
 var win;
 if (typeof window === 'undefined') {
-    win = {
-        navigator: {}
+    var loc = {
+        hostname: ''
+    };
+    exports.window = win = {
+        navigator: { userAgent: '' },
+        document: {
+            location: loc,
+            referrer: ''
+        },
+        screen: { width: 0, height: 0 },
+        location: loc
     };
 } else {
-    win = window;
+    exports.window = win = window;
 }
 
 /*
@@ -1832,6 +2007,8 @@ var ArrayProto = Array.prototype,
     windowConsole = win.console,
     navigator = win.navigator,
     document = win.document,
+    windowOpera = win.opera,
+    screen = win.screen,
     userAgent = navigator.userAgent;
 
 var nativeBind = FuncProto.bind,
@@ -1850,7 +2027,7 @@ var _ = {
 
 // Console override
 var console = {
-    /** @type {function(...[*])} */
+    /** @type {function(...*)} */
     log: function log() {
         if (_config2['default'].DEBUG && !_.isUndefined(windowConsole) && windowConsole) {
             try {
@@ -1862,7 +2039,7 @@ var console = {
             }
         }
     },
-    /** @type {function(...[*])} */
+    /** @type {function(...*)} */
     error: function error() {
         if (_config2['default'].DEBUG && !_.isUndefined(windowConsole) && windowConsole) {
             var args = ['Moesif error:'].concat(_.toArray(arguments));
@@ -1875,7 +2052,7 @@ var console = {
             }
         }
     },
-    /** @type {function(...[*])} */
+    /** @type {function(...*)} */
     critical: function critical() {
         if (!_.isUndefined(windowConsole) && windowConsole) {
             var args = ['Moesif error:'].concat(_.toArray(arguments));
@@ -1888,6 +2065,20 @@ var console = {
             }
         }
     }
+};
+
+var log_func_with_prefix = function log_func_with_prefix(func, prefix) {
+    return function () {
+        arguments[0] = '[' + prefix + '] ' + arguments[0];
+        return func.apply(console, arguments);
+    };
+};
+var console_with_prefix = function console_with_prefix(prefix) {
+    return {
+        log: log_func_with_prefix(console.log, prefix),
+        error: log_func_with_prefix(console.error, prefix),
+        critical: log_func_with_prefix(console.critical, prefix)
+    };
 };
 
 // UNDERSCORE
@@ -1926,13 +2117,9 @@ _.bind_instance_methods = function (obj) {
     }
 };
 
-_.isEmptyString = function isEmptyString(str) {
-    return !str || str.length === 0;
-};
-
 /**
  * @param {*=} obj
- * @param {function(...[*])=} iterator
+ * @param {function(...*)=} iterator
  * @param {Object=} context
  */
 _.each = function (obj, iterator, context) {
@@ -2025,6 +2212,17 @@ _.map = function (arr, callback) {
     }
 };
 
+_.keys = function (obj) {
+    var results = [];
+    if (obj === null) {
+        return results;
+    }
+    _.each(obj, function (value, key) {
+        results[results.length] = key;
+    });
+    return results;
+};
+
 _.values = function (obj) {
     var results = [];
     if (obj === null) {
@@ -2068,12 +2266,6 @@ _.inherit = function (subclass, superclass) {
     return subclass;
 };
 
-_.isArrayBuffer = function (value) {
-    var toString = Object.prototype.toString;
-    var hasArrayBuffer = typeof ArrayBuffer === 'function';
-    return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
-};
-
 _.isObject = function (obj) {
     return obj === Object(obj) && !_.isArray(obj);
 };
@@ -2088,6 +2280,10 @@ _.isEmptyObject = function (obj) {
         return true;
     }
     return false;
+};
+
+_.isEmptyString = function isEmptyString(str) {
+    return !str || str.length === 0;
 };
 
 _.isUndefined = function (obj) {
@@ -2141,7 +2337,10 @@ _.safewrap = function (f) {
         try {
             return f.apply(this, arguments);
         } catch (e) {
-            console.critical('Implementation error. Please contact support@moesif.com.');
+            console.critical('Implementation error. Please turn on debug and contact support@Moesif.com.');
+            if (_config2['default'].DEBUG) {
+                console.critical(e);
+            }
         }
     };
 };
@@ -2201,7 +2400,7 @@ _.JSONEncode = (function () {
     return function (mixed_val) {
         var value = mixed_val;
         var quote = function quote(string) {
-            var escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+            var escapable = /[\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g; // eslint-disable-line no-control-regex
             var meta = { // table of character substitutions
                 '\b': '\\b',
                 '\t': '\\t',
@@ -2308,8 +2507,11 @@ _.JSONEncode = (function () {
     };
 })();
 
+/**
+ * From https://github.com/douglascrockford/JSON-js/blob/master/json_parse.js
+ * Slightly modified to throw a real Error rather than a POJO
+ */
 _.JSONDecode = (function () {
-    // https://github.com/douglascrockford/JSON-js/blob/master/json_parse.js
     var at,
         // The index of the current character
     ch,
@@ -2326,12 +2528,10 @@ _.JSONDecode = (function () {
     },
         text,
         error = function error(m) {
-        throw {
-            name: 'SyntaxError',
-            message: m,
-            at: at,
-            text: text
-        };
+        var e = new SyntaxError(m);
+        e.at = at;
+        e.text = text;
+        throw e;
     },
         next = function next(c) {
         // If a c parameter is provided, verify that it matches the current character.
@@ -2732,25 +2932,23 @@ _.HTTPBuildQuery = function (formdata, arg_separator) {
     return tmp_arr.join(arg_separator);
 };
 
-_.getQueryParamByName = function (name, query) {
-    // expects a name
-    // and a query string. aka location part.
-    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-    var results = regex.exec(query);
-    return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
-};
-
 _.getQueryParam = function (url, param) {
     // Expects a raw URL
-    param = param.replace(/[\[]/, '\\\[').replace(/[\]]/, '\\\]');
+
+    param = param.replace(/[[]/, '\\[').replace(/[\]]/, '\\]');
     var regexS = '[\\?&]' + param + '=([^&#]*)',
         regex = new RegExp(regexS),
         results = regex.exec(url);
     if (results === null || results && typeof results[1] !== 'string' && results[1].length) {
         return '';
     } else {
-        return decodeURIComponent(results[1]).replace(/\+/g, ' ');
+        var result = results[1];
+        try {
+            result = decodeURIComponent(result);
+        } catch (err) {
+            console.error('Skipping decoding for malformed query param: ' + result);
+        }
+        return result.replace(/\+/g, ' ');
     }
 };
 
@@ -2787,15 +2985,15 @@ _.cookie = {
         return cookie;
     },
 
-    set_seconds: function set_seconds(name, value, seconds, cross_subdomain, is_secure) {
+    set_seconds: function set_seconds(name, value, seconds, is_cross_subdomain, is_secure, is_cross_site, domain_override) {
         var cdomain = '',
             expires = '',
             secure = '';
 
-        if (cross_subdomain) {
-            var matches = document.location.hostname.match(/[a-z0-9][a-z0-9\-]+\.[a-z\.]{2,6}$/i),
-                domain = matches ? matches[0] : '';
-
+        if (domain_override) {
+            cdomain = '; domain=' + domain_override;
+        } else if (is_cross_subdomain) {
+            var domain = extract_domain(document.location.hostname);
             cdomain = domain ? '; domain=.' + domain : '';
         }
 
@@ -2805,22 +3003,26 @@ _.cookie = {
             expires = '; expires=' + date.toGMTString();
         }
 
+        if (is_cross_site) {
+            is_secure = true;
+            secure = '; SameSite=None';
+        }
         if (is_secure) {
-            secure = '; secure';
+            secure += '; secure';
         }
 
         document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/' + cdomain + secure;
     },
 
-    set: function set(name, value, days, cross_subdomain, is_secure) {
+    set: function set(name, value, days, is_cross_subdomain, is_secure, is_cross_site, domain_override) {
         var cdomain = '',
             expires = '',
             secure = '';
 
-        if (cross_subdomain) {
-            var matches = document.location.hostname.match(/[a-z0-9][a-z0-9\-]+\.[a-z\.]{2,6}$/i),
-                domain = matches ? matches[0] : '';
-
+        if (domain_override) {
+            cdomain = '; domain=' + domain_override;
+        } else if (is_cross_subdomain) {
+            var domain = extract_domain(document.location.hostname);
             cdomain = domain ? '; domain=.' + domain : '';
         }
 
@@ -2830,8 +3032,12 @@ _.cookie = {
             expires = '; expires=' + date.toGMTString();
         }
 
+        if (is_cross_site) {
+            is_secure = true;
+            secure = '; SameSite=None';
+        }
         if (is_secure) {
-            secure = '; secure';
+            secure += '; secure';
         }
 
         var new_cookie_val = name + '=' + encodeURIComponent(value) + expires + '; path=/' + cdomain + secure;
@@ -2839,8 +3045,8 @@ _.cookie = {
         return new_cookie_val;
     },
 
-    remove: function remove(name, cross_subdomain) {
-        _.cookie.set(name, '', -1, cross_subdomain);
+    remove: function remove(name, is_cross_subdomain, domain_override) {
+        _.cookie.set(name, '', -1, is_cross_subdomain, false, false, domain_override);
     }
 };
 
@@ -2870,6 +3076,14 @@ var localStorageSupported = function localStorageSupported(storage, forceCheck) 
 
 // _.localStorage
 _.localStorage = {
+    is_supported: function is_supported(force_check) {
+        var supported = localStorageSupported(null, force_check);
+        if (!supported) {
+            console.error('localStorage unsupported; falling back to cookie store');
+        }
+        return supported;
+    },
+
     error: function error(msg) {
         console.error('localStorage error: ' + msg);
     },
@@ -2908,6 +3122,86 @@ _.localStorage = {
         }
     }
 };
+
+_.register_event = (function () {
+    // written by Dean Edwards, 2005
+    // with input from Tino Zijdel - crisp@xs4all.nl
+    // with input from Carl Sverre - mail@carlsverre.com
+    // with input from Moesif
+    // http://dean.edwards.name/weblog/2005/10/add-event/
+    // https://gist.github.com/1930440
+
+    /**
+     * @param {Object} element
+     * @param {string} type
+     * @param {function(...*)} handler
+     * @param {boolean=} oldSchool
+     * @param {boolean=} useCapture
+     */
+    var register_event = function register_event(element, type, handler, oldSchool, useCapture) {
+        if (!element) {
+            console.error('No valid element provided to register_event');
+            return;
+        }
+
+        if (element.addEventListener && !oldSchool) {
+            element.addEventListener(type, handler, !!useCapture);
+        } else {
+            var ontype = 'on' + type;
+            var old_handler = element[ontype]; // can be undefined
+            element[ontype] = makeHandler(element, handler, old_handler);
+        }
+    };
+
+    function makeHandler(element, new_handler, old_handlers) {
+        var handler = function handler(event) {
+            event = event || fixEvent(window.event);
+
+            // this basically happens in firefox whenever another script
+            // overwrites the onload callback and doesn't pass the event
+            // object to previously defined callbacks.  All the browsers
+            // that don't define window.event implement addEventListener
+            // so the dom_loaded handler will still be fired as usual.
+            if (!event) {
+                return undefined;
+            }
+
+            var ret = true;
+            var old_result, new_result;
+
+            if (_.isFunction(old_handlers)) {
+                old_result = old_handlers(event);
+            }
+            new_result = new_handler.call(element, event);
+
+            if (false === old_result || false === new_result) {
+                ret = false;
+            }
+
+            return ret;
+        };
+
+        return handler;
+    }
+
+    function fixEvent(event) {
+        if (event) {
+            event.preventDefault = fixEvent.preventDefault;
+            event.stopPropagation = fixEvent.stopPropagation;
+        }
+        return event;
+    }
+    fixEvent.preventDefault = function () {
+        this.returnValue = false;
+    };
+    fixEvent.stopPropagation = function () {
+        this.cancelBubble = true;
+    };
+
+    return register_event;
+})();
+
+var TOKEN_MATCH_REGEX = new RegExp('^(\\w*)\\[(\\w+)([=~\\|\\^\\$\\*]?)=?"?([^\\]"]*)"?\\]$');
 
 _.dom_query = (function () {
     /* document.getElementsBySelector(selector)
@@ -2998,7 +3292,7 @@ _.dom_query = (function () {
                 continue; // Skip to next token
             }
             // Code to deal with attribute selectors
-            var token_match = token.match(/^(\w*)\[(\w+)([=~\|\^\$\*]?)=?"?([^\]"]*)"?\]$/);
+            var token_match = token.match(TOKEN_MATCH_REGEX);
             if (token_match) {
                 tagName = token_match[1];
                 var attrName = token_match[2];
@@ -3164,7 +3458,10 @@ _.info = {
             return 'BlackBerry';
         } else if (_.includes(user_agent, 'IEMobile') || _.includes(user_agent, 'WPDesktop')) {
             return 'Internet Explorer Mobile';
-        } else if (_.includes(user_agent, 'Edge')) {
+        } else if (_.includes(user_agent, 'SamsungBrowser/')) {
+            // https://developer.samsung.com/internet/user-agent-string-format
+            return 'Samsung Internet';
+        } else if (_.includes(user_agent, 'Edge') || _.includes(user_agent, 'Edg/')) {
             return 'Microsoft Edge';
         } else if (_.includes(user_agent, 'FBIOS')) {
             return 'Facebook Mobile';
@@ -3205,7 +3502,7 @@ _.info = {
         var browser = _.info.browser(userAgent, vendor, opera);
         var versionRegexs = {
             'Internet Explorer Mobile': /rv:(\d+(\.\d+)?)/,
-            'Microsoft Edge': /Edge\/(\d+(\.\d+)?)/,
+            'Microsoft Edge': /Edge?\/(\d+(\.\d+)?)/,
             'Chrome': /Chrome\/(\d+(\.\d+)?)/,
             'Chrome iOS': /CriOS\/(\d+(\.\d+)?)/,
             'UC Browser': /(UCBrowser|UCWEB)\/(\d+(\.\d+)?)/,
@@ -3217,6 +3514,7 @@ _.info = {
             'Konqueror': /Konqueror:(\d+(\.\d+)?)/,
             'BlackBerry': /BlackBerry (\d+(\.\d+)?)/,
             'Android Mobile': /android\s(\d+(\.\d+)?)/,
+            'Samsung Internet': /SamsungBrowser\/(\d+(\.\d+)?)/,
             'Internet Explorer': /(rv:|MSIE )(\d+(\.\d+)?)/,
             'Mozilla': /rv:(\d+(\.\d+)?)/
         };
@@ -3248,6 +3546,8 @@ _.info = {
             return 'Mac OS X';
         } else if (/Linux/.test(a)) {
             return 'Linux';
+        } else if (/CrOS/.test(a)) {
+            return 'Chrome OS';
         } else {
             return '';
         }
@@ -3282,26 +3582,28 @@ _.info = {
     properties: function properties() {
         return _.extend(_.strip_empty_properties({
             '$os': _.info.os(),
-            '$browser': _.info.browser(userAgent, navigator.vendor, window.opera),
+            '$browser': _.info.browser(userAgent, navigator.vendor, windowOpera),
             '$referrer': document.referrer,
             '$referring_domain': _.info.referringDomain(document.referrer),
             '$device': _.info.device(userAgent)
         }), {
-            '$current_url': window.location.href,
-            '$browser_version': _.info.browserVersion(userAgent, navigator.vendor, window.opera),
+            '$current_url': win.location.href,
+            '$browser_version': _.info.browserVersion(userAgent, navigator.vendor, windowOpera),
             '$screen_height': screen.height,
             '$screen_width': screen.width,
             'mp_lib': 'web',
-            '$lib_version': _config2['default'].LIB_VERSION
+            '$lib_version': _config2['default'].LIB_VERSION,
+            '$insert_id': cheap_guid(),
+            'time': _.timestamp() / 1000 // epoch time in seconds
         });
     },
 
     people_properties: function people_properties() {
         return _.extend(_.strip_empty_properties({
             '$os': _.info.os(),
-            '$browser': _.info.browser(userAgent, navigator.vendor, window.opera)
+            '$browser': _.info.browser(userAgent, navigator.vendor, windowOpera)
         }), {
-            '$browser_version': _.info.browserVersion(userAgent, navigator.vendor, window.opera)
+            '$browser_version': _.info.browserVersion(userAgent, navigator.vendor, windowOpera)
         });
     },
 
@@ -3309,7 +3611,7 @@ _.info = {
         return _.strip_empty_properties({
             'mp_page': page,
             'mp_referrer': document.referrer,
-            'mp_browser': _.info.browser(userAgent, navigator.vendor, window.opera),
+            'mp_browser': _.info.browser(userAgent, navigator.vendor, windowOpera),
             'mp_platform': _.info.os()
         });
     }
@@ -3320,19 +3622,54 @@ var cheap_guid = function cheap_guid(maxlen) {
     return maxlen ? guid.substring(0, maxlen) : guid;
 };
 
-var log_func_with_prefix = function log_func_with_prefix(func, prefix) {
-    return function () {
-        arguments[0] = '[' + prefix + '] ' + arguments[0];
-        return func.apply(console, arguments);
-    };
-};
+/**
+ * Check deterministically whether to include or exclude from a feature rollout/test based on the
+ * given string and the desired percentage to include.
+ * @param {String} str - string to run the check against (for instance a project's token)
+ * @param {String} feature - name of feature (for inclusion in hash, to ensure different results
+ * for different features)
+ * @param {Number} percent_allowed - percentage chance that a given string will be included
+ * @returns {Boolean} whether the given string should be included
+ */
+var determine_eligibility = _.safewrap(function (str, feature, percent_allowed) {
+    str = str + feature;
 
-var console_with_prefix = function console_with_prefix(prefix) {
-    return {
-        log: log_func_with_prefix(console.log, prefix),
-        error: log_func_with_prefix(console.error, prefix),
-        critical: log_func_with_prefix(console.critical, prefix)
-    };
+    // Bernstein's hash: http://www.cse.yorku.ca/~oz/hash.html#djb2
+    var hash = 5381;
+    for (var i = 0; i < str.length; i++) {
+        hash = (hash << 5) + hash + str.charCodeAt(i);
+        hash = hash & hash;
+    }
+    var dart = (hash >>> 0) % 100;
+    return dart < percent_allowed;
+});
+
+// naive way to extract domain name (example.com) from full hostname (my.sub.example.com)
+var SIMPLE_DOMAIN_MATCH_REGEX = /[a-z0-9][a-z0-9-]*\.[a-z]+$/i;
+// this next one attempts to account for some ccSLDs, e.g. extracting oxford.ac.uk from www.oxford.ac.uk
+var DOMAIN_MATCH_REGEX = /[a-z0-9][a-z0-9-]+\.[a-z.]{2,6}$/i;
+/**
+ * Attempts to extract main domain name from full hostname, using a few blunt heuristics. For
+ * common TLDs like .com/.org that always have a simple SLD.TLD structure (example.com), we
+ * simply extract the last two .-separated parts of the hostname (SIMPLE_DOMAIN_MATCH_REGEX).
+ * For others, we attempt to account for short ccSLD+TLD combos (.ac.uk) with the legacy
+ * DOMAIN_MATCH_REGEX (kept to maintain backwards compatibility with existing Moesif
+ * integrations). The only _reliable_ way to extract domain from hostname is with an up-to-date
+ * list like at https://publicsuffix.org/ so for cases that this helper fails at, the SDK
+ * offers the 'cookie_domain' config option to set it explicitly.
+ * @example
+ * extract_domain('my.sub.example.com')
+ * // 'example.com'
+ */
+var extract_domain = function extract_domain(hostname) {
+    var domain_regex = DOMAIN_MATCH_REGEX;
+    var parts = hostname.split('.');
+    var tld = parts[parts.length - 1];
+    if (tld.length > 4 || tld === 'com' || tld === 'org') {
+        domain_regex = SIMPLE_DOMAIN_MATCH_REGEX;
+    }
+    var matches = hostname.match(domain_regex);
+    return matches ? matches[0] : '';
 };
 
 var JSONStringify = null,
@@ -3352,22 +3689,27 @@ _['JSONDecode'] = _.JSONDecode;
 _['isBlockedUA'] = _.isBlockedUA;
 _['isEmptyObject'] = _.isEmptyObject;
 _['isEmptyString'] = _.isEmptyString;
-_['each'] = _.each;
 _['info'] = _.info;
 _['info']['device'] = _.info.device;
 _['info']['browser'] = _.info.browser;
+_['info']['browserVersion'] = _.info.browserVersion;
 _['info']['properties'] = _.info.properties;
 
 exports._ = _;
 exports.userAgent = userAgent;
 exports.console = console;
-exports.console_with_prefix = console_with_prefix;
-exports.localStorageSupported = localStorageSupported;
-exports.JSONParse = JSONParse;
-exports.JSONStringify = JSONStringify;
+exports.window = win;
+exports.document = document;
+exports.navigator = navigator;
 exports.cheap_guid = cheap_guid;
+exports.console_with_prefix = console_with_prefix;
+exports.determine_eligibility = determine_eligibility;
+exports.extract_domain = extract_domain;
+exports.localStorageSupported = localStorageSupported;
+exports.JSONStringify = JSONStringify;
+exports.JSONParse = JSONParse;
 
-},{"./config":5}],15:[function(require,module,exports){
+},{"./config":6}],17:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -3435,7 +3777,7 @@ function getUtm(queryParams, cookieParams) {
 exports['default'] = getUtm;
 module.exports = exports['default'];
 
-},{"./utils":14}],16:[function(require,module,exports){
+},{"./utils":16}],18:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -3601,4 +3943,4 @@ function captureWeb3Requests(myWeb3, recorder, options) {
 exports['default'] = captureWeb3Requests;
 module.exports = exports['default'];
 
-},{"./utils":14}]},{},[1]);
+},{"./utils":16}]},{},[1]);

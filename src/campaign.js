@@ -62,7 +62,7 @@ function getCampaignData(opt, persist) {
   var storedCampaignString = null;
   try {
     storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
-    if (storedCampaignString) {
+    if (storedCampaignString && storedCampaignString !== 'null') {
       storedCampaignData = _.JSONDeCode(storedCampaignString);
     }
   } catch (err) {
@@ -73,7 +73,7 @@ function getCampaignData(opt, persist) {
   var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
 
   try {
-    if (persist) {
+    if (persist && merged && merged !== 'null') {
       persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, _.JSONEncode(merged));
     }
   } catch (err) {
