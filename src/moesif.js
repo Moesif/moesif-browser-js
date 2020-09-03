@@ -9,6 +9,7 @@ import patchFetchWithCapture from './capture-fetch';
 import getCampaignData from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
+import getAnonymousId from './anonymousId';
 
 var MOESIF_CONSTANTS = {
   //The base Uri for API calls
