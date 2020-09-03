@@ -572,6 +572,14 @@ export default function () {
     'resetAnonymousId': function () {
       this._anonymousId = regenerateAnonymousId(this._persist);
       return this._anonymousId;
+    },
+    'reset': function () {
+      clearCookies();
+      clearLocalStorage();
+      this._anonymousId = regenerateAnonymousId(this._persist);
+      this._companyId = null;
+      this._userId = null;
+      this._session = null;
     }
   };
 }

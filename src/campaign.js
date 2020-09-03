@@ -45,6 +45,14 @@ function getCampaignDataFromUrlOrCookie(opt) {
   }
 }
 
+var UTM_FIELDS = [
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content'
+];
+
 function mergeCampaignData(saved, current) {
   if (!current) {
     return saved;
