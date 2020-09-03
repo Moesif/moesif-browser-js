@@ -4,7 +4,9 @@ var superagent = require('superagent');
 moesif.init({
   applicationId: 'Your Application',
   batchEnabled: true,
-  batchSize: 5
+  batchSize: 5,
+  persistence: 'cookie',
+  cookieExpiration: 25
 });
 
 moesif.start();

@@ -807,12 +807,12 @@ exports['default'] = function () {
       ops['persistence'] = options['persistence'] || 'localStorage';
 
       // below persistence options only applies to cookie.
-      ops['cross_site_cookie'] = options['cross_site_cookie'] || false;
+      ops['cross_site_cookie'] = options['crossSiteCookie'] || false;
       // the default value for this is true.
-      ops['cross_subdomain_cookie'] = options['cross_subdomain_cookie'] === false ? false : true;
-      ops['cookie_expiration'] = options['cookie_expiration'] || 365;
-      ops['secure_cookie'] = options['secure_cookie'] || false;
-      ops['cookie_domain'] = options['cookie_domain'] || '';
+      ops['cross_subdomain_cookie'] = options['crossSubdomainCookie'] === false ? false : true;
+      ops['cookie_expiration'] = options['cookieExpiration'] || 365;
+      ops['secure_cookie'] = options['secureCookie'] || false;
+      ops['cookie_domain'] = options['cookieDomain'] || '';
 
       this.requestBatchers = {};
 
