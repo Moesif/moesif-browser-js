@@ -72,6 +72,14 @@
         USER_ID_COUNT = USER_ID_COUNT + 1;
       });
 
+      $("#idcompany").click(function () {
+        window.moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
+          foo: "bar" + COMPANY_ID_COUNT,
+          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co",
+        });
+        COMPANY_ID_COUNT = COMPANY_ID_COUNT + 1;
+      });
+
       $("#resetanon").click(function () {
         var newId = window.moesif.resetAnonymousId();
         console.log('new anonymous id: ' + newId);
