@@ -59,4 +59,12 @@ function clearCookies() {
   _.cookie.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
 }
 
-export { getFromPersistence, getPersistenceFunction, STORAGE_CONSTANTS, clearCookies };
+function clearLocalStorage() {
+  _.localStorage.remove(STORAGE_CONSTANTS.STORED_USER_ID);
+  _.localStorage.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
+  _.localStorage.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+  _.localStorage.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
+  _.localStorage.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+}
+
+export { getFromPersistence, getPersistenceFunction, STORAGE_CONSTANTS, clearCookies, clearLocalStorage };

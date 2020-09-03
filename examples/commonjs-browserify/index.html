@@ -32,6 +32,8 @@
     <button id="resetanon">reset anonymous id</button>
     <br />
     <button id="clearcookie">clear cookie</button>
+    <br />
+    <button id="clearstorage">clear storage</button>
     <script type="text/javascript">
       if ($) {
         console.log("yay, jquery is defined");
@@ -87,6 +89,10 @@
 
       $("#clearcookie").click(function () {
         window.moesif.clearCookies();
+      });
+
+      $("#clearstorage").click(function () {
+        window.moesif.clearStorage();
       });
     </script>
   </body>

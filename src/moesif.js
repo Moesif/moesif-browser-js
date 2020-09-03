@@ -9,7 +9,13 @@ import patchFetchWithCapture from './capture-fetch';
 import getCampaignData from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
-import { getPersistenceFunction, getFromPersistence, clearCookies, STORAGE_CONSTANTS } from './persistence';
+import {
+  getPersistenceFunction,
+  getFromPersistence,
+  clearCookies,
+  STORAGE_CONSTANTS,
+  clearLocalStorage
+} from './persistence';
 import { getAnonymousId, regenerateAnonymousId } from './anonymousId';
 
 var MOESIF_CONSTANTS = {
@@ -559,6 +565,9 @@ export default function () {
     },
     'clearCookies': function () {
       clearCookies();
+    },
+    'clearStorage': function () {
+      clearLocalStorage();
     },
     'resetAnonymousId': function () {
       this._anonymousId = regenerateAnonymousId(this._persist);
