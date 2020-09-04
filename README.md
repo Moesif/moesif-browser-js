@@ -10,7 +10,7 @@
 The Moesif browser SDK enables you to track user behavior and their website actions and send to [Moesif's](https://www.moesif.com) API analytics service.
 You can install the SDK on your website, blog, and developer docs to deeply understand how customers adopt and use your platform.
 
-_If you provide an API, this SDK can be used alongside a [Moesif server SDK](https://www.moesif.com/implementation) to also monitor API traffic and get a complete picture 
+_If you provide an API, this SDK can be used alongside a [Moesif server SDK](https://www.moesif.com/implementation) to also monitor API traffic and get a complete picture
 of product usage across your APIs and website. This enables you map out the entire customer journey from sign up to first API call._
 
 The SDK also pulls useful data from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
@@ -49,7 +49,7 @@ It will attach a global `moesif` object. You can access it either via `moesif` o
 
 ### Alternative installation via NPM
 
-The SDK is also available on [NPM](https://www.npmjs.com/package/moesif-browser-js) which can be used if you're using 
+The SDK is also available on [NPM](https://www.npmjs.com/package/moesif-browser-js) which can be used if you're using
 a front-end packager like [Browserify](http://browserify.org/) or [Webpack](https://webpack.github.io/):
 
 ```sh
@@ -90,10 +90,10 @@ and then clicking _Installation_.
 
 ### Track user actions
 
-User (or company) actions are something that a customer did such as "Clicked Sign Up", "Viewed SDK Documentation", or "Purchased a Plan". 
+User (or company) actions are something that a customer did such as "Clicked Sign Up", "Viewed SDK Documentation", or "Purchased a Plan".
 
 ```javascript
-// The first argument is required and contains the action name as a string. 
+// The first argument is required and contains the action name as a string.
 // The second argument is optional and contains custom event metadata such as button label.
 moesif.track('Clicked Sign Up', {
   button_label: 'Get Started',
@@ -156,7 +156,7 @@ moesif.start();
 #### init, (obj) => null
 
 Initialize the SDK with your Application Id and any other options.
-On initialization, the SDK will capture user context like device and marketing attribution. 
+On initialization, the SDK will capture user context like device and marketing attribution.
 This method must be called before any other methods like `start()` or `identifyUser`.
 
 ```javascript
@@ -224,11 +224,19 @@ moesif.start()
 
 #### stop, () => null
 
-Stops logging AJAX API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed. 
+Stops logging AJAX API calls. It is not required to call this, since recording will stop automatically when the browser tab is closed.
 However, you can call `stop` directly if you want more control. Call `start` again to restart API logging.
 
-```
+```javascript
 moesif.stop()
+```
+
+#### reset, () => null
+
+Clears any saved userId, companyId, campaign data in the current browser, and restart as if on a fresh device.
+
+```javascript
+moesif.rest()
 ```
 
 #### useWeb3, (web3) => boolean
@@ -313,6 +321,20 @@ The maximum interval to flush the queue when the batch size have not been reache
 
 Some complex frameworks like Angular monkey patch to intercept the response body. If you are an Angular user or find that the response is not being captured, turn this option on to eagerly capture the response info.
 
+#### persistence, string, optional, default localStorage
+
+allowed values: `localStorage', `cookie`, `none`.
+If set to none, nothing will be saved. But be careful use this, because if each time browser is reloaded, it will be as if on a brand new device.
+If set to localStorage, but localStorage is not supported, it will fallback to cookie.
+
+If persistence is `cookie`, following additional options can be set.
+
+- crossSiteCookie, boolean, optional, default false,
+- crossSubdomainCookie, boolean, optional, default true,
+- cookieExpiration, number, optional, default 365
+- secureCookie, boolean, optional, default false,
+- cookieDomain, string, optional, default ''
+
 ## Ethereum DApp support
 
 DApps (Decentralized Apps) are frontend apps which interact with blockchains such as Ethereum over an API like any other Single Page App. For Ethereum, this API layer uses JSON-RPC and is called the [Ethereum Web3 API](https://github.com/ethereum/web3.js) which Moesif supports natively.
@@ -346,7 +368,7 @@ if (typeof web3 !== "undefined") {
 ## Troubleshooting
 
 ### Response not being logged
-Certain frameworks like Angular monkey patch the XMLHttpRequest heavily. In these cases, enable the eagerBodyLogging option to eagerly capture the response info. 
+Certain frameworks like Angular monkey patch the XMLHttpRequest heavily. In these cases, enable the eagerBodyLogging option to eagerly capture the response info.
 
 ### Duplicate API events
 
