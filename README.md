@@ -323,7 +323,7 @@ Some complex frameworks like Angular monkey patch to intercept the response body
 
 #### persistence, string, optional, default localStorage
 
-allowed values: `localStorage', `cookie`, `none`.
+allowed values: `localStorage`, `cookie`, `none`.
 If set to none, nothing will be saved. But be careful use this, because if each time browser is reloaded, it will be as if on a brand new device.
 If set to localStorage, but localStorage is not supported, it will fallback to cookie.
 
