@@ -1,6 +1,6 @@
 import { _, console_with_prefix } from './utils'; // eslint-disable-line
 import getReferrer from './referrer';
-import getUtm from './utm';
+import { getUtm, UTMConstants } from './utm';
 import { getFromPersistence, STORAGE_CONSTANTS } from './persistence';
 
 var logger = console_with_prefix('campaign');
@@ -45,14 +45,6 @@ function getCampaignDataFromUrlOrCookie(opt) {
   }
 }
 
-var UTM_FIELDS = [
-  'utm_source',
-  'utm_medium',
-  'utm_campaign',
-  'utm_term',
-  'utm_content'
-];
-
 function mergeCampaignData(saved, current) {
   if (!current) {
     return saved;
@@ -62,7 +54,18 @@ function mergeCampaignData(saved, current) {
     return current;
   }
 
-  return  _.extend({}, saved, current);
+  var result = _.extend({}, saved, current);
+
+  // if utm source exists.
+  // every field of UTM will be override to be
+  // consistent.
+  if (current && current[UTMConstants.UTM_SOURCE]) {
+    for (var prop in UTMConstants) {
+      result[UTMConstants[prop]] = current[UTMConstants[prop]];
+    }
+  }
+
+  return result;
 }
 
 function getCampaignData(opt, persist) {
