@@ -162,7 +162,7 @@ moesif.start();
 
 ## Anonymous Ids
 
-When moesif-browser-js is initialized, an anonymousId is generated and stored in both localStorage and cookies.
+When moesif-browser-js is initialized, an anonymousId is generated and stored in localStorage (or cookie) depending on persistence availability and settingss.
 This enables events to be attributed to the same user. Once you call `identifyUser`, Moesif will automatically merge the 
 anonymousId with the real userId. 
 
@@ -300,8 +300,8 @@ Some complex frameworks like Angular monkey patch to intercept the response body
 
 By default, `localStorage` is set. The allowed values are `localStorage`, `cookie`, and `none`.
 
-When set to `cookie`, session and attribution tracking is stored in localStorage, with fallback to cookie.
-When set to `localStorage`, session and attribution tracking is stored in cookies only, which can enable cross domain tracking.
+When set to `localStorage `, session and attribution tracking is stored in localStorage, with fallback to cookie.
+When set to `cookie`, session and attribution tracking is stored in cookies only, which can enable cross domain tracking.
 When set to `none`, nothing will be persisted. Not recommended except for advanced use cases as refreshing the browser tab will create a new user session.
 
 When set to `cookie`, the following additional options can be set.
