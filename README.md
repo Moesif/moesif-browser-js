@@ -91,8 +91,8 @@ and then clicking _Installation_.
 
 ### Track user actions
 
-User (or company) actions are something that a customer performed on your website such as "Clicked Sign Up", "Viewed SDK Documentation", or "Purchased a Plan".
-You can also associate metadata with the event such as "Sign Up Method" or "Button Label".
+Actions are something that a user (or company) performed on your website such as "Clicked Sign Up", "Viewed Documentation", or "Purchased a Plan".
+Besides the action name, you can also save related metadata properties such as the "Sign Up Method" or "Button Label".
 
 ```javascript
 // The first argument is required and contains the action name as a string.
@@ -105,11 +105,12 @@ moesif.track('Clicked Sign Up', {
 
 Moesif recommends starting with the following actions: "Viewed Landing", "Viewed Docs", "Account Created", "Signed Up", "Signed In", "Invite Sent", "Started Onboarding", "Finished Onboarding", "Trial Started", and "Trial Ended".
 
-### Set the user id
+### Identifying users
 
 When you know the user's id such as after sign in, call `identifyUser`.
-This tells Moesif who the current user is. 
-In addition to setting the user id, you can also save user demographics or other info as a custom object.
+This tells Moesif who the current user is so their actions can be linked to a user profile. 
+
+Besides the userId, you can also save related properties such as user demographics and subscription information.
 
 ```javascript
 moesif.identifyUser("12345", {
@@ -125,13 +126,13 @@ moesif.identifyUser("12345", {
 });
 ```
 
-You shouldn't call this until you know the actual user id such as when a user signs in. 
-Moesif will track anonymous users automatically. 
+Moesif recommends aginst calling `identifyUser` for anonymous users. Moesif will track these users automatically. 
+The recommended place to call `identifyUser` is after the user logs in and you know their real user id. 
 
-### Set the company id
+### Identifying companies
 
-In addition to identifying users, you can also identify the company this user belongs to.
-This enables tracking account-level usage.
+In addition to identifying users, you can also identify the company this user is a member of which enables tracking at the account level.
+Besides the companyId, you can also save related properties such as company demographics and sales data.
 
 ```javascript
 // Only the first argument is a string containing the company id. This is the only required field.
