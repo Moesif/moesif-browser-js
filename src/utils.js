@@ -298,6 +298,12 @@ _.inherit = function(subclass, superclass) {
     return subclass;
 };
 
+_.isArrayBuffer = function(value) {
+  var toString = Object.prototype.toString;
+  var hasArrayBuffer = typeof ArrayBuffer === 'function';
+  return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
+};
+
 _.isObject = function(obj) {
     return (obj === Object(obj) && !_.isArray(obj));
 };
@@ -961,6 +967,15 @@ _.HTTPBuildQuery = function(formdata, arg_separator) {
     });
 
     return tmp_arr.join(arg_separator);
+};
+
+_.getQueryParamByName = function(name, query) {
+  // expects a name
+  // and a query string. aka location part.
+  name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+  var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+  var results = regex.exec(query);
+  return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
 };
 
 _.getQueryParam = function(url, param) {

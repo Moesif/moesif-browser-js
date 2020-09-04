@@ -63,8 +63,6 @@ var _referrer2 = _interopRequireDefault(_referrer);
 
 var _utm = require('./utm');
 
-var _utm2 = _interopRequireDefault(_utm);
-
 var _persistence = require('./persistence');
 
 var logger = (0, _utils.console_with_prefix)('campaign');
@@ -86,7 +84,7 @@ function getCampaignDataFromUrlOrCookie(opt) {
     var result = {};
 
     if (!opt.disableUtm) {
-      result = (0, _utm2['default'])() || {};
+      result = (0, _utm.getUtm)() || {};
     }
 
     if (!opt.disableReferer) {
@@ -118,7 +116,18 @@ function mergeCampaignData(saved, current) {
     return current;
   }
 
-  return _utils._.extend({}, saved, current);
+  var result = _utils._.extend({}, saved, current);
+
+  // if utm source exists.
+  // every field of UTM will be override to be
+  // consistent.
+  if (current && current[_utm.UTMConstants.UTM_SOURCE]) {
+    for (var prop in _utm.UTMConstants) {
+      result[_utm.UTMConstants[prop]] = current[_utm.UTMConstants[prop]];
+    }
+  }
+
+  return result;
 }
 
 function getCampaignData(opt, persist) {
@@ -127,14 +136,19 @@ function getCampaignData(opt, persist) {
   try {
     storedCampaignString = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
     if (storedCampaignString && storedCampaignString !== 'null') {
-      storedCampaignData = _utils._.JSONDeCode(storedCampaignString);
+      storedCampaignData = _utils._.JSONDecode(storedCampaignString);
     }
   } catch (err) {
     logger.error('failed to decode campaign data ' + storedCampaignString);
     logger.error(err);
   }
   var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
+  logger.log('current campaignData');
+  logger.log(_utils._.JSONEncode(currentCampaignData));
+
   var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
+  logger.log('merged campaignData');
+  logger.log(_utils._.JSONEncode(merged));
 
   try {
     if (persist && merged && merged !== 'null') {
@@ -1202,6 +1216,15 @@ exports['default'] = function () {
     'resetAnonymousId': function resetAnonymousId() {
       this._anonymousId = (0, _anonymousId.regenerateAnonymousId)(this._persist);
       return this._anonymousId;
+    },
+    'reset': function reset() {
+      (0, _persistence.clearCookies)();
+      (0, _persistence.clearLocalStorage)();
+      this._anonymousId = (0, _anonymousId.regenerateAnonymousId)(this._persist);
+      this._companyId = null;
+      this._userId = null;
+      this._session = null;
+      this._campaign = null;
     }
   };
 };
@@ -2282,6 +2305,12 @@ _.inherit = function (subclass, superclass) {
     return subclass;
 };
 
+_.isArrayBuffer = function (value) {
+    var toString = Object.prototype.toString;
+    var hasArrayBuffer = typeof ArrayBuffer === 'function';
+    return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
+};
+
 _.isObject = function (obj) {
     return obj === Object(obj) && !_.isArray(obj);
 };
@@ -2946,6 +2975,15 @@ _.HTTPBuildQuery = function (formdata, arg_separator) {
     });
 
     return tmp_arr.join(arg_separator);
+};
+
+_.getQueryParamByName = function (name, query) {
+    // expects a name
+    // and a query string. aka location part.
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    var results = regex.exec(query);
+    return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
 };
 
 _.getQueryParam = function (url, param) {
@@ -3738,7 +3776,7 @@ var _utils = require('./utils');
 
 var logger = (0, _utils.console_with_prefix)('utm');
 
-var Constants = { // UTM Params
+var UTMConstants = { // UTM Params
   UTM_SOURCE: 'utm_source',
   UTM_MEDIUM: 'utm_medium',
   UTM_CAMPAIGN: 'utm_campaign',
@@ -3761,11 +3799,11 @@ function getUtmData(rawCookie, query) {
     return _utils._.getQueryParamByName(queryName, query) || _utils._.getQueryParamByName(cookieName, cookie);
   };
 
-  var utmSource = fetchParam(Constants.UTM_SOURCE, query, 'utmcsr', cookie);
-  var utmMedium = fetchParam(Constants.UTM_MEDIUM, query, 'utmcmd', cookie);
-  var utmCampaign = fetchParam(Constants.UTM_CAMPAIGN, query, 'utmccn', cookie);
-  var utmTerm = fetchParam(Constants.UTM_TERM, query, 'utmctr', cookie);
-  var utmContent = fetchParam(Constants.UTM_CONTENT, query, 'utmcct', cookie);
+  var utmSource = fetchParam(UTMConstants.UTM_SOURCE, query, 'utmcsr', cookie);
+  var utmMedium = fetchParam(UTMConstants.UTM_MEDIUM, query, 'utmcmd', cookie);
+  var utmCampaign = fetchParam(UTMConstants.UTM_CAMPAIGN, query, 'utmccn', cookie);
+  var utmTerm = fetchParam(UTMConstants.UTM_TERM, query, 'utmctr', cookie);
+  var utmContent = fetchParam(UTMConstants.UTM_CONTENT, query, 'utmcct', cookie);
 
   var utmData = {};
   var addIfNotNull = function addIfNotNull(key, value) {
@@ -3774,11 +3812,11 @@ function getUtmData(rawCookie, query) {
     }
   };
 
-  addIfNotNull(Constants.UTM_SOURCE, utmSource);
-  addIfNotNull(Constants.UTM_MEDIUM, utmMedium);
-  addIfNotNull(Constants.UTM_CAMPAIGN, utmCampaign);
-  addIfNotNull(Constants.UTM_TERM, utmTerm);
-  addIfNotNull(Constants.UTM_CONTENT, utmContent);
+  addIfNotNull(UTMConstants.UTM_SOURCE, utmSource);
+  addIfNotNull(UTMConstants.UTM_MEDIUM, utmMedium);
+  addIfNotNull(UTMConstants.UTM_CAMPAIGN, utmCampaign);
+  addIfNotNull(UTMConstants.UTM_TERM, utmTerm);
+  addIfNotNull(UTMConstants.UTM_CONTENT, utmContent);
 
   return utmData;
 }
@@ -3790,8 +3828,8 @@ function getUtm(queryParams, cookieParams) {
   return utmProperties;
 }
 
-exports['default'] = getUtm;
-module.exports = exports['default'];
+exports.getUtm = getUtm;
+exports.UTMConstants = UTMConstants;
 
 },{"./utils":16}],18:[function(require,module,exports){
 'use strict';

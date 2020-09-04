@@ -300,6 +300,12 @@ define(function () { 'use strict';
         return subclass;
     };
 
+    _.isArrayBuffer = function(value) {
+      var toString = Object.prototype.toString;
+      var hasArrayBuffer = typeof ArrayBuffer === 'function';
+      return hasArrayBuffer && (value instanceof ArrayBuffer || toString.call(value) === '[object ArrayBuffer]');
+    };
+
     _.isObject = function(obj) {
         return (obj === Object(obj) && !_.isArray(obj));
     };
@@ -963,6 +969,15 @@ define(function () { 'use strict';
         });
 
         return tmp_arr.join(arg_separator);
+    };
+
+    _.getQueryParamByName = function(name, query) {
+      // expects a name
+      // and a query string. aka location part.
+      name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+      var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+      var results = regex.exec(query);
+      return results === null ? undefined : decodeURIComponent(results[1].replace(/\+/g, ' '));
     };
 
     _.getQueryParam = function(url, param) {
@@ -2322,7 +2337,7 @@ define(function () { 'use strict';
 
     var logger$5 = console_with_prefix('utm');
 
-    var Constants = {  // UTM Params
+    var UTMConstants = {  // UTM Params
       UTM_SOURCE: 'utm_source',
       UTM_MEDIUM: 'utm_medium',
       UTM_CAMPAIGN: 'utm_campaign',
@@ -2346,11 +2361,11 @@ define(function () { 'use strict';
                _.getQueryParamByName(cookieName, cookie);
       };
 
-      var utmSource = fetchParam(Constants.UTM_SOURCE, query, 'utmcsr', cookie);
-      var utmMedium = fetchParam(Constants.UTM_MEDIUM, query, 'utmcmd', cookie);
-      var utmCampaign = fetchParam(Constants.UTM_CAMPAIGN, query, 'utmccn', cookie);
-      var utmTerm = fetchParam(Constants.UTM_TERM, query, 'utmctr', cookie);
-      var utmContent = fetchParam(Constants.UTM_CONTENT, query, 'utmcct', cookie);
+      var utmSource = fetchParam(UTMConstants.UTM_SOURCE, query, 'utmcsr', cookie);
+      var utmMedium = fetchParam(UTMConstants.UTM_MEDIUM, query, 'utmcmd', cookie);
+      var utmCampaign = fetchParam(UTMConstants.UTM_CAMPAIGN, query, 'utmccn', cookie);
+      var utmTerm = fetchParam(UTMConstants.UTM_TERM, query, 'utmctr', cookie);
+      var utmContent = fetchParam(UTMConstants.UTM_CONTENT, query, 'utmcct', cookie);
 
       var utmData = {};
       var addIfNotNull = function addIfNotNull(key, value) {
@@ -2359,11 +2374,11 @@ define(function () { 'use strict';
         }
       };
 
-      addIfNotNull(Constants.UTM_SOURCE, utmSource);
-      addIfNotNull(Constants.UTM_MEDIUM, utmMedium);
-      addIfNotNull(Constants.UTM_CAMPAIGN, utmCampaign);
-      addIfNotNull(Constants.UTM_TERM, utmTerm);
-      addIfNotNull(Constants.UTM_CONTENT, utmContent);
+      addIfNotNull(UTMConstants.UTM_SOURCE, utmSource);
+      addIfNotNull(UTMConstants.UTM_MEDIUM, utmMedium);
+      addIfNotNull(UTMConstants.UTM_CAMPAIGN, utmCampaign);
+      addIfNotNull(UTMConstants.UTM_TERM, utmTerm);
+      addIfNotNull(UTMConstants.UTM_CONTENT, utmContent);
 
       return utmData;
     }
@@ -2492,7 +2507,18 @@ define(function () { 'use strict';
         return current;
       }
 
-      return  _.extend({}, saved, current);
+      var result = _.extend({}, saved, current);
+
+      // if utm source exists.
+      // every field of UTM will be override to be
+      // consistent.
+      if (current && current[UTMConstants.UTM_SOURCE]) {
+        for (var prop in UTMConstants) {
+          result[UTMConstants[prop]] = current[UTMConstants[prop]];
+        }
+      }
+
+      return result;
     }
 
     function getCampaignData(opt, persist) {
@@ -2501,14 +2527,19 @@ define(function () { 'use strict';
       try {
         storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
         if (storedCampaignString && storedCampaignString !== 'null') {
-          storedCampaignData = _.JSONDeCode(storedCampaignString);
+          storedCampaignData = _.JSONDecode(storedCampaignString);
         }
       } catch (err) {
         logger$4.error('failed to decode campaign data ' + storedCampaignString);
         logger$4.error(err);
       }
       var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
+      logger$4.log('current campaignData');
+      logger$4.log(_.JSONEncode(currentCampaignData));
+
       var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
+      logger$4.log('merged campaignData');
+      logger$4.log(_.JSONEncode(merged));
 
       try {
         if (persist && merged && merged !== 'null') {
@@ -3623,6 +3654,15 @@ define(function () { 'use strict';
         'resetAnonymousId': function () {
           this._anonymousId = regenerateAnonymousId(this._persist);
           return this._anonymousId;
+        },
+        'reset': function () {
+          clearCookies();
+          clearLocalStorage();
+          this._anonymousId = regenerateAnonymousId(this._persist);
+          this._companyId = null;
+          this._userId = null;
+          this._session = null;
+          this._campaign = null;
         }
       };
     }

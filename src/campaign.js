@@ -74,14 +74,19 @@ function getCampaignData(opt, persist) {
   try {
     storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
     if (storedCampaignString && storedCampaignString !== 'null') {
-      storedCampaignData = _.JSONDeCode(storedCampaignString);
+      storedCampaignData = _.JSONDecode(storedCampaignString);
     }
   } catch (err) {
     logger.error('failed to decode campaign data ' + storedCampaignString);
     logger.error(err);
   }
   var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
+  logger.log('current campaignData');
+  logger.log(_.JSONEncode(currentCampaignData));
+
   var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
+  logger.log('merged campaignData');
+  logger.log(_.JSONEncode(merged));
 
   try {
     if (persist && merged && merged !== 'null') {
