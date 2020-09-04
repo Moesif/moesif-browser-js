@@ -236,7 +236,7 @@ moesif.stop()
 Clears any saved userId, companyId, campaign data in the current browser, and restart as if on a fresh device.
 
 ```javascript
-moesif.rest()
+moesif.reset()
 ```
 
 #### useWeb3, (web3) => boolean
