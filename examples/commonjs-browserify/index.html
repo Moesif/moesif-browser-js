@@ -22,12 +22,29 @@
       server. The even should by captured by moesif and send to Moesif.
     </p>
     <button id="send">Send an event to placeholder api server</button>
+    <br />
+    <button id="track">Send tracked UI action</button>
+    <br />
+    <button id="iduser">Identify User With NewId</button>
+    <br />
+    <button id="idcompany">Identify Company With NewId</button>
+    <br />
+    <button id="resetanon">reset anonymous id</button>
+    <br />
+    <button id="clearcookie">clear cookie</button>
+    <br />
+    <button id="clearstorage">clear storage</button>
+    <br />
+    <button id="reset">reset</button>
     <script type="text/javascript">
       if ($) {
         console.log("yay, jquery is defined");
       }
 
       var POST_COUNT = 1;
+      var ACTION_COUNT = 1;
+      var USER_ID_COUNT = 1;
+      var COMPANY_ID_COUNT = 1;
 
       $("#send").click(function () {
         $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
@@ -37,6 +54,51 @@
           console.log(data);
         });
         POST_COUNT = (POST_COUNT + 1) % 100;
+      });
+
+      $("#track").click(function () {
+        // you can use this API to track
+        // user actions such as button clicks,
+        // or sign ups etc.
+        // these user actions are defined by you.
+        window.moesif.track("button_click", {
+          foo: "bar",
+          count: ACTION_COUNT,
+        });
+        ACTION_COUNT = ACTION_COUNT + 1;
+      });
+
+      $("#iduser").click(function () {
+        window.moesif.identifyUser("user" + USER_ID_COUNT, {
+          foo: "bar" + USER_ID_COUNT,
+          first_name: "name" + USER_ID_COUNT,
+        });
+        USER_ID_COUNT = USER_ID_COUNT + 1;
+      });
+
+      $("#idcompany").click(function () {
+        window.moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
+          foo: "bar" + COMPANY_ID_COUNT,
+          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co",
+        });
+        COMPANY_ID_COUNT = COMPANY_ID_COUNT + 1;
+      });
+
+      $("#resetanon").click(function () {
+        var newId = window.moesif.resetAnonymousId();
+        console.log('new anonymous id: ' + newId);
+      });
+
+      $("#clearcookie").click(function () {
+        window.moesif.clearCookies();
+      });
+
+      $("#clearstorage").click(function () {
+        window.moesif.clearStorage();
+      });
+
+      $("#reset").click(function () {
+        window.moesif.reset();
       });
     </script>
   </body>
