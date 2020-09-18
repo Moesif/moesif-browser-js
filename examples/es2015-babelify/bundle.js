@@ -578,7 +578,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.7.0'
+    LIB_VERSION: '1.7.1'
 };
 
 exports['default'] = Config;
@@ -2941,7 +2941,7 @@ _.UUID = (function () {
 
     return function () {
         var se = (screen.height * screen.width).toString(16);
-        return T() + '-' + R() + '-' + UA() + '-' + se + '-' + T();
+        return T() + '-' + R() + '-' + UA() + '-' + se;
     };
 })();
 
