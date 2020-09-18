@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.7.0'
+        LIB_VERSION: '1.7.1'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -941,7 +941,7 @@
 
         return function() {
             var se = (screen.height * screen.width).toString(16);
-            return (T() + '-' + R() + '-' + UA() + '-' + se + '-' + T());
+            return (T() + '-' + R() + '-' + UA() + '-' + se);
         };
     })();
 
