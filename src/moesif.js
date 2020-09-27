@@ -73,7 +73,7 @@ function isMoesif(event) {
 }
 
 function ensureValidOptions(options) {
-  if (!options) throw new Error('options are required by moesif-express middleware');
+  if (!options) throw new Error('options are required by moesif-browser-js middleware');
   if (!options['applicationId']) throw new Error('A moesif application id is required. Please obtain it through your settings at www.moesif.com');
 
   if (options['getTags'] && !_.isFunction(options['getTags'])) {

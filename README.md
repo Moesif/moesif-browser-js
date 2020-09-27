@@ -22,7 +22,7 @@ If you want to automatically log AJAX API calls, you can also call the `start()`
 
 ## How to install
 
-_This SDK is designed to run in a browser. To monitor Node.js APIs, use [moesif-express](https://www.moesif.com/docs/server-integration/nodejs/)._
+_This SDK is designed to run in a browser. To monitor Node.js APIs, use [moesif-nodejs](https://www.moesif.com/docs/server-integration/nodejs/)._
 
 ### Installation via script tag
 
