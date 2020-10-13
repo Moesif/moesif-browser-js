@@ -7,12 +7,12 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-The Moesif browser SDK enables you to store customer demographics and track their actions within [Moesif's](https://www.moesif.com) API analytics service.
-You can install the SDK on your web portals, blog, and developer docs to deeply understand how customers adopt and use your platform.
+The Moesif browser SDK enables you to store customer demographics and their actions within [Moesif's](https://www.moesif.com) API analytics service.
+You can install the SDK on your web portal, blog, and developer docs to deeply understand how customers adopt and use your platform.
 
 _If you provide an API, this SDK can be used alongside a [Moesif server agent](https://www.moesif.com/implementation) to monitor API traffic. Moesif 
 will automatically stitch together what a user did on your website and how they used your APIs for a cross-platform funnel analysis and a deep understanding of 
-how customers adopt your APIs. 
+how customers adopt your APIs._ 
 
 The SDK automatically collects useful context from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
@@ -131,8 +131,7 @@ The recommended place to call `identifyUser` is after the user logs in and you k
 
 ### Identifying companies
 
-In addition to identifying users, you can also identify the company this user is a member of which enables tracking at the account level.
-Besides the companyId, you can also save related properties such as company demographics and sales data.
+In addition to identifying users, you can also identify the company for account level tracking. Besides the companyId, you can also save related properties such as company demographics and website domain.
 
 ```javascript
 // Only the first argument is a string containing the company id. This is the only required field.
@@ -151,6 +150,7 @@ metadata = {
 
 moesif.identifyCompany("67890", metadata, "acmeinc.com");
 ```
+__If you call both identifyUser() and identifyCompany() in the same session, then Moesif will automatically associate the user with the company.__
 
 ### Track AJAX calls
 If you want to automatically log AJAX API calls, you can do so via the `start` function.
@@ -202,7 +202,7 @@ moesif.identifyUser("12345", metadata);
 #### identifyCompany, (string, object, string) => null
 
 Similar to `identifyUser`, but for tracking companies (accounts) which is recommended for B2B companies.
-You can use both `identifyUser` and `identifyCompany` or just one. If both are used, the user is linked as a member of the company.
+You can use both `identifyUser` and `identifyCompany` or just one. If you call both identifyUser() and identifyCompany() in the same session, then Moesif will automatically associate the user with the company.
 
 Only the first argument is a string containing the company id. This is the only required field.
 The second argument is a object used to store a company info like plan, MRR, and company demographics.
