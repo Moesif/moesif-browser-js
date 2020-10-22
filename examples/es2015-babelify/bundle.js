@@ -578,7 +578,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.7.1'
+    LIB_VERSION: '1.7.2'
 };
 
 exports['default'] = Config;
@@ -751,7 +751,7 @@ function isMoesif(event) {
 }
 
 function ensureValidOptions(options) {
-  if (!options) throw new Error('options are required by moesif-express middleware');
+  if (!options) throw new Error('options are required by moesif-browser-js middleware');
   if (!options['applicationId']) throw new Error('A moesif application id is required. Please obtain it through your settings at www.moesif.com');
 
   if (options['getTags'] && !_utils._.isFunction(options['getTags'])) {
@@ -810,6 +810,7 @@ exports['default'] = function () {
       ops.disableUtm = options['disableUtm'];
 
       ops.eagerBodyLogging = options['eagerBodyLogging'];
+      ops.host = options['host'] || MOESIF_CONSTANTS.HOST;
 
       ops.batchEnabled = options['batchEnabled'] || false;
 
@@ -921,6 +922,7 @@ exports['default'] = function () {
     },
     initBatching: function initBatching() {
       var applicationId = this._options.applicationId;
+      var host = this._options.host;
 
       _utils.console.log('does requestBatch.events exists? ' + this.requestBatchers.events);
 
@@ -932,8 +934,8 @@ exports['default'] = function () {
           }, this)
         };
 
-        var eventsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
-        var actionsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+        var eventsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+        var actionsBatcher = new _requestBatcher.RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
 
         this.requestBatchers = {
           events: eventsBatcher,
@@ -1015,8 +1017,8 @@ exports['default'] = function () {
       }
       return false;
     },
-    updateUser: function updateUser(userObject, applicationId, callback) {
-      this._executeRequest(HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT, userObject, { applicationId: applicationId }, callback);
+    updateUser: function updateUser(userObject, applicationId, host, callback) {
+      this._executeRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT, userObject, { applicationId: applicationId }, callback);
     },
     'identifyUser': function identifyUser(userId, metadata) {
       this._userId = userId;
@@ -1042,7 +1044,7 @@ exports['default'] = function () {
 
       userObject['anonymous_id'] = this._anonymousId;
 
-      this.updateUser(userObject, this._options.applicationId, this._options.callback);
+      this.updateUser(userObject, this._options.applicationId, this._options.host, this._options.callback);
       try {
         if (userId) {
           this._persist(_persistence.STORAGE_CONSTANTS.STORED_USER_ID, userId);
@@ -1051,8 +1053,8 @@ exports['default'] = function () {
         _utils.console.error('error saving to local storage');
       }
     },
-    updateCompany: function updateCompany(companyObject, applicationId, callback) {
-      this._executeRequest(HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT, companyObject, { applicationId: applicationId }, callback);
+    updateCompany: function updateCompany(companyObject, applicationId, host, callback) {
+      this._executeRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT, companyObject, { applicationId: applicationId }, callback);
     },
     'identifyCompany': function identifyCompany(companyId, metadata, companyDomain) {
       this._companyId = companyId;
@@ -1077,7 +1079,7 @@ exports['default'] = function () {
         companyObject['campaign'] = this._campaign;
       }
 
-      this.updateCompany(companyObject, this._options.applicationId, this._options.callback);
+      this.updateCompany(companyObject, this._options.applicationId, this._options.host, this._options.callback);
 
       try {
         if (companyId) {
@@ -1130,7 +1132,7 @@ exports['default'] = function () {
       }
 
       // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
-      var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
+      var endPoint = HTTP_PROTOCOL + _self._options.host + MOESIF_CONSTANTS.ACTION_ENDPOINT;
       _utils.console.log('sending or queuing: ' + actionName);
       return _self._sendOrBatch(actionObject, _self._options.applicationId, endPoint, _self.requestBatchers.actions, _self._options.callback);
     },
@@ -1178,7 +1180,7 @@ exports['default'] = function () {
       if (!_self._options.skip(event) && !isMoesif(event)) {
         // sendEvent(logData, _self._options.applicationId, _self._options.callback);
         _utils.console.log('sending or queuing: ' + event['request']['uri']);
-        var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
+        var endPoint = HTTP_PROTOCOL + _self._options.host + MOESIF_CONSTANTS.EVENT_ENDPOINT;
         _self._sendOrBatch(logData, _self._options.applicationId, endPoint, _self.requestBatchers.events, _self._options.callback);
       } else {
         _utils.console.log('skipped logging for ' + event['request']['uri']);

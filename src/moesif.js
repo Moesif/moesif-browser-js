@@ -132,6 +132,7 @@ export default function () {
       ops.disableUtm = options['disableUtm'];
 
       ops.eagerBodyLogging = options['eagerBodyLogging'];
+      ops.host = options['host'] || MOESIF_CONSTANTS.HOST;
 
       ops.batchEnabled = options['batchEnabled'] || false;
 
@@ -249,6 +250,7 @@ export default function () {
     },
     initBatching: function () {
       var applicationId = this._options.applicationId;
+      var host = this._options.host;
 
       console.log('does requestBatch.events exists? ' + this.requestBatchers.events);
 
@@ -265,8 +267,8 @@ export default function () {
           }, this)
         };
 
-        var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
-        var actionsBatcher = new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+        var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+        var actionsBatcher = new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
 
         this.requestBatchers = {
           events: eventsBatcher,
@@ -349,9 +351,9 @@ export default function () {
       }
       return false;
     },
-    updateUser: function(userObject, applicationId, callback) {
+    updateUser: function(userObject, applicationId, host, callback) {
       this._executeRequest(
-        HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.USER_ENDPOINT,
+        HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT,
         userObject,
         { applicationId: applicationId },
         callback
@@ -381,7 +383,7 @@ export default function () {
 
       userObject['anonymous_id'] = this._anonymousId;
 
-      this.updateUser(userObject, this._options.applicationId, this._options.callback);
+      this.updateUser(userObject, this._options.applicationId, this._options.host, this._options.callback);
       try {
         if (userId) {
           this._persist(STORAGE_CONSTANTS.STORED_USER_ID, userId);
@@ -390,9 +392,9 @@ export default function () {
         console.error('error saving to local storage');
       }
     },
-    updateCompany: function(companyObject, applicationId, callback) {
+    updateCompany: function(companyObject, applicationId, host, callback) {
       this._executeRequest(
-        HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.COMPANY_ENDPOINT,
+        HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT,
         companyObject,
         { applicationId: applicationId },
         callback
@@ -421,7 +423,7 @@ export default function () {
         companyObject['campaign'] = this._campaign;
       }
 
-      this.updateCompany(companyObject, this._options.applicationId, this._options.callback);
+      this.updateCompany(companyObject, this._options.applicationId, this._options.host, this._options.callback);
 
       try {
         if (companyId) {
@@ -474,7 +476,7 @@ export default function () {
       }
 
       // sendAction(actionObject, this._options.applicationId, this._options.debug, this._options.callback);
-      var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.ACTION_ENDPOINT;
+      var endPoint = HTTP_PROTOCOL + _self._options.host + MOESIF_CONSTANTS.ACTION_ENDPOINT;
       console.log('sending or queuing: ' + actionName);
       return _self._sendOrBatch(
         actionObject,
@@ -528,7 +530,7 @@ export default function () {
       if (!_self._options.skip(event) && !isMoesif(event)) {
         // sendEvent(logData, _self._options.applicationId, _self._options.callback);
         console.log('sending or queuing: ' + event['request']['uri']);
-        var endPoint = HTTP_PROTOCOL + MOESIF_CONSTANTS.HOST + MOESIF_CONSTANTS.EVENT_ENDPOINT;
+        var endPoint = HTTP_PROTOCOL + _self._options.host + MOESIF_CONSTANTS.EVENT_ENDPOINT;
         _self._sendOrBatch(
           logData,
           _self._options.applicationId,
