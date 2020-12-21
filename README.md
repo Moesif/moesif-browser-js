@@ -299,10 +299,11 @@ Some complex frameworks like Angular monkey patch to intercept the response body
 #### persistence, string, optional, default localStorage
 
 By default, `localStorage` is set. The allowed values are `localStorage`, `cookie`, and `none`.
+If you need to track across multiple subdomains (like from `docs.acmeinc.com` to `acmeinc.com`, you should set this to `cookie`. 
 
-When set to `localStorage `, session and attribution tracking is stored in localStorage, with fallback to cookie.
-When set to `cookie`, session and attribution tracking is stored in cookies only, which can enable cross domain tracking.
-When set to `none`, nothing will be persisted. Not recommended except for advanced use cases as refreshing the browser tab will create a new user session.
+When set to `localStorage `, session and attribution tracking is persisted in localStorage, with fallback to cookie if the local storage API is unavailable.
+When set to `cookie`, session and attribution tracking is persisted in cookies only, which can enable cross domain tracking.
+When set to `none`, nothing will be persisted. Not recommended except for advanced use cases or testing. Refreshing the browser tab will create a new user session.
 
 When set to `cookie`, the following additional options can be set.
 
