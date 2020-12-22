@@ -126,7 +126,7 @@ moesif.identifyUser("12345", {
 });
 ```
 
-Moesif recommends aginst calling `identifyUser` for anonymous users. Moesif will track these users automatically. 
+Moesif recommends against calling `identifyUser` for anonymous users. Moesif will track these users automatically. 
 The recommended place to call `identifyUser` is after the user logs in and you know their real user id. 
 
 ### Identifying companies
@@ -162,11 +162,15 @@ moesif.start();
 
 ## Anonymous Ids
 
-When moesif-browser-js is initialized, an anonymousId is generated and stored in localStorage (or cookie) depending on persistence availability and settingss.
-This enables events to be attributed to the same user. Once you call `identifyUser`, Moesif will automatically merge the 
-anonymousId with the real userId. 
+When moesif-browser-js is initialized, an `anonymousId` is generated and stored for each new visitor. 
+This enables you to create funnel reports of anonymous visitors even before they have signed in
 
-**Do not call `identifyUser` unless you know the real user id such as when a user logged in.**
+Once a user signs into your app, you should call `identifyUser`. 
+Moesif will automatically merge any previous user activity to the real userId, even if it's a new device. 
+
+**You should only call `identifyUser` once a user logs into your app. Do not call `identifyUser` for anonymous visitors.**
+
+By default, Moesif uses both local storage and cookies for redundancy, but you can modify this behavior with the `persistence` options
 
 ## List of Methods on the `moesif` Object
 
@@ -298,40 +302,67 @@ Some complex frameworks like Angular monkey patch to intercept the response body
 
 #### persistence, string, optional, default localStorage
 
-By default, `localStorage` is set. The allowed values are `localStorage`, `cookie`, and `none`.
-If you need to track across multiple subdomains (like from `docs.acmeinc.com` to `acmeinc.com`, you should set this to `cookie`. 
+The allowed values are `localStorage`, `cookie`, and `none`.
 
-When set to `localStorage `, session and attribution tracking is persisted in localStorage, with fallback to cookie if the local storage API is unavailable.
-When set to `cookie`, session and attribution tracking is persisted in cookies only, which can enable cross domain tracking.
-When set to `none`, nothing will be persisted. Not recommended except for advanced use cases or testing. Refreshing the browser tab will create a new user session.
+Moesif saves session info like anonymous ids and identified ids to a device's storage to accurately track returning visitors even if they haven't signed in.
 
-When set to `cookie`, the following additional options can be set.
+* When set to `localStorage` (the default setting), will write session info to localStorage and then replicate to a cookie for redundancy. 
+This ensures that if the user clears local storage or visits a different subdomain (like from `docs.acmeinc.com` to `acmeinc.com`), there is still 
+a cookie to fall back to and the user can be accurately attributed. This setting is recommended for most applications. 
 
-- crossSiteCookie, boolean, optional, default false,
-- crossSubdomainCookie, boolean, optional, default true,
-- cookieExpiration, number, optional, default 365
-- secureCookie, boolean, optional, default false,
-- cookieDomain, string, optional, default ''
+* When set to `cookie`, session info and anonymous ids is persisted to cookies only. No local storage is used. 
+
+* When set to `none`, nothing will be persisted. Not recommended except for advanced use cases or testing. Refreshing the browser tab will create a new user session.
+
+Keep in mind if a user clears both their cookies and their local storage, then a new `anonymousId` will be generated, 
+As long as you called `identifyUser` before the data was cleared, Moesif will still merge the two sessions. 
+
+#### crossSiteCookie, boolean, optional, default false,
+
+This enables [cross-site requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite) by adding `SameSite=None; Secure` to the cookie.
+This is used for special situation such as if your application is embedded in an iframe.
+
+__When enabled, `secureCookie` is forced to true due to modern browser requirements.__
+
+#### crossSubdomainCookie, boolean, optional, default true,
+When true, the cookie domain will also allow all subdomains of your hostname. This is usually recommended to track anonymous users across multiple 
+properties like `https://www.acmeinc.com` vs `https://docs.acmeinc.com`.
+
+#### cookieExpiration, number, optional, default 365
+Set the cookie expiration in days. By default this is 365 days. 
+
+#### secureCookie, boolean, optional, default false,
+If set to true, the cookie can only be read on `https://` websites.
+
+#### cookieDomain, string, optional, default ''
+To override the domain of the cookie, you can set this such as to `*.acmeinc.com`
+
+#### persistenceKeyPrefix, string, optional, default moesif_
+The keys used for saving into local storage and cookies start with `moesif_`. You can override the prefix such as if you're running multiple instances of `moesif-browser-js`.
 
 #### disableFetch, boolean, optional, default false.
 
 Starting from version 1.4.0, this SDK also instruments fetch API if it is not polyfilled.
-Some browsers may use fetch under XmlHTTPRequest, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
+Some browsers may use fetch under `XmlHTTPRequest`, then it is possible events get duplicated. In this case, disable fetch will fix the issue.
 
 #### skip, (event) => boolean, optional
 
-Optional function that to determine on if a particular event should be skipped logging.
+A function hook that will skip logging the event to Moesif if returns true. 
 The parameter passed in is an event model. [See event model](https://www.moesif.com/docs/api#log-an-api-call).
+
+_High volume APIs can reduce cost tremendously by leveraging [dynamic sampling](https://www.moesif.com/docs/platform/dynamic-sampling/) to set rules 
+without any code change or restarts. Moesif will still extrapolate original metrics so your reporting is accurate._
 
 #### maskContent, (event) => event, optional
 
-Optional function that let you mask any sensitive data in the event model, and then return
-the masked event. Important that do not remove required fields in the event model. See the spec
-on the event model to see what is required.
+A function hook that enables you to mask any sensitive data in the event model. Your custom code must return the same 
+event, after applying any masking. 
+
+_For super sensitive data, Moesif recommends leveraging zero-knowledge security with [on-premises client-side encryption](https://www.moesif.com/docs/platform/secure-proxy/) and bring your own keys (BYOK)._
 
 #### getMetadata, (event) => object, optional
 
-Optional function that allow you to append arbitrary JSON metadata to API calls before being logged to Moesif.
+Function that allow you to append arbitrary JSON metadata to API calls before being logged to Moesif.
 
 full options example:
 
