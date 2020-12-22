@@ -152,18 +152,18 @@ export default function () {
       ops['cookie_expiration'] = options['cookieExpiration'] || 365;
       ops['secure_cookie'] = options['secureCookie'] || false;
       ops['cookie_domain'] = options['cookieDomain'] || '';
-
+      ops['persistence_key_prefix'] = options['persistenceKeyPrefix'];
 
       this.requestBatchers = {};
 
       this._options = ops;
       this._persist = getPersistenceFunction(ops);
       try {
-        this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID);
-        this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID);
-        this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID);
-        this._anonymousId = getAnonymousId(this._persist);
-        this._campaign = getCampaignData(ops, this._persist);
+        this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID, ops);
+        this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
+        this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID, ops);
+        this._anonymousId = getAnonymousId(this._persist, ops);
+        this._campaign = getCampaignData(this._persist, ops);
       } catch(err) {
         console.error('error loading saved data from local storage but continue');
       }
@@ -566,18 +566,18 @@ export default function () {
       }
     },
     'clearCookies': function () {
-      clearCookies();
+      clearCookies(this._options);
     },
     'clearStorage': function () {
-      clearLocalStorage();
+      clearLocalStorage(this._options);
     },
     'resetAnonymousId': function () {
       this._anonymousId = regenerateAnonymousId(this._persist);
       return this._anonymousId;
     },
     'reset': function () {
-      clearCookies();
-      clearLocalStorage();
+      clearCookies(this._options);
+      clearLocalStorage(this._options);
       this._anonymousId = regenerateAnonymousId(this._persist);
       this._companyId = null;
       this._userId = null;
