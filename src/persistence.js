@@ -70,8 +70,8 @@ function getFromPersistence(key, opt) {
   var prefix = opt && opt['persistence_key_prefix'];
   var resolvedKey = replacePrefix(key, prefix);
   if (_.localStorage.is_supported()) {
-    const localValue = _.localStorage.get(resolvedKey);
-    const cookieValue = _.cookie.get(resolvedKey);
+    var localValue = _.localStorage.get(resolvedKey);
+    var cookieValue = _.cookie.get(resolvedKey);
     // if there is value in cookie but not in localStorage
     // but persistence type if localStorage, try to re-save in localStorage.
     if (!localValue && cookieValue && storageType === 'localStorage') {

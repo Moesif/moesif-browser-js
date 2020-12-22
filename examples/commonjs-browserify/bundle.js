@@ -2399,22 +2399,43 @@ var STORAGE_CONSTANTS = {
   STORED_CAMPAIGN_DATA: 'moesif_campaign_data'
 };
 
+function replacePrefix(key, prefix) {
+  if (!prefix) return key;
+  if (key.indexOf('moesif_') === 0) {
+    return key.replace('moesif_', prefix);
+  }
+  return key;
+}
+
 function getPersistenceFunction(opt) {
   var storageType = opt['persistence'];
   if (storageType !== 'cookie' && storageType !== 'localStorage') {
     console.critical('Unknown persistence type ' + storageType + '; falling back to cookie');
     storageType = Config['persistence'] = 'localStorage';
   }
+  var prefix = opt['persistence_key_prefix'];
 
   // we default to localStorage unless cookie is specificied.
   var setFunction = function (key, value) {
-     _.localStorage.set(key, value);
+     var resolvedKey = replacePrefix(key, prefix);
+     _.localStorage.set(resolvedKey, value);
+     // if localStorage and by default, we'll try to set the cookie too.
+     _.cookie.set(
+       resolvedKey,
+       value,
+       opt['cookie_expiration'],
+       opt['cross_domain_cookie'],
+       opt['secure_cookie'],
+       opt['cross_site_cookie'],
+       opt['cookie_domain']
+      );
   };
 
   if (storageType === 'cookie' || !_.localStorage.is_supported()) {
     setFunction = function(key, value) {
+      var resolvedKey = replacePrefix(key, prefix);
       _.cookie.set(
-        key,
+        resolvedKey,
         value,
         opt['cookie_expiration'],
         opt['cross_domain_cookie'],
@@ -2434,27 +2455,43 @@ function getPersistenceFunction(opt) {
 
 // this tries to get from either cookie or localStorage.
 // whichever have data.
-function getFromPersistence(key) {
+function getFromPersistence(key, opt) {
+  var storageType = opt && opt['persistence'];
+  var prefix = opt && opt['persistence_key_prefix'];
+  var resolvedKey = replacePrefix(key, prefix);
   if (_.localStorage.is_supported()) {
-    return _.localStorage.get(key) || _.cookie.get(key);
+    var localValue = _.localStorage.get(resolvedKey);
+    var cookieValue = _.cookie.get(resolvedKey);
+    // if there is value in cookie but not in localStorage
+    // but persistence type if localStorage, try to re-save in localStorage.
+    if (!localValue && cookieValue && storageType === 'localStorage') {
+      _.localStorage.set(resolvedKey, cookieValue);
+    }
+    return localValue || cookieValue;
   }
-  return _.cookie.get(key);
+  return _.cookie.get(resolvedKey);
 }
 
-function clearCookies() {
-  _.cookie.remove(STORAGE_CONSTANTS.STORED_USER_ID);
-  _.cookie.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
-  _.cookie.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
-  _.cookie.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
-  _.cookie.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+function clearCookies(opt) {
+  var prefix = opt && opt['persistence_key_prefix'];
+  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
+  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
+  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
+  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
+  _.cookie.remove(
+    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix)
+  );
 }
 
-function clearLocalStorage() {
-  _.localStorage.remove(STORAGE_CONSTANTS.STORED_USER_ID);
-  _.localStorage.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
-  _.localStorage.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
-  _.localStorage.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
-  _.localStorage.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+function clearLocalStorage(opt) {
+  var prefix = opt && opt['persistence_key_prefix'];
+  _.localStorage.remove(
+    replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix)
+  );
+  _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID));
+  _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID));
+  _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID));
+  _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA));
 }
 
 var logger$4 = console_with_prefix('campaign');
@@ -2522,11 +2559,11 @@ function mergeCampaignData(saved, current) {
   return result;
 }
 
-function getCampaignData(opt, persist) {
+function getCampaignData(persist, opt) {
   var storedCampaignData = null;
   var storedCampaignString = null;
   try {
-    storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+    storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, opt);
     if (storedCampaignString && storedCampaignString !== 'null') {
       storedCampaignData = _.JSONDecode(storedCampaignString);
     }
@@ -2566,7 +2603,7 @@ var logger$8 = console_with_prefix('lock');
  * at https://gist.github.com/wolever/5fd7573d1ef6166e8f8c4af286a69432.
  *
  * @example
- * const myLock = new SharedLock('some-key');
+ * var myLock = new SharedLock('some-key');
  * myLock.withLock(function() {
  *   console.log('I hold the mutex!');
  * });
@@ -3103,8 +3140,8 @@ function regenerateAnonymousId(persist) {
   return newId;
 }
 
-function getAnonymousId(persist) {
-  var storedAnonId = getFromPersistence(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+function getAnonymousId(persist, opt) {
+  var storedAnonId = getFromPersistence(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt);
   if (storedAnonId) {
     return storedAnonId;
   }
@@ -3235,18 +3272,18 @@ function moesifCreator () {
       ops['cookie_expiration'] = options['cookieExpiration'] || 365;
       ops['secure_cookie'] = options['secureCookie'] || false;
       ops['cookie_domain'] = options['cookieDomain'] || '';
-
+      ops['persistence_key_prefix'] = options['persistenceKeyPrefix'];
 
       this.requestBatchers = {};
 
       this._options = ops;
       this._persist = getPersistenceFunction(ops);
       try {
-        this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID);
-        this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID);
-        this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID);
-        this._anonymousId = getAnonymousId(this._persist);
-        this._campaign = getCampaignData(ops, this._persist);
+        this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID, ops);
+        this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
+        this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID, ops);
+        this._anonymousId = getAnonymousId(this._persist, ops);
+        this._campaign = getCampaignData(this._persist, ops);
       } catch(err) {
         console.error('error loading saved data from local storage but continue');
       }
@@ -3649,18 +3686,18 @@ function moesifCreator () {
       }
     },
     'clearCookies': function () {
-      clearCookies();
+      clearCookies(this._options);
     },
     'clearStorage': function () {
-      clearLocalStorage();
+      clearLocalStorage(this._options);
     },
     'resetAnonymousId': function () {
       this._anonymousId = regenerateAnonymousId(this._persist);
       return this._anonymousId;
     },
     'reset': function () {
-      clearCookies();
-      clearLocalStorage();
+      clearCookies(this._options);
+      clearLocalStorage(this._options);
       this._anonymousId = regenerateAnonymousId(this._persist);
       this._companyId = null;
       this._userId = null;
