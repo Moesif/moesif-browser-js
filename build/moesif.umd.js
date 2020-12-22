@@ -2491,10 +2491,18 @@
       _.localStorage.remove(
         replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix)
       );
-      _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID));
-      _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID));
-      _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID));
-      _.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA));
+      _.localStorage.remove(
+        replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix)
+      );
+      _.localStorage.remove(
+        replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix)
+      );
+      _.localStorage.remove(
+        replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix)
+      );
+      _.localStorage.remove(
+        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix)
+      );
     }
 
     var logger$4 = console_with_prefix('campaign');

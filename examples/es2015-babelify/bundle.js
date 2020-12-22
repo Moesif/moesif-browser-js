@@ -1395,10 +1395,10 @@ function clearCookies(opt) {
 function clearLocalStorage(opt) {
   var prefix = opt && opt['persistence_key_prefix'];
   _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix));
 }
 
 exports.getFromPersistence = getFromPersistence;
