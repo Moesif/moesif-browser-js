@@ -10,8 +10,8 @@ function regenerateAnonymousId(persist) {
   return newId;
 }
 
-function getAnonymousId(persist) {
-  var storedAnonId = getFromPersistence(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+function getAnonymousId(persist, opt) {
+  var storedAnonId = getFromPersistence(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt);
   if (storedAnonId) {
     return storedAnonId;
   }

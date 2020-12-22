@@ -68,11 +68,11 @@ function mergeCampaignData(saved, current) {
   return result;
 }
 
-function getCampaignData(opt, persist) {
+function getCampaignData(persist, opt) {
   var storedCampaignData = null;
   var storedCampaignString = null;
   try {
-    storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+    storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, opt);
     if (storedCampaignString && storedCampaignString !== 'null') {
       storedCampaignData = _.JSONDecode(storedCampaignString);
     }

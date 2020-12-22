@@ -10,7 +10,7 @@ var logger = console_with_prefix('lock');
  * at https://gist.github.com/wolever/5fd7573d1ef6166e8f8c4af286a69432.
  *
  * @example
- * const myLock = new SharedLock('some-key');
+ * var myLock = new SharedLock('some-key');
  * myLock.withLock(function() {
  *   console.log('I hold the mutex!');
  * });

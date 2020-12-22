@@ -32,8 +32,8 @@ function regenerateAnonymousId(persist) {
   return newId;
 }
 
-function getAnonymousId(persist) {
-  var storedAnonId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
+function getAnonymousId(persist, opt) {
+  var storedAnonId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt);
   if (storedAnonId) {
     return storedAnonId;
   }
@@ -130,11 +130,11 @@ function mergeCampaignData(saved, current) {
   return result;
 }
 
-function getCampaignData(opt, persist) {
+function getCampaignData(persist, opt) {
   var storedCampaignData = null;
   var storedCampaignString = null;
   try {
-    storedCampaignString = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+    storedCampaignString = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, opt);
     if (storedCampaignString && storedCampaignString !== 'null') {
       storedCampaignData = _utils._.JSONDecode(storedCampaignString);
     }
@@ -578,7 +578,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.7.2'
+    LIB_VERSION: '1.8.0'
 };
 
 exports['default'] = Config;
@@ -828,17 +828,18 @@ exports['default'] = function () {
       ops['cookie_expiration'] = options['cookieExpiration'] || 365;
       ops['secure_cookie'] = options['secureCookie'] || false;
       ops['cookie_domain'] = options['cookieDomain'] || '';
+      ops['persistence_key_prefix'] = options['persistenceKeyPrefix'];
 
       this.requestBatchers = {};
 
       this._options = ops;
       this._persist = (0, _persistence.getPersistenceFunction)(ops);
       try {
-        this._userId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_USER_ID);
-        this._session = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_SESSION_ID);
-        this._companyId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_COMPANY_ID);
-        this._anonymousId = (0, _anonymousId.getAnonymousId)(this._persist);
-        this._campaign = (0, _campaign2['default'])(ops, this._persist);
+        this._userId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_USER_ID, ops);
+        this._session = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
+        this._companyId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_COMPANY_ID, ops);
+        this._anonymousId = (0, _anonymousId.getAnonymousId)(this._persist, ops);
+        this._campaign = (0, _campaign2['default'])(this._persist, ops);
       } catch (err) {
         _utils.console.error('error loading saved data from local storage but continue');
       }
@@ -1210,18 +1211,18 @@ exports['default'] = function () {
       }
     },
     'clearCookies': function clearCookies() {
-      (0, _persistence.clearCookies)();
+      (0, _persistence.clearCookies)(this._options);
     },
     'clearStorage': function clearStorage() {
-      (0, _persistence.clearLocalStorage)();
+      (0, _persistence.clearLocalStorage)(this._options);
     },
     'resetAnonymousId': function resetAnonymousId() {
       this._anonymousId = (0, _anonymousId.regenerateAnonymousId)(this._persist);
       return this._anonymousId;
     },
     'reset': function reset() {
-      (0, _persistence.clearCookies)();
-      (0, _persistence.clearLocalStorage)();
+      (0, _persistence.clearCookies)(this._options);
+      (0, _persistence.clearLocalStorage)(this._options);
       this._anonymousId = (0, _anonymousId.regenerateAnonymousId)(this._persist);
       this._companyId = null;
       this._userId = null;
@@ -1325,21 +1326,34 @@ var STORAGE_CONSTANTS = {
   STORED_CAMPAIGN_DATA: 'moesif_campaign_data'
 };
 
+function replacePrefix(key, prefix) {
+  if (!prefix) return key;
+  if (key.indexOf('moesif_') === 0) {
+    return key.replace('moesif_', prefix);
+  }
+  return key;
+}
+
 function getPersistenceFunction(opt) {
   var storageType = opt['persistence'];
   if (storageType !== 'cookie' && storageType !== 'localStorage') {
     _utils.console.critical('Unknown persistence type ' + storageType + '; falling back to cookie');
     storageType = _config2['default']['persistence'] = 'localStorage';
   }
+  var prefix = opt['persistence_key_prefix'];
 
   // we default to localStorage unless cookie is specificied.
   var setFunction = function setFunction(key, value) {
-    _utils._.localStorage.set(key, value);
+    var resolvedKey = replacePrefix(key, prefix);
+    _utils._.localStorage.set(resolvedKey, value);
+    // if localStorage and by default, we'll try to set the cookie too.
+    _utils._.cookie.set(resolvedKey, value, opt['cookie_expiration'], opt['cross_domain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
   };
 
   if (storageType === 'cookie' || !_utils._.localStorage.is_supported()) {
     setFunction = function (key, value) {
-      _utils._.cookie.set(key, value, opt['cookie_expiration'], opt['cross_domain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
+      var resolvedKey = replacePrefix(key, prefix);
+      _utils._.cookie.set(resolvedKey, value, opt['cookie_expiration'], opt['cross_domain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
     };
   }
 
@@ -1352,27 +1366,39 @@ function getPersistenceFunction(opt) {
 
 // this tries to get from either cookie or localStorage.
 // whichever have data.
-function getFromPersistence(key) {
+function getFromPersistence(key, opt) {
+  var storageType = opt && opt['persistence'];
+  var prefix = opt && opt['persistence_key_prefix'];
+  var resolvedKey = replacePrefix(key, prefix);
   if (_utils._.localStorage.is_supported()) {
-    return _utils._.localStorage.get(key) || _utils._.cookie.get(key);
+    var localValue = _utils._.localStorage.get(resolvedKey);
+    var cookieValue = _utils._.cookie.get(resolvedKey);
+    // if there is value in cookie but not in localStorage
+    // but persistence type if localStorage, try to re-save in localStorage.
+    if (!localValue && cookieValue && storageType === 'localStorage') {
+      _utils._.localStorage.set(resolvedKey, cookieValue);
+    }
+    return localValue || cookieValue;
   }
-  return _utils._.cookie.get(key);
+  return _utils._.cookie.get(resolvedKey);
 }
 
-function clearCookies() {
-  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_USER_ID);
-  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
-  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
-  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
-  _utils._.cookie.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+function clearCookies(opt) {
+  var prefix = opt && opt['persistence_key_prefix'];
+  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
+  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
+  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
+  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
+  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix));
 }
 
-function clearLocalStorage() {
-  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_USER_ID);
-  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_COMPANY_ID);
-  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID);
-  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_SESSION_ID);
-  _utils._.localStorage.remove(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA);
+function clearLocalStorage(opt) {
+  var prefix = opt && opt['persistence_key_prefix'];
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
+  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix));
 }
 
 exports.getFromPersistence = getFromPersistence;
@@ -1867,7 +1893,7 @@ var logger = (0, _utils.console_with_prefix)('lock');
  * at https://gist.github.com/wolever/5fd7573d1ef6166e8f8c4af286a69432.
  *
  * @example
- * const myLock = new SharedLock('some-key');
+ * var myLock = new SharedLock('some-key');
  * myLock.withLock(function() {
  *   console.log('I hold the mutex!');
  * });
