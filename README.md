@@ -7,12 +7,9 @@
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-The Moesif browser SDK enables you to store customer demographics and their actions within [Moesif's](https://www.moesif.com) API analytics service.
-You can install the SDK on your web portal, blog, and developer docs to deeply understand how customers adopt and use your platform.
+The Moesif browser SDK enables you to identify users and track their website behavior to understand user journeys across your website and APIs together. This SDK also captures device context like geo location, browser version, marketing channel attribution, and UTM parameters.
 
-_If you provide an API, this SDK can be used alongside a [Moesif server agent](https://www.moesif.com/implementation) to monitor API traffic. Moesif 
-will automatically stitch together what a user did on your website and how they used your APIs for a cross-platform funnel analysis and a deep understanding of 
-how customers adopt your APIs._ 
+> You can use this SDK alongside a [Moesif server integration](https://www.moesif.com/implementation) to monitor server-side API traffic so you can track your end to end customer journey from UI to API and gain cross-platform funnel analysis._ 
 
 The SDK automatically collects useful context from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
@@ -22,7 +19,7 @@ If you want to automatically log AJAX API calls, you can also call the `start()`
 
 ## How to install
 
-_This SDK is designed to run in a browser. To monitor Node.js APIs, use [moesif-nodejs](https://www.moesif.com/docs/server-integration/nodejs/)._
+> This SDK is designed to run in a browser. To monitor Node.js APIs, use [moesif-nodejs](https://www.moesif.com/docs/server-integration/nodejs/).
 
 ### Installation via script tag
 
@@ -150,7 +147,8 @@ metadata = {
 
 moesif.identifyCompany("67890", metadata, "acmeinc.com");
 ```
-__If you call both identifyUser() and identifyCompany() in the same session, then Moesif will automatically associate the user with the company.__
+
+> If you call both identifyUser() and identifyCompany() in the same session, then Moesif will automatically associate the user with the company.
 
 ### Track AJAX calls
 If you want to automatically log AJAX API calls, you can do so via the `start` function.
@@ -322,7 +320,7 @@ As long as you called `identifyUser` before the data was cleared, Moesif will st
 This enables [cross-site requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite) by adding `SameSite=None; Secure` to the cookie.
 This is used for special situation such as if your application is embedded in an iframe.
 
-__When enabled, `secureCookie` is forced to true due to modern browser requirements.__
+> When enabled, `secureCookie` is forced to true due to modern browser requirements.
 
 #### crossSubdomainCookie, boolean, optional, default true,
 When true, the cookie domain will also allow all subdomains of your hostname. This is usually recommended to track anonymous users across multiple 
