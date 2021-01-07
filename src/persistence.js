@@ -34,7 +34,7 @@ function getPersistenceFunction(opt) {
        resolvedKey,
        value,
        opt['cookie_expiration'],
-       opt['cross_domain_cookie'],
+       opt['cross_subdomain_cookie'],
        opt['secure_cookie'],
        opt['cross_site_cookie'],
        opt['cookie_domain']
@@ -48,7 +48,7 @@ function getPersistenceFunction(opt) {
         resolvedKey,
         value,
         opt['cookie_expiration'],
-        opt['cross_domain_cookie'],
+        opt['cross_subdomain_cookie'],
         opt['secure_cookie'],
         opt['cross_site_cookie'],
         opt['cookie_domain']

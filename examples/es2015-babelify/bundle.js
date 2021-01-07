@@ -578,7 +578,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.0'
+    LIB_VERSION: '1.8.1'
 };
 
 exports['default'] = Config;
@@ -1347,13 +1347,13 @@ function getPersistenceFunction(opt) {
     var resolvedKey = replacePrefix(key, prefix);
     _utils._.localStorage.set(resolvedKey, value);
     // if localStorage and by default, we'll try to set the cookie too.
-    _utils._.cookie.set(resolvedKey, value, opt['cookie_expiration'], opt['cross_domain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
+    _utils._.cookie.set(resolvedKey, value, opt['cookie_expiration'], opt['cross_subdomain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
   };
 
   if (storageType === 'cookie' || !_utils._.localStorage.is_supported()) {
     setFunction = function (key, value) {
       var resolvedKey = replacePrefix(key, prefix);
-      _utils._.cookie.set(resolvedKey, value, opt['cookie_expiration'], opt['cross_domain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
+      _utils._.cookie.set(resolvedKey, value, opt['cookie_expiration'], opt['cross_subdomain_cookie'], opt['secure_cookie'], opt['cross_site_cookie'], opt['cookie_domain']);
     };
   }
 
