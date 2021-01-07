@@ -9,7 +9,9 @@
 
 The Moesif browser SDK enables you to identify users and track their website behavior to understand user journeys across your website and APIs together. This SDK also captures device context like geo location, browser version, marketing channel attribution, and UTM parameters.
 
-> You can use this SDK alongside a [Moesif server integration](https://www.moesif.com/implementation) to monitor server-side API traffic so you can track your end to end customer journey from UI to API and gain cross-platform funnel analysis._ 
+> You can use this client SDK alongside a [Moesif server integration](https://www.moesif.com/implementation) to monitor server-side API traffic. This enables you to track your end-to-end customer journey and build cross-platform funnel reports like your _initial sign up_ to _first API call_ conversion rate.
+
+![Diagram of Moesif API monitoring and Browser JS architecture](https://www.moesif.com/docs/images/docs/client-integration/moesif-arch-browser-js.png)
 
 The SDK automatically collects useful context from a user's device including any marketing attribution, device type, and location information and stores in the user and/or company profile in Moesif. You can add additional customer properties such as user email and company domain via the `identifyUser()` and `identifyCompany()` methods.
 
