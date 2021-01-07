@@ -24,7 +24,7 @@ If you want to automatically log AJAX API calls, you can also call the `start()`
 ### Installation via script tag
 
 ```html
-<script src="//unpkg.com/moesif-browser-js@^1/moesif.min.js"></script>
+<script src="//unpkg.com/moesif-browser-js@v1/moesif.min.js"></script>
 <script type="text/javascript">
   // Initialize the SDK. Must be called before any other methods
   moesif.init({
