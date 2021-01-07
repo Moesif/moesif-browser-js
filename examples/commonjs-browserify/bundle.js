@@ -3,7 +3,7 @@
 
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.0'
+    LIB_VERSION: '1.8.1'
 };
 
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -2424,7 +2424,7 @@ function getPersistenceFunction(opt) {
        resolvedKey,
        value,
        opt['cookie_expiration'],
-       opt['cross_domain_cookie'],
+       opt['cross_subdomain_cookie'],
        opt['secure_cookie'],
        opt['cross_site_cookie'],
        opt['cookie_domain']
@@ -2438,7 +2438,7 @@ function getPersistenceFunction(opt) {
         resolvedKey,
         value,
         opt['cookie_expiration'],
-        opt['cross_domain_cookie'],
+        opt['cross_subdomain_cookie'],
         opt['secure_cookie'],
         opt['cross_site_cookie'],
         opt['cookie_domain']
