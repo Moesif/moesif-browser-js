@@ -241,8 +241,10 @@ moesif.identifySession("d23xdefc3ijhcv93hf4h38f90h43f");
 #### reset, () => null
 
 Clears any saved userId, companyId, and any other device context like anonymousId. 
-You must call `reset()` when a user logs out of your web app which will force the SDK to genrate a new anonymousId. 
-This ensures a new anonymous id is generated and ensuring different sessions are not mixed up and super important for testing
+You must call `reset()` when a user logs out of your web app which will force the SDK to generate a new anonymousId. 
+This ensures a new anonymous id is generated and ensuring different sessions are not mixed up.
+
+This is especially important for testing if you are logging into multiple accounts from the same device. 
 
 ```javascript
 moesif.reset()
