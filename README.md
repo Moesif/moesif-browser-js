@@ -168,6 +168,8 @@ This enables you to create funnel reports of anonymous visitors even before they
 Once a user signs into your app, you should call `identifyUser`. 
 Moesif will automatically merge any previous user activity to the real userId, even if it's a new device. 
 
+> You should call `moesif.reset()` when a user logs out of your application to ensure a new anonymousId is generated. Otherwise, new activity may get associated with an old user session. 
+
 **You should only call `identifyUser` once a user logs into your app. Do not call `identifyUser` for anonymous visitors.**
 
 By default, Moesif uses both local storage and cookies for redundancy, but you can modify this behavior with the `persistence` options
@@ -238,8 +240,9 @@ moesif.identifySession("d23xdefc3ijhcv93hf4h38f90h43f");
 
 #### reset, () => null
 
-Clears any saved userId, companyId, including any device context stored in localStorage or cookies.
-You should call reset on logout which will also regenerate a new anonymousId. 
+Clears any saved userId, companyId, and any other device context like anonymousId. 
+You must call `reset()` when a user logs out of your web app which will force the SDK to genrate a new anonymousId. 
+This ensures a new anonymous id is generated and ensuring different sessions are not mixed up and super important for testing
 
 ```javascript
 moesif.reset()
@@ -427,6 +430,10 @@ if (typeof web3 !== "undefined") {
 
 ### Response not being logged
 Certain frameworks like Angular monkey patch the XMLHttpRequest heavily. In these cases, enable the eagerBodyLogging option to eagerly capture the response info.
+
+### Incorrect user tracking
+
+If you see inaccuracies with your customer funnel such as user actions being associated to the wrong user, ensure you are calling `moesif.reset()` when a user logs out of your application. Without this step, Moesif has no knowledge that the user logged out and will continue to associate activity to the old user even if a new user logs into the same device/browser.
 
 ### Duplicate API events
 
