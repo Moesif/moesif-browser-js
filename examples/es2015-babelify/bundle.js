@@ -578,7 +578,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.1'
+    LIB_VERSION: '1.8.2'
 };
 
 exports['default'] = Config;
@@ -840,6 +840,17 @@ exports['default'] = function () {
         this._companyId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_COMPANY_ID, ops);
         this._anonymousId = (0, _anonymousId.getAnonymousId)(this._persist, ops);
         this._campaign = (0, _campaign2['default'])(this._persist, ops);
+
+        // try to save campaign data on anonymous id
+        // if there is no userId saved, means it is still anonymous.
+        // later on, when identifyUser is called with real user id,
+        // the campaigne data will be resent with that again.
+        if (this._campaign && !this._userId) {
+          var anonUserObject = {};
+          anonUserObject['anonymous_id'] = this._anonymousId;
+          anonUserObject['campaign'] = this._campaign;
+          this.updateUser(anonUserObject, this._options.applicationId, this._options.host, this._options.callback);
+        }
       } catch (err) {
         _utils.console.error('error loading saved data from local storage but continue');
       }
