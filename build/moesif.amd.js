@@ -2,7 +2,7 @@ define(function () { 'use strict';
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.1'
+        LIB_VERSION: '1.8.2'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -3291,6 +3291,17 @@ define(function () { 'use strict';
             this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID, ops);
             this._anonymousId = getAnonymousId(this._persist, ops);
             this._campaign = getCampaignData(this._persist, ops);
+
+            // try to save campaign data on anonymous id
+            // if there is no userId saved, means it is still anonymous.
+            // later on, when identifyUser is called with real user id,
+            // the campaigne data will be resent with that again.
+            if (this._campaign && !this._userId) {
+              var anonUserObject = {};
+              anonUserObject['anonymous_id'] = this._anonymousId;
+              anonUserObject['campaign'] = this._campaign;
+              this.updateUser(anonUserObject, this._options.applicationId, this._options.host, this._options.callback);
+            }
           } catch(err) {
             console.error('error loading saved data from local storage but continue');
           }
