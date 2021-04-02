@@ -578,7 +578,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.2'
+    LIB_VERSION: '1.8.3'
 };
 
 exports['default'] = Config;
@@ -1427,6 +1427,8 @@ Object.defineProperty(exports, '__esModule', {
 
 var _utils = require('./utils');
 
+var logger = (0, _utils.console_with_prefix)('referrer');
+
 function _getReferrerStr() {
   return document && document.referrer;
 }
@@ -1445,7 +1447,14 @@ function _getReferringDomain(referrer) {
 function getReferrer() {
   var referrer = _getReferrerStr();
 
+  logger.log(referrer);
+
   if (_utils._.isEmptyString(referrer)) {
+    return;
+  }
+
+  if (referrer.indexOf(location.protocol + '//' + location.host) === 0) {
+    logger.log('referrer is the same so skipping');
     return;
   }
 
