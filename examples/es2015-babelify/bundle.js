@@ -67,10 +67,6 @@ var _persistence = require('./persistence');
 
 var logger = (0, _utils.console_with_prefix)('campaign');
 
-function _getUrlParams() {
-  return location && location.search;
-}
-
 function getGclid(urlParams) {
   var gclid = _utils._.getQueryParamByName('gclid', urlParams);
   if (_utils._.isEmptyString(gclid)) {
@@ -95,7 +91,7 @@ function getCampaignDataFromUrlOrCookie(opt) {
       }
     }
     if (!opt.disableRGclid) {
-      var gclid = getGclid(_getUrlParams());
+      var gclid = getGclid(_utils._.getUrlParams());
       if (gclid) {
         result['gclid'] = gclid;
       }
@@ -578,7 +574,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.3'
+    LIB_VERSION: '1.8.5'
 };
 
 exports['default'] = Config;
@@ -1426,6 +1422,8 @@ Object.defineProperty(exports, '__esModule', {
 });
 
 var _utils = require('./utils');
+
+// eslint-disable-line
 
 var logger = (0, _utils.console_with_prefix)('referrer');
 
@@ -3025,6 +3023,21 @@ _.HTTPBuildQuery = function (formdata, arg_separator) {
     return tmp_arr.join(arg_separator);
 };
 
+function splitFromQuestionMark(myHref) {
+    if (myHref) {
+        var startOfQuery = myHref.indexOf('?');
+        if (startOfQuery >= 0) {
+            var res = myHref.substring(startOfQuery);
+            return res;
+        }
+    }
+    return '';
+}
+
+_.getUrlParams = function () {
+    return location && (location.search || splitFromQuestionMark(location.href));
+};
+
 _.getQueryParamByName = function (name, query) {
     // expects a name
     // and a query string. aka location part.
@@ -3832,10 +3845,6 @@ var UTMConstants = { // UTM Params
   UTM_CONTENT: 'utm_content'
 };
 
-function _getUrlParams() {
-  return location && location.search;
-}
-
 function getUtmData(rawCookie, query) {
   // Translate the utmz cookie format into url query string format.
   var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
@@ -3870,7 +3879,7 @@ function getUtmData(rawCookie, query) {
 }
 
 function getUtm(queryParams, cookieParams) {
-  queryParams = _getUrlParams();
+  queryParams = _utils._.getUrlParams();
   cookieParams = _utils._.cookie.get('__utmz');
   var utmProperties = getUtmData(cookieParams, queryParams);
   return utmProperties;

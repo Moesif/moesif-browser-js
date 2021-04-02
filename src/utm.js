@@ -10,10 +10,6 @@ var UTMConstants = {  // UTM Params
   UTM_CONTENT: 'utm_content'
 };
 
-function _getUrlParams() {
-  return location && location.search;
-}
-
 function getUtmData(rawCookie, query) {
   // Translate the utmz cookie format into url query string format.
   var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
@@ -49,7 +45,7 @@ function getUtmData(rawCookie, query) {
 }
 
 function getUtm(queryParams, cookieParams) {
-  queryParams = _getUrlParams();
+  queryParams = _.getUrlParams();
   cookieParams = _.cookie.get('__utmz');
   var utmProperties = getUtmData(cookieParams, queryParams);
   return utmProperties;

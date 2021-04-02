@@ -5,10 +5,6 @@ import { getFromPersistence, STORAGE_CONSTANTS } from './persistence';
 
 var logger = console_with_prefix('campaign');
 
-function _getUrlParams() {
-  return location && location.search;
-}
-
 function getGclid(urlParams) {
   var gclid = _.getQueryParamByName('gclid', urlParams);
   if (_.isEmptyString(gclid)) {
@@ -33,7 +29,7 @@ function getCampaignDataFromUrlOrCookie(opt) {
       }
     }
     if (!opt.disableRGclid) {
-      var gclid = getGclid(_getUrlParams());
+      var gclid = getGclid(_.getUrlParams());
       if (gclid) {
         result['gclid'] = gclid;
       }

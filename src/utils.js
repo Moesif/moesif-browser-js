@@ -969,6 +969,21 @@ _.HTTPBuildQuery = function(formdata, arg_separator) {
     return tmp_arr.join(arg_separator);
 };
 
+function splitFromQuestionMark(myHref) {
+  if (myHref) {
+    var startOfQuery = myHref.indexOf('?');
+    if (startOfQuery >= 0) {
+      var res = myHref.substring(startOfQuery);
+      return res;
+    }
+  }
+  return '';
+}
+
+_.getUrlParams = function() {
+  return location && (location.search || splitFromQuestionMark(location.href));
+};
+
 _.getQueryParamByName = function(name, query) {
   // expects a name
   // and a query string. aka location part.
