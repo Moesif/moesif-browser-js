@@ -1,4 +1,6 @@
-import { _ } from './utils';
+import { _, console_with_prefix } from './utils'; // eslint-disable-line
+
+var logger = console_with_prefix('referrer');
 
 function _getReferrerStr() {
   return document && document.referrer;
@@ -18,7 +20,14 @@ function _getReferringDomain(referrer) {
 function getReferrer() {
   var referrer = _getReferrerStr();
 
+  logger.log(referrer);
+
   if (_.isEmptyString(referrer)) {
+    return;
+  }
+
+  if (referrer.indexOf(location.protocol + '//' + location.host) === 0) {
+    logger.log('referrer is the same so skipping');
     return;
   }
 
