@@ -3,7 +3,7 @@
 
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.3'
+    LIB_VERSION: '1.8.5'
 };
 
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -970,6 +970,21 @@ _.HTTPBuildQuery = function(formdata, arg_separator) {
     });
 
     return tmp_arr.join(arg_separator);
+};
+
+function splitFromQuestionMark(myHref) {
+  if (myHref) {
+    var startOfQuery = myHref.indexOf('?');
+    if (startOfQuery >= 0) {
+      var res = myHref.substring(startOfQuery);
+      return res;
+    }
+  }
+  return '';
+}
+
+_.getUrlParams = function() {
+  return location && (location.search || splitFromQuestionMark(location.href));
 };
 
 _.getQueryParamByName = function(name, query) {
@@ -2304,6 +2319,8 @@ function patch(recorder, env) {
   }
 }
 
+// eslint-disable-line
+
 var logger$5 = console_with_prefix('referrer');
 
 function _getReferrerStr() {
@@ -2355,10 +2372,6 @@ var UTMConstants = {  // UTM Params
   UTM_CONTENT: 'utm_content'
 };
 
-function _getUrlParams$1() {
-  return location && location.search;
-}
-
 function getUtmData(rawCookie, query) {
   // Translate the utmz cookie format into url query string format.
   var cookie = rawCookie ? '?' + rawCookie.split('.').slice(-1)[0].replace(/\|/g, '&') : '';
@@ -2394,7 +2407,7 @@ function getUtmData(rawCookie, query) {
 }
 
 function getUtm(queryParams, cookieParams) {
-  queryParams = _getUrlParams$1();
+  queryParams = _.getUrlParams();
   cookieParams = _.cookie.get('__utmz');
   var utmProperties = getUtmData(cookieParams, queryParams);
   return utmProperties;
@@ -2513,10 +2526,6 @@ function clearLocalStorage(opt) {
 
 var logger$4 = console_with_prefix('campaign');
 
-function _getUrlParams() {
-  return location && location.search;
-}
-
 function getGclid(urlParams) {
   var gclid = _.getQueryParamByName('gclid', urlParams);
   if (_.isEmptyString(gclid)) {
@@ -2541,7 +2550,7 @@ function getCampaignDataFromUrlOrCookie(opt) {
       }
     }
     if (!opt.disableRGclid) {
-      var gclid = getGclid(_getUrlParams());
+      var gclid = getGclid(_.getUrlParams());
       if (gclid) {
         result['gclid'] = gclid;
       }
