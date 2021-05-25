@@ -574,7 +574,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.5'
+    LIB_VERSION: '1.8.6'
 };
 
 exports['default'] = Config;
@@ -921,7 +921,7 @@ exports['default'] = function () {
 
         xmlhttp.send((0, _utils.JSONStringify)(data));
       } catch (err) {
-        _utils.console.error('failed to send event to moesif' + event['request']['uri']);
+        _utils.console.error('failed to send to moesif ' + (data && data['request'] && data['request']['uri']));
         _utils.console.error(err);
         if (callback) {
           callback({ status: 0, error: err });
@@ -1170,6 +1170,10 @@ exports['default'] = function () {
 
       if (_self._options.apiVersion) {
         logData['request']['api_version'] = _self._options.apiVersion;
+      }
+
+      if (!logData['request']['headers']['User-Agent']) {
+        logData['request']['headers']['User-Agent'] = window.navigator.userAgent;
       }
 
       if (_self._options.maskContent) {
