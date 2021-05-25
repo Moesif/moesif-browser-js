@@ -3,7 +3,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.5'
+        LIB_VERSION: '1.8.6'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -3398,7 +3398,7 @@
 
             xmlhttp.send(JSONStringify(data));
           } catch (err) {
-            console.error('failed to send event to moesif' + event['request']['uri']);
+            console.error('failed to send to moesif ' + (data && data['request'] && data['request']['uri']));
             console.error(err);
              if (callback) {
               callback({status: 0, error: err });
@@ -3669,6 +3669,10 @@
 
           if (_self._options.apiVersion) {
             logData['request']['api_version'] = _self._options.apiVersion;
+          }
+
+          if (!logData['request']['headers']['User-Agent']) {
+            logData['request']['headers']['User-Agent'] = window.navigator.userAgent;
           }
 
           if (_self._options.maskContent) {
