@@ -37,7 +37,7 @@ If you want to automatically log AJAX API calls, you can also call the `start()`
   // Identify the user with Moesif such as when user logs in
   moesif.identifyUser("12345");
 
-  // Log user actions like clicked sign up. You can also pass in custom metadata. 
+  // Log user actions like clicked sign up. You can also pass in custom metadata.
   moesif.track("clicked_sign_up", {
     button_label: "Get Started",
   });
@@ -107,7 +107,7 @@ Moesif recommends starting with the following actions: "Viewed Landing", "Viewed
 ### Identifying users
 
 When you know the user's id such as after sign in, call `identifyUser`.
-This tells Moesif who the current user is so their actions can be linked to a user profile. 
+This tells Moesif who the current user is so their actions can be linked to a user profile.
 
 Besides the userId, you can also save related properties such as user demographics and subscription information.
 
@@ -125,8 +125,8 @@ moesif.identifyUser("12345", {
 });
 ```
 
-Moesif recommends against calling `identifyUser` for anonymous users. Moesif will track these users automatically. 
-The recommended place to call `identifyUser` is after the user logs in and you know their real user id. 
+Moesif recommends against calling `identifyUser` for anonymous users. Moesif will track these users automatically.
+The recommended place to call `identifyUser` is after the user logs in and you know their real user id.
 
 ### Identifying companies
 
@@ -162,13 +162,13 @@ moesif.start();
 
 ## Anonymous Ids
 
-When moesif-browser-js is initialized, an `anonymousId` is generated and stored for each new visitor. 
+When moesif-browser-js is initialized, an `anonymousId` is generated and stored for each new visitor.
 This enables you to create funnel reports of anonymous visitors even before they have signed in
 
-Once a user signs into your app, you should call `identifyUser`. 
-Moesif will automatically merge any previous user activity to the real userId, even if it's a new device. 
+Once a user signs into your app, you should call `identifyUser`.
+Moesif will automatically merge any previous user activity to the real userId, even if it's a new device.
 
-> You should call `moesif.reset()` when a user logs out of your application to ensure a new anonymousId is generated. Otherwise, new activity may get associated with an old user session. 
+> You should call `moesif.reset()` when a user logs out of your application to ensure a new anonymousId is generated. Otherwise, new activity may get associated with an old user session.
 
 **You should only call `identifyUser` once a user logs into your app. Do not call `identifyUser` for anonymous visitors.**
 
@@ -196,10 +196,10 @@ moesif.init(options);
 When a user logs into your website and you have their actual user id, identify the user with your userId.
 You can also add custom metadata containing fields like the customer's name and email as the second argument.
 
-Note: You shouldn't call `identifyUser` for anonymous visitors to your website. 
+Note: You shouldn't call `identifyUser` for anonymous visitors to your website.
 Moesif automatically assigns them an anonymousId, so just calling track works just fine without identify.
 
-When you call identifyUser, Moesif automatically merges the anonymousId with your real userId. 
+When you call identifyUser, Moesif automatically merges the anonymousId with your real userId.
 
 ```javascript
 moesif.identifyUser("12345", metadata);
@@ -240,11 +240,11 @@ moesif.identifySession("d23xdefc3ijhcv93hf4h38f90h43f");
 
 #### reset, () => null
 
-Clears any saved userId, companyId, and any other device context like anonymousId. 
-You must call `reset()` when a user logs out of your web app which will force the SDK to generate a new anonymousId. 
+Clears any saved userId, companyId, and any other device context like anonymousId.
+You must call `reset()` when a user logs out of your web app which will force the SDK to generate a new anonymousId.
 This ensures a new anonymous id is generated and ensuring different sessions are not mixed up.
 
-This is especially important for testing if you are logging into multiple accounts from the same device. 
+This is especially important for testing if you are logging into multiple accounts from the same device.
 
 ```javascript
 moesif.reset()
@@ -252,7 +252,7 @@ moesif.reset()
 
 #### start, () => null
 
-In addition to tracking user actions, the SDK can also log outgoing API calls. 
+In addition to tracking user actions, the SDK can also log outgoing API calls.
 When you call `start()`, the SDK will log AJAX API calls, including:
 
 - Your own APIs (such as an API powering your Single Page App)
@@ -311,16 +311,16 @@ The allowed values are `localStorage`, `cookie`, and `none`.
 
 Moesif saves session info like anonymous ids and identified ids to a device's storage to accurately track returning visitors even if they haven't signed in.
 
-* When set to `localStorage` (the default setting), will write session info to localStorage and then replicate to a cookie for redundancy. 
-This ensures that if the user clears local storage or visits a different subdomain (like from `docs.acmeinc.com` to `acmeinc.com`), there is still 
-a cookie to fall back to and the user can be accurately attributed. This setting is recommended for most applications. 
+* When set to `localStorage` (the default setting), will write session info to localStorage and then replicate to a cookie for redundancy.
+This ensures that if the user clears local storage or visits a different subdomain (like from `docs.acmeinc.com` to `acmeinc.com`), there is still
+a cookie to fall back to and the user can be accurately attributed. This setting is recommended for most applications.
 
-* When set to `cookie`, session info and anonymous ids is persisted to cookies only. No local storage is used. 
+* When set to `cookie`, session info and anonymous ids is persisted to cookies only. No local storage is used.
 
 * When set to `none`, nothing will be persisted. Not recommended except for advanced use cases or testing. Refreshing the browser tab will create a new user session.
 
-Keep in mind if a user clears both their cookies and their local storage, then a new `anonymousId` will be generated, 
-As long as you called `identifyUser` before the data was cleared, Moesif will still merge the two sessions. 
+Keep in mind if a user clears both their cookies and their local storage, then a new `anonymousId` will be generated,
+As long as you called `identifyUser` before the data was cleared, Moesif will still merge the two sessions.
 
 #### crossSiteCookie, boolean, optional, default false,
 
@@ -330,11 +330,11 @@ This is used for special situation such as if your application is embedded in an
 > When enabled, `secureCookie` is forced to true due to modern browser requirements.
 
 #### crossSubdomainCookie, boolean, optional, default true,
-When true, the cookie domain will also allow all subdomains of your hostname. This is usually recommended to track anonymous users across multiple 
+When true, the cookie domain will also allow all subdomains of your hostname. This is usually recommended to track anonymous users across multiple
 properties like `https://www.acmeinc.com` vs `https://docs.acmeinc.com`.
 
 #### cookieExpiration, number, optional, default 365
-Set the cookie expiration in days. By default this is 365 days. 
+Set the cookie expiration in days. By default this is 365 days.
 
 #### secureCookie, boolean, optional, default false,
 If set to true, the cookie can only be read on `https://` websites.
@@ -352,22 +352,26 @@ Some browsers may use fetch under `XmlHTTPRequest`, then it is possible events g
 
 #### skip, (event) => boolean, optional
 
-A function hook that will skip logging the event to Moesif if returns true. 
+A function hook that will skip logging the event to Moesif if returns true.
 The parameter passed in is an event model. [See event model](https://www.moesif.com/docs/api#log-an-api-call).
 
-_High volume APIs can reduce cost tremendously by leveraging [dynamic sampling](https://www.moesif.com/docs/platform/dynamic-sampling/) to set rules 
+_High volume APIs can reduce cost tremendously by leveraging [dynamic sampling](https://www.moesif.com/docs/platform/dynamic-sampling/) to set rules
 without any code change or restarts. Moesif will still extrapolate original metrics so your reporting is accurate._
 
 #### maskContent, (event) => event, optional
 
-A function hook that enables you to mask any sensitive data in the event model. Your custom code must return the same 
-event, after applying any masking. 
+A function hook that enables you to mask any sensitive data in the event model. Your custom code must return the same
+event, after applying any masking.
 
 _For super sensitive data, Moesif recommends leveraging zero-knowledge security with [on-premises client-side encryption](https://www.moesif.com/docs/platform/secure-proxy/) and bring your own keys (BYOK)._
 
 #### getMetadata, (event) => object, optional
 
 Function that allow you to append arbitrary JSON metadata to API calls before being logged to Moesif.
+
+#### host, string, optional
+
+defaults to `api.moesif.net`. If you are using an proxy to send data to Moesif, please set the the host to `proxy.yourcompany.com`.
 
 full options example:
 
@@ -393,6 +397,7 @@ var options = {
       };
     }
   },
+  host: 'proxy.acmeinc.com'
 };
 
 moesif.init(options);
