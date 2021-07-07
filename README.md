@@ -371,7 +371,7 @@ Function that allow you to append arbitrary JSON metadata to API calls before be
 
 #### host, string, optional
 
-defaults to `api.moesif.net`. If you are using an proxy to send data to Moesif, please set the the host to `proxy.yourcompany.com`.
+defaults to `api.moesif.net`. If you are using a proxy to send data to Moesif, please set the the host to `proxy.yourcompany.com`.
 
 full options example:
 
