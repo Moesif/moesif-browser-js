@@ -7,17 +7,25 @@
     <script src="moesif.min.js"></script>
     <script type="text/javascript">
       var options = {
-        applicationId: "Your Application Id",
+        applicationId:
+          "Your Application Id",
         getMetadata: function (eventData) {
-          console.log("getMetdata is called");
+          console.log(
+            "getMetdata for first Moesif (sales demo test) is called"
+          );
           return {
             foo: "browser.js",
             bar: "browser1",
+            instance: "first instance"
           };
+        },
+        skip: function () {
+          console.log("first moesif skip (sales demo test) is called");
+          return false;
         },
         batchEnabled: true,
         batchSize: 7,
-        batchMaxTime: 15000,
+        batchMaxTime: 15000
         // add other option here.
       };
 
@@ -29,6 +37,26 @@
 
       // this starts the capturing of the data.
       moesif.start();
+
+
+      // example for starting a new instance
+      var secondMoesif = moesif.new();
+      secondMoesif.init({
+        persistenceKeyPrefix: 'and_',
+        applicationId: "",
+        skip: function () {
+          console.log("second moesif skip (andy sandbox) is called");
+          return false;
+        },
+        batchEnabled: false,
+        getMetadata: function () {
+          return {
+            instance: "second instance"
+          };
+        }
+      });
+
+      secondMoesif.start();
     </script>
   </head>
   <body>
@@ -42,9 +70,13 @@
       Click on the button below should send an request to a placeholder API
       server. The even should by captured by moesif and send to Moesif.
     </p>
-    <button id="send">Send an event to placeholder api server (automatically instrumented)</button>
+    <button id="send">
+      Send an event to placeholder api server (automatically instrumented)
+    </button>
     <br />
     <button id="track">Send tracked UI action</button>
+    <br />
+    <button id="track2">Send tracked UI action to another instance</button>
     <br />
     <button id="iduser">Identify User With NewId</button>
     <br />
@@ -64,9 +96,9 @@
       $("#send").click(function () {
         // any api calls is automatically instrumented.
         $.ajax("http://jsonplaceholder.typicode.com/posts/" + POST_COUNT, {
-          method: "GET",
+          method: "GET"
         }).then(function (data) {
-          console.log('ajax call returned');
+          console.log("ajax call returned");
           console.log(data);
         });
         POST_COUNT = (POST_COUNT + 1) % 100;
@@ -80,6 +112,20 @@
         moesif.track("button_click", {
           foo: "bar",
           count: ACTION_COUNT,
+          instance: "sales demo 1"
+        });
+        ACTION_COUNT = ACTION_COUNT + 1;
+      });
+
+      $("#track").click(function () {
+        // you can use this API to track
+        // user actions such as button clicks,
+        // or sign ups etc.
+        // these user actions are defined by you.
+        secondMoesif.track("button_click", {
+          foo: "bar",
+          count: ACTION_COUNT,
+          instance: "andy sandbox"
         });
         ACTION_COUNT = ACTION_COUNT + 1;
       });
@@ -87,7 +133,7 @@
       $("#iduser").click(function () {
         moesif.identifyUser("user" + USER_ID_COUNT, {
           foo: "bar" + USER_ID_COUNT,
-          first_name: "name" + USER_ID_COUNT,
+          first_name: "name" + USER_ID_COUNT
         });
         USER_ID_COUNT = USER_ID_COUNT + 1;
       });
@@ -95,7 +141,7 @@
       $("#idcompany").click(function () {
         moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
           foo: "bar" + COMPANY_ID_COUNT,
-          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co",
+          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co"
         });
         COMPANY_ID_COUNT = COMPANY_ID_COUNT + 1;
       });

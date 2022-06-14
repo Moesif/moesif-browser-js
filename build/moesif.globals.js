@@ -3,7 +3,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.6'
+        LIB_VERSION: '1.8.7'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -3782,6 +3782,7 @@
     function init_from_snippet() {
       init_type = INIT_SNIPPET;
       window[PRIMARY_INSTANCE_NAME] = moesifCreator();
+      window[PRIMARY_INSTANCE_NAME]['new'] = moesifCreator;
     }
 
     init_from_snippet();

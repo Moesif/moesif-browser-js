@@ -37,9 +37,12 @@ var INIT_SNIPPET = 1;
 export function init_from_snippet() {
   init_type = INIT_SNIPPET;
   window[PRIMARY_INSTANCE_NAME] = moesifCreator();
+  window[PRIMARY_INSTANCE_NAME]['new'] = moesifCreator;
 }
 
 export function init_as_module() {
   init_type = INIT_MODULE;
-  return moesifCreator();
+  var instance = moesifCreator();
+  instance['new'] = moesifCreator;
+  return instance;
 }

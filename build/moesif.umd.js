@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.6'
+        LIB_VERSION: '1.8.7'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -3776,7 +3776,9 @@
     var INIT_MODULE  = 0;
     function init_as_module() {
       init_type = INIT_MODULE;
-      return moesifCreator();
+      var instance = moesifCreator();
+      instance['new'] = moesifCreator;
+      return instance;
     }
 
     var moesif = init_as_module();
