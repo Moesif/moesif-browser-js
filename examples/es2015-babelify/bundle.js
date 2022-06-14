@@ -574,7 +574,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.6'
+    LIB_VERSION: '1.8.7'
 };
 
 exports['default'] = Config;
@@ -646,11 +646,14 @@ var INIT_SNIPPET = 1;
 function init_from_snippet() {
   init_type = INIT_SNIPPET;
   window[PRIMARY_INSTANCE_NAME] = (0, _moesif2['default'])();
+  window[PRIMARY_INSTANCE_NAME]['new'] = _moesif2['default'];
 }
 
 function init_as_module() {
   init_type = INIT_MODULE;
-  return (0, _moesif2['default'])();
+  var instance = (0, _moesif2['default'])();
+  instance['new'] = _moesif2['default'];
+  return instance;
 }
 
 },{"./moesif":9}],9:[function(require,module,exports){
