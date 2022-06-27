@@ -60,6 +60,8 @@ You can then require the lib like a standard NPM module:
 
 ```javascript
 var moesif = require("moesif-browser-js");
+// or using the import syntax
+// import moesif from "moesif-browser-js";
 
 // Initialize the SDK. Must be called before any other methods
 moesif.init({
@@ -83,7 +85,7 @@ window.moesif = moesif;
 ```
 
 Your Moesif Application Id will be displayed during the onboarding steps when signing up for [Moesif](https://www.moesif.com/) You can always find your Moesif Application Id at any time by logging
-into the [_Moesif Portal_](https://www.moesif.com/), go to top right menu,
+into the [_Moesif Portal_](https://www.moesif.com/), go to the main menu,
 and then clicking _Installation_.
 
 ## How to use
