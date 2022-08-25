@@ -480,6 +480,8 @@ Some utilities are based on underscore.
 
 To modify and build this library, please see instructions in Build.md
 
+Note, this library has ZERO external dependencies (only have dev dependencies or dependencies for some of the examples).
+
 ## Other integrations
 
 To view more more documentation on integration options, please visit **[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).**
