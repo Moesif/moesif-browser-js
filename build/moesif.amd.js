@@ -2,7 +2,7 @@ define(function () { 'use strict';
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.7'
+        LIB_VERSION: '1.8.8'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -3206,7 +3206,6 @@ define(function () { 'use strict';
       };
     }
 
-
     var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
     function isMoesif(event) {
@@ -3473,7 +3472,9 @@ define(function () { 'use strict';
             console.log('also instrumenting fetch API');
             this._stopFetchRecording = patch(recorder);
           }
+
           this['useWeb3'](passedInWeb3);
+
           // if (passedInWeb3) {
           //   this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, _self.recordEvent, this._options);
           // } else if (window['web3']) {
@@ -3490,20 +3491,27 @@ define(function () { 'use strict';
             _self.recordEvent(event);
           }
 
-          if (this._stopWeb3Recording) {
-            this._stopWeb3Recording();
-            this._stopWeb3Recording = null;
-          }
-          if (passedInWeb3) {
-            this._stopWeb3Recording = captureWeb3Requests(passedInWeb3, recorder, this._options);
-          } else if (window['web3']) {
-            // try to patch the global web3
-            console.log('found global web3, will capture from it');
-            this._stopWeb3Recording = captureWeb3Requests(window['web3'], recorder, this._options);
-          }
-          if (this._stopWeb3Recording) {
-            // if function is returned it means we succeeded.
-            return true;
+          try {
+            if (this._stopWeb3Recording) {
+              this._stopWeb3Recording();
+              this._stopWeb3Recording = null;
+            }
+            if (passedInWeb3) {
+              this._stopWeb3Recording = captureWeb3Requests(passedInWeb3, recorder, this._options);
+            } else if (window['web3']) {
+              // try to patch the global web3
+              console.log('found global web3, will capture from it');
+              this._stopWeb3Recording = captureWeb3Requests(window['web3'], recorder, this._options);
+            }
+            if (this._stopWeb3Recording) {
+              // if function is returned it means we succeeded.
+              return true;
+            }
+          } catch (err) {
+            console.log('error patching web3, moving forward anyways');
+            if(this._options.callback) {
+              this._options.callback({ status: 0, error: err, message: 'failed to instrument web3, but moving forward with other instrumentation' });
+            }
           }
           return false;
         },

@@ -574,7 +574,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.7'
+    LIB_VERSION: '1.8.8'
 };
 
 exports['default'] = Config;
@@ -994,7 +994,9 @@ exports['default'] = function () {
         _utils.console.log('also instrumenting fetch API');
         this._stopFetchRecording = (0, _captureFetch2['default'])(recorder);
       }
+
       this['useWeb3'](passedInWeb3);
+
       // if (passedInWeb3) {
       //   this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, _self.recordEvent, this._options);
       // } else if (window['web3']) {
@@ -1011,20 +1013,27 @@ exports['default'] = function () {
         _self.recordEvent(event);
       }
 
-      if (this._stopWeb3Recording) {
-        this._stopWeb3Recording();
-        this._stopWeb3Recording = null;
-      }
-      if (passedInWeb3) {
-        this._stopWeb3Recording = (0, _web3capture2['default'])(passedInWeb3, recorder, this._options);
-      } else if (window['web3']) {
-        // try to patch the global web3
-        _utils.console.log('found global web3, will capture from it');
-        this._stopWeb3Recording = (0, _web3capture2['default'])(window['web3'], recorder, this._options);
-      }
-      if (this._stopWeb3Recording) {
-        // if function is returned it means we succeeded.
-        return true;
+      try {
+        if (this._stopWeb3Recording) {
+          this._stopWeb3Recording();
+          this._stopWeb3Recording = null;
+        }
+        if (passedInWeb3) {
+          this._stopWeb3Recording = (0, _web3capture2['default'])(passedInWeb3, recorder, this._options);
+        } else if (window['web3']) {
+          // try to patch the global web3
+          _utils.console.log('found global web3, will capture from it');
+          this._stopWeb3Recording = (0, _web3capture2['default'])(window['web3'], recorder, this._options);
+        }
+        if (this._stopWeb3Recording) {
+          // if function is returned it means we succeeded.
+          return true;
+        }
+      } catch (err) {
+        _utils.console.log('error patching web3, moving forward anyways');
+        if (this._options.callback) {
+          this._options.callback({ status: 0, error: err, message: 'failed to instrument web3, but moving forward with other instrumentation' });
+        }
       }
       return false;
     },
