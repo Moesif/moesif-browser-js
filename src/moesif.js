@@ -50,7 +50,6 @@ if (navigator['sendBeacon']) {
   };
 }
 
-
 var HTTP_PROTOCOL = (('http:' === (document && document.location.protocol)) ? 'http://' : 'https://');
 
 function isContentJson(event) {
@@ -328,7 +327,9 @@ export default function () {
         console.log('also instrumenting fetch API');
         this._stopFetchRecording = patchFetchWithCapture(recorder);
       }
+
       this['useWeb3'](passedInWeb3);
+
       // if (passedInWeb3) {
       //   this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, _self.recordEvent, this._options);
       // } else if (window['web3']) {
@@ -345,20 +346,27 @@ export default function () {
         _self.recordEvent(event);
       }
 
-      if (this._stopWeb3Recording) {
-        this._stopWeb3Recording();
-        this._stopWeb3Recording = null;
-      }
-      if (passedInWeb3) {
-        this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, recorder, this._options);
-      } else if (window['web3']) {
-        // try to patch the global web3
-        console.log('found global web3, will capture from it');
-        this._stopWeb3Recording = patchWeb3WithCapture(window['web3'], recorder, this._options);
-      }
-      if (this._stopWeb3Recording) {
-        // if function is returned it means we succeeded.
-        return true;
+      try {
+        if (this._stopWeb3Recording) {
+          this._stopWeb3Recording();
+          this._stopWeb3Recording = null;
+        }
+        if (passedInWeb3) {
+          this._stopWeb3Recording = patchWeb3WithCapture(passedInWeb3, recorder, this._options);
+        } else if (window['web3']) {
+          // try to patch the global web3
+          console.log('found global web3, will capture from it');
+          this._stopWeb3Recording = patchWeb3WithCapture(window['web3'], recorder, this._options);
+        }
+        if (this._stopWeb3Recording) {
+          // if function is returned it means we succeeded.
+          return true;
+        }
+      } catch (err) {
+        console.log('error patching web3, moving forward anyways');
+        if(this._options.callback) {
+          this._options.callback({ status: 0, error: err, message: 'failed to instrument web3, but moving forward with other instrumentation' });
+        }
       }
       return false;
     },
