@@ -1,6 +1,6 @@
 {
   "name": "moesif-browser-js",
-  "version": "1.8.7",
+  "version": "1.8.8",
   "description": "Moesif AJAX Client Javascript. This is designed to log and capture AJAX REST API calls from web apps for error analysis in Moesif.",
   "main": "build/moesif.cjs.js",
   "directories": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "./build.sh",
-    "start": "pushd examples; python -m SimpleHTTPServer; popd",
+    "start": "pushd examples; python -m http.server; popd",
     "test": "BABEL_ENV=test ./node_modules/mocha/bin/mocha -r mock-local-storage --compilers js:babel-core/register tests/unit/*.js",
     "integration_test": "echo 'Browse to localhost:3000/tests' && node testServer.js",
     "lint": "./node_modules/eslint/bin/eslint.js ./src",
