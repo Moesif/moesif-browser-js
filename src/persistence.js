@@ -63,6 +63,15 @@ function getPersistenceFunction(opt) {
   return setFunction;
 }
 
+function ensureNotNilString(str) {
+  // this is sometimes localStorage saves null and undefined
+  // as string null and undefined
+  if (str === 'null' || str === 'undefined') {
+    return null;
+  }
+  return str;
+}
+
 // this tries to get from either cookie or localStorage.
 // whichever have data.
 function getFromPersistence(key, opt) {
@@ -70,8 +79,8 @@ function getFromPersistence(key, opt) {
   var prefix = opt && opt['persistence_key_prefix'];
   var resolvedKey = replacePrefix(key, prefix);
   if (_.localStorage.is_supported()) {
-    var localValue = _.localStorage.get(resolvedKey);
-    var cookieValue = _.cookie.get(resolvedKey);
+    var localValue = ensureNotNilString(_.localStorage.get(resolvedKey));
+    var cookieValue = ensureNotNilString(_.cookie.get(resolvedKey));
     // if there is value in cookie but not in localStorage
     // but persistence type if localStorage, try to re-save in localStorage.
     if (!localValue && cookieValue && storageType === 'localStorage') {
@@ -79,7 +88,7 @@ function getFromPersistence(key, opt) {
     }
     return localValue || cookieValue;
   }
-  return _.cookie.get(resolvedKey);
+  return ensureNotNilString(_.cookie.get(resolvedKey));
 }
 
 function clearCookies(opt) {

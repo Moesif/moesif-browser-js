@@ -379,6 +379,11 @@ export default function () {
       );
     },
     'identifyUser': function (userId, metadata) {
+      if (_.isNil(userId)) {
+        console.critical('identifyUser called with nil userId');
+        return;
+      }
+
       this._userId = userId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -420,6 +425,10 @@ export default function () {
       );
     },
     'identifyCompany': function (companyId, metadata, companyDomain) {
+      if (_.isNil(companyId)) {
+        console.critical('identifyCompany called with nil companyId.');
+        return;
+      }
       this._companyId = companyId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -453,6 +462,10 @@ export default function () {
       }
     },
     'identifySession': function (session) {
+      if (_.isNil(session)) {
+        console.critical('identifySession called with nil');
+        return;
+      }
       this._session = session;
       if (session) {
         try {

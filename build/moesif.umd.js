@@ -6,7 +6,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.8'
+        LIB_VERSION: '1.8.9'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -348,6 +348,10 @@
 
     _.isElement = function(obj) {
         return !!(obj && obj.nodeType === 1);
+    };
+
+    _.isNil = function(val) {
+      return _.isUndefined(val) || val === null;
     };
 
     _.encodeDates = function(obj) {
@@ -2478,6 +2482,15 @@
       return setFunction;
     }
 
+    function ensureNotNilString(str) {
+      // this is sometimes localStorage saves null and undefined
+      // as string null and undefined
+      if (str === 'null' || str === 'undefined') {
+        return null;
+      }
+      return str;
+    }
+
     // this tries to get from either cookie or localStorage.
     // whichever have data.
     function getFromPersistence(key, opt) {
@@ -2485,8 +2498,8 @@
       var prefix = opt && opt['persistence_key_prefix'];
       var resolvedKey = replacePrefix(key, prefix);
       if (_.localStorage.is_supported()) {
-        var localValue = _.localStorage.get(resolvedKey);
-        var cookieValue = _.cookie.get(resolvedKey);
+        var localValue = ensureNotNilString(_.localStorage.get(resolvedKey));
+        var cookieValue = ensureNotNilString(_.cookie.get(resolvedKey));
         // if there is value in cookie but not in localStorage
         // but persistence type if localStorage, try to re-save in localStorage.
         if (!localValue && cookieValue && storageType === 'localStorage') {
@@ -2494,7 +2507,7 @@
         }
         return localValue || cookieValue;
       }
-      return _.cookie.get(resolvedKey);
+      return ensureNotNilString(_.cookie.get(resolvedKey));
     }
 
     function clearCookies(opt) {
@@ -3528,6 +3541,11 @@
           );
         },
         'identifyUser': function (userId, metadata) {
+          if (_.isNil(userId)) {
+            console.critical('identifyUser called with nil userId');
+            return;
+          }
+
           this._userId = userId;
           if (!(this._options && this._options.applicationId)) {
             throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -3569,6 +3587,10 @@
           );
         },
         'identifyCompany': function (companyId, metadata, companyDomain) {
+          if (_.isNil(companyId)) {
+            console.critical('identifyCompany called with nil companyId.');
+            return;
+          }
           this._companyId = companyId;
           if (!(this._options && this._options.applicationId)) {
             throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -3602,6 +3624,10 @@
           }
         },
         'identifySession': function (session) {
+          if (_.isNil(session)) {
+            console.critical('identifySession called with nil');
+            return;
+          }
           this._session = session;
           if (session) {
             try {
