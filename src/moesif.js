@@ -371,11 +371,6 @@ export default function () {
       return false;
     },
     updateUser: function(userObject, applicationId, host, callback) {
-      if (!userObject || _.isNil(userObject['user_id'])) {
-        console.critical('updateUser userObject must have user_id set');
-        return;
-      }
-
       this._executeRequest(
         HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT,
         userObject,
@@ -422,10 +417,6 @@ export default function () {
       }
     },
     updateCompany: function(companyObject, applicationId, host, callback) {
-      if (!companyObject || _.isNil(companyObject['company_id'])) {
-        console.critical('updateCompany companyObject must have company_id set');
-        return;
-      }
       this._executeRequest(
         HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT,
         companyObject,

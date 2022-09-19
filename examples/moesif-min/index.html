@@ -35,28 +35,27 @@
       // for options see below.
       moesif.init(options);
 
-      // this starts the capturing of the data.
+      // // this starts the capturing of the data.
       moesif.start();
 
+      // // example for starting a new instance
+      // var secondMoesif = moesif.new();
+      // secondMoesif.init({
+      //   persistenceKeyPrefix: 'and_',
+      //   applicationId: "",
+      //   skip: function () {
+      //     console.log("second moesif skip (andy sandbox) is called");
+      //     return false;
+      //   },
+      //   batchEnabled: false,
+      //   getMetadata: function () {
+      //     return {
+      //       instance: "second instance"
+      //     };
+      //   }
+      // });
 
-      // example for starting a new instance
-      var secondMoesif = moesif.new();
-      secondMoesif.init({
-        persistenceKeyPrefix: 'and_',
-        applicationId: "",
-        skip: function () {
-          console.log("second moesif skip (andy sandbox) is called");
-          return false;
-        },
-        batchEnabled: false,
-        getMetadata: function () {
-          return {
-            instance: "second instance"
-          };
-        }
-      });
-
-      secondMoesif.start();
+      // secondMoesif.start();
     </script>
   </head>
   <body>
@@ -81,7 +80,11 @@
     <button id="iduser">Identify User With NewId</button>
     <br />
     <button id="idcompany">Identify Company With NewId</button>
+    <!-- <br />
+    <button id="iduserUndefined">Test Identify User With undefined</button>
     <br />
+    <button id="idcompanyUndefined">Test Identify Company With undefined</button>
+    <br /> -->
     <button id="reset">reset</button>
     <script type="text/javascript">
       if ($) {
@@ -117,7 +120,7 @@
         ACTION_COUNT = ACTION_COUNT + 1;
       });
 
-      $("#track").click(function () {
+      $("#track2").click(function () {
         // you can use this API to track
         // user actions such as button clicks,
         // or sign ups etc.
@@ -140,6 +143,22 @@
 
       $("#idcompany").click(function () {
         moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
+          foo: "bar" + COMPANY_ID_COUNT,
+          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co"
+        });
+        COMPANY_ID_COUNT = COMPANY_ID_COUNT + 1;
+      });
+
+      $("#iduserUndefined").click(function () {
+        moesif.identifyUser(undefined, {
+          foo: "bar" + USER_ID_COUNT,
+          first_name: "name" + USER_ID_COUNT
+        });
+        USER_ID_COUNT = USER_ID_COUNT + 1;
+      });
+
+      $("#idcompanyUndefined").click(function () {
+        moesif.identifyCompany(undefined, {
           foo: "bar" + COMPANY_ID_COUNT,
           company_domain: "company-acme" + COMPANY_ID_COUNT + ".co"
         });
