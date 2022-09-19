@@ -344,6 +344,10 @@ _.isElement = function(obj) {
     return !!(obj && obj.nodeType === 1);
 };
 
+_.isNil = function(val) {
+  return _.isUndefined(val) || val === null;
+};
+
 _.encodeDates = function(obj) {
     _.each(obj, function(v, k) {
         if (_.isDate(v)) {
