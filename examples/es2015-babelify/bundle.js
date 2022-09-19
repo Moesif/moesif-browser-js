@@ -574,7 +574,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.8'
+    LIB_VERSION: '1.8.9'
 };
 
 exports['default'] = Config;
@@ -1041,6 +1041,11 @@ exports['default'] = function () {
       this._executeRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT, userObject, { applicationId: applicationId }, callback);
     },
     'identifyUser': function identifyUser(userId, metadata) {
+      if (_utils._.isNil(userId)) {
+        _utils.console.critical('identifyUser called with nil userId');
+        return;
+      }
+
       this._userId = userId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -1077,6 +1082,10 @@ exports['default'] = function () {
       this._executeRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT, companyObject, { applicationId: applicationId }, callback);
     },
     'identifyCompany': function identifyCompany(companyId, metadata, companyDomain) {
+      if (_utils._.isNil(companyId)) {
+        _utils.console.critical('identifyCompany called with nil companyId.');
+        return;
+      }
       this._companyId = companyId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -1110,6 +1119,10 @@ exports['default'] = function () {
       }
     },
     'identifySession': function identifySession(session) {
+      if (_utils._.isNil(session)) {
+        _utils.console.critical('identifySession called with nil');
+        return;
+      }
       this._session = session;
       if (session) {
         try {
@@ -1387,6 +1400,15 @@ function getPersistenceFunction(opt) {
   return setFunction;
 }
 
+function ensureNotNilString(str) {
+  // this is sometimes localStorage saves null and undefined
+  // as string null and undefined
+  if (str === 'null' || str === 'undefined') {
+    return null;
+  }
+  return str;
+}
+
 // this tries to get from either cookie or localStorage.
 // whichever have data.
 function getFromPersistence(key, opt) {
@@ -1394,8 +1416,8 @@ function getFromPersistence(key, opt) {
   var prefix = opt && opt['persistence_key_prefix'];
   var resolvedKey = replacePrefix(key, prefix);
   if (_utils._.localStorage.is_supported()) {
-    var localValue = _utils._.localStorage.get(resolvedKey);
-    var cookieValue = _utils._.cookie.get(resolvedKey);
+    var localValue = ensureNotNilString(_utils._.localStorage.get(resolvedKey));
+    var cookieValue = ensureNotNilString(_utils._.cookie.get(resolvedKey));
     // if there is value in cookie but not in localStorage
     // but persistence type if localStorage, try to re-save in localStorage.
     if (!localValue && cookieValue && storageType === 'localStorage') {
@@ -1403,7 +1425,7 @@ function getFromPersistence(key, opt) {
     }
     return localValue || cookieValue;
   }
-  return _utils._.cookie.get(resolvedKey);
+  return ensureNotNilString(_utils._.cookie.get(resolvedKey));
 }
 
 function clearCookies(opt) {
@@ -2411,6 +2433,10 @@ _.isNumber = function (obj) {
 
 _.isElement = function (obj) {
     return !!(obj && obj.nodeType === 1);
+};
+
+_.isNil = function (val) {
+    return _.isUndefined(val) || val === null;
 };
 
 _.encodeDates = function (obj) {
