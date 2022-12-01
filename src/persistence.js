@@ -6,7 +6,8 @@ var STORAGE_CONSTANTS = {
   STORED_COMPANY_ID: 'moesif_stored_company_id',
   STORED_SESSION_ID: 'moesif_stored_session_id',
   STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
-  STORED_CAMPAIGN_DATA: 'moesif_campaign_data'
+  STORED_CAMPAIGN_DATA: 'moesif_campaign_data',
+  STORED_INITIAL_CAMPAIGN_DATA: 'moesif_initial_campaign',
 };
 
 function replacePrefix(key, prefix) {
@@ -66,7 +67,7 @@ function getPersistenceFunction(opt) {
 function ensureNotNilString(str) {
   // this is sometimes localStorage saves null and undefined
   // as string null and undefined
-  if (str === 'null' || str === 'undefined') {
+  if (str === 'null' || str === 'undefined' || str === '') {
     return null;
   }
   return str;

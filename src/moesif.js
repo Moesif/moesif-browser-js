@@ -6,7 +6,7 @@ import { _, console, userAgent, localStorageSupported, JSONStringify } from './u
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './capture-fetch';
-import getCampaignData from './campaign';
+import { getCampaignData, getCampaignDataForIdentifiedCompany } from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
 import {
@@ -447,8 +447,10 @@ export default function () {
       if (this._session) {
         companyObject['session_token'] = this._session;
       }
-      if (this._campaign) {
-        companyObject['campaign'] = this._campaign;
+      var campaignData = getCampaignDataForIdentifiedCompany(this._persist, this._options, this._campaign);
+
+      if (campaignData) {
+        companyObject['campaign'] = campaignData;
       }
 
       this.updateCompany(companyObject, this._options.applicationId, this._options.host, this._options.callback);
