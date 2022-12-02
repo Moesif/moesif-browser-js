@@ -142,10 +142,10 @@
       });
 
       $("#idcompany").click(function () {
+        var companyDomain = "company-acme" + COMPANY_ID_COUNT + ".co";
         moesif.identifyCompany("company" + COMPANY_ID_COUNT, {
           foo: "bar" + COMPANY_ID_COUNT,
-          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co"
-        });
+        }, companyDomain);
         COMPANY_ID_COUNT = COMPANY_ID_COUNT + 1;
       });
 
@@ -158,10 +158,10 @@
       });
 
       $("#idcompanyUndefined").click(function () {
+        var companyDomain =  "company-acme" + COMPANY_ID_COUNT + ".co";
         moesif.identifyCompany(undefined, {
           foo: "bar" + COMPANY_ID_COUNT,
-          company_domain: "company-acme" + COMPANY_ID_COUNT + ".co"
-        });
+        }, companyDomain);
         COMPANY_ID_COUNT = COMPANY_ID_COUNT + 1;
       });
 
