@@ -2644,7 +2644,7 @@
       logger$4.log(_.JSONEncode(merged));
 
       try {
-        if (persist && merged) {
+        if (persist && merged && !_.isEmptyObject(merged)) {
           var mergedString = _.JSONEncode(merged);
           persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, mergedString);
 
@@ -3575,8 +3575,6 @@
             return;
           }
 
-          var hasUserIdentifiedBefore = !!this._userId;
-
           this._userId = userId;
           if (!(this._options && this._options.applicationId)) {
             throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -3592,10 +3590,8 @@
             userObject['session_token'] = this._session;
           }
 
-          var campaignData = hasUserIdentifiedBefore ? this._campaign : getStoredInitialCampaignData(this._options);
-
-          if (campaignData) {
-            userObject['campaign'] = campaignData;
+          if (this._campaign) {
+            userObject['campaign'] = this._campaign;
           }
 
           if (this._companyId) {
@@ -3648,7 +3644,9 @@
             companyObject['session_token'] = this._session;
           }
 
-          var campaignData = hasCompanyIdentifiedBefore ? this._campaign : getStoredInitialCampaignData(this._options);
+          var campaignData = hasCompanyIdentifiedBefore
+            ? this._campaign
+            : getStoredInitialCampaignData(this._options) || this._campaign;
 
           if (campaignData) {
             companyObject['campaign'] = campaignData;

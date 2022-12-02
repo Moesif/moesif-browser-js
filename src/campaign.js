@@ -106,7 +106,7 @@ function getCampaignData(persist, opt) {
   logger.log(_.JSONEncode(merged));
 
   try {
-    if (persist && merged) {
+    if (persist && merged && !_.isEmptyObject(merged)) {
       var mergedString = _.JSONEncode(merged);
       persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, mergedString);
 
