@@ -7,7 +7,7 @@ var STORAGE_CONSTANTS = {
   STORED_SESSION_ID: 'moesif_stored_session_id',
   STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
   STORED_CAMPAIGN_DATA: 'moesif_campaign_data',
-  STORED_INITIAL_CAMPAIGN_DATA: 'moesif_initial_campaign',
+  STORED_INITIAL_CAMPAIGN_DATA: 'moesif_initial_campaign'
 };
 
 function replacePrefix(key, prefix) {

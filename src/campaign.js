@@ -66,7 +66,7 @@ function getStoredInitialCampaignData(opt) {
 // otherwise use currentCampaignData
 // but also clears stored initial campaign data since no longer needed.
 function getCampaignDataForIdentifiedCompany(persist, opt, currentCampaignData) {
-  const initialCampaignData = getStoredInitialCampaignData(opt);
+  var initialCampaignData = getStoredInitialCampaignData(opt);
   if (initialCampaignData) {
     // clear initial stored campaign data, since when second time
     // identifyCompany is called, we want to use the currentCampaignData.

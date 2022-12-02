@@ -3,7 +3,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.9'
+        LIB_VERSION: '1.8.10'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -2422,7 +2422,8 @@
       STORED_COMPANY_ID: 'moesif_stored_company_id',
       STORED_SESSION_ID: 'moesif_stored_session_id',
       STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
-      STORED_CAMPAIGN_DATA: 'moesif_campaign_data'
+      STORED_CAMPAIGN_DATA: 'moesif_campaign_data',
+      STORED_INITIAL_CAMPAIGN_DATA: 'moesif_initial_campaign'
     };
 
     function replacePrefix(key, prefix) {
@@ -2482,7 +2483,7 @@
     function ensureNotNilString(str) {
       // this is sometimes localStorage saves null and undefined
       // as string null and undefined
-      if (str === 'null' || str === 'undefined') {
+      if (str === 'null' || str === 'undefined' || str === '') {
         return null;
       }
       return str;
@@ -2575,6 +2576,43 @@
       }
     }
 
+    // since identify company can happen a lot later
+    // than initial anonymous users
+    // persist the very initial campaign data for
+    // companies until company is identified.
+    function getStoredInitialCampaignData(opt) {
+      var storedCampaignData = null;
+      var storedCampaignString = null;
+      try {
+        storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, opt);
+        if (storedCampaignString) {
+          storedCampaignData = _.JSONDecode(storedCampaignString);
+        }
+      } catch (err) {
+        logger$4.error('failed to decode company campaign data ' + storedCampaignString);
+        logger$4.error(err);
+      }
+
+      return storedCampaignData;
+    }
+
+    // this handles logic that on first time identifyCompany is called
+    // will use the cached compaign data from the first visit if available.
+    // otherwise use currentCampaignData
+    // but also clears stored initial campaign data since no longer needed.
+    function getCampaignDataForIdentifiedCompany(persist, opt, currentCampaignData) {
+      var initialCampaignData = getStoredInitialCampaignData(opt);
+      if (initialCampaignData) {
+        // clear initial stored campaign data, since when second time
+        // identifyCompany is called, we want to use the currentCampaignData.
+        persist(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, '');
+
+        return initialCampaignData;
+      }
+
+      return currentCampaignData;
+    }
+
     function mergeCampaignData(saved, current) {
       if (!current) {
         return saved;
@@ -2610,6 +2648,7 @@
         logger$4.error('failed to decode campaign data ' + storedCampaignString);
         logger$4.error(err);
       }
+
       var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
       logger$4.log('current campaignData');
       logger$4.log(_.JSONEncode(currentCampaignData));
@@ -2619,8 +2658,15 @@
       logger$4.log(_.JSONEncode(merged));
 
       try {
-        if (persist && merged && merged !== 'null') {
-          persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, _.JSONEncode(merged));
+        if (persist && merged) {
+          var mergedString = _.JSONEncode(merged);
+          persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, mergedString);
+
+          // UTM_SOURCE exists means that merged campaign info have data.
+          if (!storedCampaignData && merged[UTMConstants.UTM_SOURCE]) {
+            // first time we persist campaign data, and thus persis the initial data until identifyCompany is called
+            persist(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, mergedString);
+          }
         }
       } catch (err) {
         logger$4.error('failed to persist campaign data');
@@ -3606,8 +3652,10 @@
           if (this._session) {
             companyObject['session_token'] = this._session;
           }
-          if (this._campaign) {
-            companyObject['campaign'] = this._campaign;
+          var campaignData = getCampaignDataForIdentifiedCompany(this._persist, this._options, this._campaign);
+
+          if (campaignData) {
+            companyObject['campaign'] = campaignData;
           }
 
           this.updateCompany(companyObject, this._options.applicationId, this._options.host, this._options.callback);
