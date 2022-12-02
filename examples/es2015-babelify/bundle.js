@@ -123,23 +123,6 @@ function getStoredInitialCampaignData(opt) {
   return storedCampaignData;
 }
 
-// this handles logic that on first time identifyCompany is called
-// will use the cached compaign data from the first visit if available.
-// otherwise use currentCampaignData
-// but also clears stored initial campaign data since no longer needed.
-function getCampaignDataForIdentifiedCompany(persist, opt, currentCampaignData) {
-  var initialCampaignData = getStoredInitialCampaignData(opt);
-  if (initialCampaignData) {
-    // clear initial stored campaign data, since when second time
-    // identifyCompany is called, we want to use the currentCampaignData.
-    persist(_persistence.STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, '');
-
-    return initialCampaignData;
-  }
-
-  return currentCampaignData;
-}
-
 function mergeCampaignData(saved, current) {
   if (!current) {
     return saved;
@@ -204,7 +187,7 @@ function getCampaignData(persist, opt) {
 }
 
 exports.getCampaignData = getCampaignData;
-exports.getCampaignDataForIdentifiedCompany = getCampaignDataForIdentifiedCompany;
+exports.getStoredInitialCampaignData = getStoredInitialCampaignData;
 
 },{"./persistence":11,"./referrer":12,"./utils":16,"./utm":17}],4:[function(require,module,exports){
 'use strict';
@@ -1089,6 +1072,8 @@ exports['default'] = function () {
         return;
       }
 
+      var hasUserIdentifiedBefore = !!this._userId;
+
       this._userId = userId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -1103,9 +1088,13 @@ exports['default'] = function () {
       if (this._session) {
         userObject['session_token'] = this._session;
       }
-      if (this._campaign) {
-        userObject['campaign'] = this._campaign;
+
+      var campaignData = hasUserIdentifiedBefore ? this._campaign : (0, _campaign.getStoredInitialCampaignData)(this._options);
+
+      if (campaignData) {
+        userObject['campaign'] = campaignData;
       }
+
       if (this._companyId) {
         userObject['company_id'] = this._companyId;
       }
@@ -1129,6 +1118,9 @@ exports['default'] = function () {
         _utils.console.critical('identifyCompany called with nil companyId.');
         return;
       }
+
+      var hasCompanyIdentifiedBefore = !!this._companyId;
+
       this._companyId = companyId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -1147,7 +1139,8 @@ exports['default'] = function () {
       if (this._session) {
         companyObject['session_token'] = this._session;
       }
-      var campaignData = (0, _campaign.getCampaignDataForIdentifiedCompany)(this._persist, this._options, this._campaign);
+
+      var campaignData = hasCompanyIdentifiedBefore ? this._campaign : (0, _campaign.getStoredInitialCampaignData)(this._options);
 
       if (campaignData) {
         companyObject['campaign'] = campaignData;
