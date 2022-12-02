@@ -61,23 +61,6 @@ function getStoredInitialCampaignData(opt) {
   return storedCampaignData;
 }
 
-// this handles logic that on first time identifyCompany is called
-// will use the cached compaign data from the first visit if available.
-// otherwise use currentCampaignData
-// but also clears stored initial campaign data since no longer needed.
-function getCampaignDataForIdentifiedCompany(persist, opt, currentCampaignData) {
-  var initialCampaignData = getStoredInitialCampaignData(opt);
-  if (initialCampaignData) {
-    // clear initial stored campaign data, since when second time
-    // identifyCompany is called, we want to use the currentCampaignData.
-    persist(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, '');
-
-    return initialCampaignData;
-  }
-
-  return currentCampaignData;
-}
-
 function mergeCampaignData(saved, current) {
   if (!current) {
     return saved;
@@ -143,5 +126,5 @@ function getCampaignData(persist, opt) {
 
 export {
   getCampaignData,
-  getCampaignDataForIdentifiedCompany,
+  getStoredInitialCampaignData,
 };

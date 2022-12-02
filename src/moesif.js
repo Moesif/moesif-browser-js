@@ -6,7 +6,7 @@ import { _, console, userAgent, localStorageSupported, JSONStringify } from './u
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './capture-fetch';
-import { getCampaignData, getCampaignDataForIdentifiedCompany } from './campaign';
+import { getCampaignData, getCampaignDataForIdentifiedCompany, getStoredInitialCampaignData } from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
 import {
@@ -384,6 +384,8 @@ export default function () {
         return;
       }
 
+      var hasUserIdentifiedBefore = !!this._userId;
+
       this._userId = userId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -398,9 +400,13 @@ export default function () {
       if (this._session) {
         userObject['session_token'] = this._session;
       }
-      if (this._campaign) {
-        userObject['campaign'] = this._campaign;
+
+      var campaignData = hasUserIdentifiedBefore ? this._campaign : getStoredInitialCampaignData(this._options);
+
+      if (campaignData) {
+        userObject['campaign'] = campaignData;
       }
+
       if (this._companyId) {
         userObject['company_id'] = this._companyId;
       }
@@ -429,6 +435,9 @@ export default function () {
         console.critical('identifyCompany called with nil companyId.');
         return;
       }
+
+      var hasCompanyIdentifiedBefore = !!this._companyId;
+
       this._companyId = companyId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -447,7 +456,8 @@ export default function () {
       if (this._session) {
         companyObject['session_token'] = this._session;
       }
-      var campaignData = getCampaignDataForIdentifiedCompany(this._persist, this._options, this._campaign);
+
+      var campaignData = hasCompanyIdentifiedBefore ? this._campaign : getStoredInitialCampaignData(this._options);
 
       if (campaignData) {
         companyObject['campaign'] = campaignData;
