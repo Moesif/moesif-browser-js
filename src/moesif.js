@@ -6,7 +6,7 @@ import { _, console, userAgent, localStorageSupported, JSONStringify } from './u
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './capture-fetch';
-import { getCampaignData, getCampaignDataForIdentifiedCompany, getStoredInitialCampaignData } from './campaign';
+import { getCampaignData, getStoredInitialCampaignData } from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
 import {
