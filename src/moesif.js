@@ -284,7 +284,7 @@ export default function () {
           }, this),
           stopAllBatching: _.bind(function () {
             this.stopAllBatching();
-          }, this),
+          }, this)
         };
 
         var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
@@ -326,7 +326,6 @@ export default function () {
     },
     'start': function (passedInWeb3) {
       var _self = this;
-
 
       if (this._stopRecording || this._stopWeb3Recording) {
         console.log('recording has already started, please call stop first.');
