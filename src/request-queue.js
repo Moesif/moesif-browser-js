@@ -3,6 +3,8 @@ import { SharedLock } from './shared-lock';
 
 var logger = console_with_prefix('batch');
 
+var STORAGE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 hours.
+
 /**
  * RequestQueue: queue for batching API requests with localStorage backup for retries.
  * Maintains an in-memory queue which represents the source of truth for the current
@@ -97,7 +99,11 @@ RequestQueue.prototype.fillBatch = function(batchSize) {
 
             for (var i = 0; i < storedQueue.length; i++) {
                 var item = storedQueue[i];
-                if (new Date().getTime() > item['flushAfter'] && !idsInBatch[item['id']]) {
+                var currentTime = new Date().getTime();
+
+                var expirationTime = currentTime - STORAGE_EXPIRATION;
+
+                if (currentTime > item['flushAfter'] && item['flushAfter'] >= expirationTime && !idsInBatch[item['id']]) {
                     batch.push(item);
                     if (batch.length >= batchSize) {
                         break;
@@ -116,9 +122,15 @@ RequestQueue.prototype.fillBatch = function(batchSize) {
  */
 var filterOutIDsAndInvalid = function(items, idSet) {
     var filteredItems = [];
+    var currentTime = new Date().getTime();
+
+    var expirationTime = currentTime - STORAGE_EXPIRATION;
+
     _.each(items, function(item) {
         if (item['id'] && !idSet[item['id']]) {
-            filteredItems.push(item);
+            if (item['flushAfter'] && item['flushAfter'] >= expirationTime) {
+              filteredItems.push(item);
+            }
         }
     });
     return filteredItems;
