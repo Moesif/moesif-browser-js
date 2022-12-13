@@ -13,7 +13,8 @@ var logger = console_with_prefix('batch');
  * @constructor
  */
 var RequestBatcher = function(storageKey, endpoint, options) {
-    this.queue = new RequestQueue(storageKey, {storage: options.storage});
+    var storageExpiration = options.libConfig['batch_storage_expiration'];
+    this.queue = new RequestQueue(storageKey, { storage: options.storage, storageExpiration: storageExpiration });
     this.endpoint = endpoint;
 
     this.libConfig = options.libConfig;

@@ -19,7 +19,7 @@ import {
 import { getAnonymousId, regenerateAnonymousId } from './anonymousId';
 
 var MOESIF_CONSTANTS = {
-  //The base Uri for API callslocalStorageSupported
+  //The base Uri for API calls
   HOST: 'api.moesif.net',
   EVENT_ENDPOINT: '/v1/events',
   EVENT_BATCH_ENDPOINT: '/v1/events/batch',
@@ -133,7 +133,7 @@ export default function () {
       ops['batch_size'] = options['batchSize'] || 25,
       ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
       ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
-
+      ops['batch_storage_expiration'] = options['batchStorageExpiration'];
 
       // storage persistence based options.
       // cookie, localStorage, or none.

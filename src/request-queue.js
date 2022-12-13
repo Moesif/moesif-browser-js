@@ -3,7 +3,7 @@ import { SharedLock } from './shared-lock';
 
 var logger = console_with_prefix('batch');
 
-var STORAGE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 hours.
+var DEFAULT_STORAGE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 hours.
 
 /**
  * RequestQueue: queue for batching API requests with localStorage backup for retries.
@@ -26,6 +26,7 @@ var RequestQueue = function(storageKey, options) {
     this.storageKey = storageKey;
     this.storage = options.storage || window.localStorage;
     this.lock = new SharedLock(storageKey, {storage: this.storage});
+    this.storageExpiration = options.storageExpiration || DEFAULT_STORAGE_EXPIRATION;
 
     this.pid = options.pid || null; // pass pid to test out storage lock contention scenarios
 
@@ -101,13 +102,15 @@ RequestQueue.prototype.fillBatch = function(batchSize) {
                 var item = storedQueue[i];
                 var currentTime = new Date().getTime();
 
-                var expirationTime = currentTime - STORAGE_EXPIRATION;
+                var expirationTime = currentTime - this.storageExpiration;
 
                 if (currentTime > item['flushAfter'] && item['flushAfter'] >= expirationTime && !idsInBatch[item['id']]) {
                     batch.push(item);
                     if (batch.length >= batchSize) {
                         break;
                     }
+                } else {
+                  logger.log('fill batch filtered item because invalid or expired' + JSONStringify(item));
                 }
             }
         }
@@ -120,17 +123,20 @@ RequestQueue.prototype.fillBatch = function(batchSize) {
  * also remove any item without a valid id (e.g., malformed
  * storage entries).
  */
-var filterOutIDsAndInvalid = function(items, idSet) {
+var filterOutIDsAndInvalid = function(items, idSet, storageExpiration) {
     var filteredItems = [];
     var currentTime = new Date().getTime();
 
-    var expirationTime = currentTime - STORAGE_EXPIRATION;
+    var expirationTime = currentTime - storageExpiration;
+    logger.log('expiration time is ' + expirationTime);
 
     _.each(items, function(item) {
         if (item['id'] && !idSet[item['id']]) {
             if (item['flushAfter'] && item['flushAfter'] >= expirationTime) {
               filteredItems.push(item);
             }
+        } else {
+          logger.log('filtered out item because invalid or expired' + JSONStringify(item));
         }
     });
     return filteredItems;
@@ -144,13 +150,13 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
     var idSet = {}; // poor man's Set
     _.each(ids, function(id) { idSet[id] = true; });
 
-    this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet);
+    this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet, this.storageExpiration);
 
     var removeFromStorage = _.bind(function () {
       var succeeded;
       try {
           var storedQueue = this.readFromStorage();
-          storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
+          storedQueue = filterOutIDsAndInvalid(storedQueue, idSet, this.storageExpiration);
           succeeded = this.saveToStorage(storedQueue);
       } catch(err) {
           logger.error('Error removing items', ids);
