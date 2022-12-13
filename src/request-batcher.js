@@ -23,7 +23,10 @@ var RequestBatcher = function(storageKey, endpoint, options) {
     this.batchSize = this.libConfig['batch_size'];
     this.flushInterval = this.libConfig['batch_flush_interval_ms'];
 
+    this.stopAllBatching = options.stopBatching;
+
     this.stopped = false;
+    this.removalFailures = 0;
 };
 
 /**
@@ -39,6 +42,7 @@ RequestBatcher.prototype.enqueue = function(item, cb) {
  */
 RequestBatcher.prototype.start = function() {
     this.stopped = false;
+    this.removalFailures = 0;
     this.flush();
 };
 
@@ -167,12 +171,33 @@ RequestBatcher.prototype.flush = function(options) {
                 }
 
                 if (removeItemsFromQueue) {
-                    this.queue.removeItemsByID(
-                        _.map(batch, function(item) { return item['id']; }),
-                        _.bind(this.flush, this) // handle next batch if the queue isn't empty
-                    );
+                  this.queue.removeItemsByID(
+                    _.map(batch, function (item) {
+                      return item['id'];
+                    }),
+                    _.bind(function (success) {
+                      if (success) {
+                        this.removalFailures = 0;
+                        this.flush();
+                      } else {
+                        this.removalFailures = this.removalFailure + 1;
+                        logger.error(
+                          'failed to remove items from batched queue ' +
+                            this.removalFailures +
+                            ' times.'
+                        );
+                        if (this.removalFailures > 6) {
+                          logger.error(
+                            'stop batching because too m any errors remove from storage'
+                          );
+                          this.stopAllBatching();
+                        } else {
+                          this.resetFlush();
+                        }
+                      }
+                    }, this) // handle next batch if the queue isn't empty
+                  );
                 }
-
             } catch(err) {
                 logger.error('Error handling API response', err);
                 this.resetFlush();

@@ -1,4 +1,4 @@
-import { cheap_guid, console_with_prefix, JSONParse, JSONStringify, _ } from './utils'; // eslint-disable-line
+import { cheap_guid, console_with_prefix, JSONParse, JSONStringify, localStorageSupported, _ } from './utils'; // eslint-disable-line
 import { SharedLock } from './shared-lock';
 
 var logger = console_with_prefix('batch');
@@ -133,27 +133,51 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
     _.each(ids, function(id) { idSet[id] = true; });
 
     this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet);
-    this.lock.withLock(_.bind(function lockAcquired() {
-        var succeeded;
-        try {
-            var storedQueue = this.readFromStorage();
-            storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
-            logger.log('new storedQueue ' + storedQueue && storedQueue.length);
-            succeeded = this.saveToStorage(storedQueue);
-        } catch(err) {
-            logger.error('Error removing items', ids);
-            succeeded = false;
-        }
+
+    var removeFromStorage = _.bind(function () {
+      var succeeded;
+      try {
+          var storedQueue = this.readFromStorage();
+          storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
+          succeeded = this.saveToStorage(storedQueue);
+      } catch(err) {
+          logger.error('Error removing items', ids);
+          succeeded = false;
+      }
+      return succeeded;
+    } , this);
+
+    this.lock.withLock(
+      _.bind(function lockAcquired() {
+        var succeeded = removeFromStorage();
         if (cb) {
-            logger.log('triggering callback of removalItems');
-            cb(succeeded);
+          logger.log('triggering callback of removalItems');
+          cb(succeeded);
         }
-    }, this), function lockFailure(err) {
+      }, this),
+      _.bind(function lockFailure(err) {
+        var succeeded = false;
         logger.error('Error acquiring storage lock', err);
-        if (cb) {
-            cb(false);
+        if (!localStorageSupported(this.storage, true)) {
+          succeeded = removeFromStorage();
+          if (!succeeded) {
+            // still can not remove from storage.
+            // we stop using storage.
+            logger.error('still can not remove from storage, thus stop using storage');
+
+            try {
+              this.storage.removeItem(this.storageKey);
+            } catch (err) {
+              logger.error('error clearing queue', err);
+            }
+          }
         }
-    }, this.pid);
+        if (cb) {
+          cb(succeeded);
+        }
+      }, this),
+      this.pid
+    );
 };
 
 /**
@@ -199,7 +223,11 @@ RequestQueue.prototype.saveToStorage = function(queue) {
  */
 RequestQueue.prototype.clear = function() {
     this.memQueue = [];
-    this.storage.removeItem(this.storageKey);
+    try {
+      this.storage.removeItem(this.storageKey);
+    } catch (err) {
+      logger.error('Failed to clear storage', err);
+    }
 };
 
 export { RequestQueue };

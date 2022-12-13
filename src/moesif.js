@@ -19,7 +19,7 @@ import {
 import { getAnonymousId, regenerateAnonymousId } from './anonymousId';
 
 var MOESIF_CONSTANTS = {
-  //The base Uri for API calls
+  //The base Uri for API callslocalStorageSupported
   HOST: 'api.moesif.net',
   EVENT_ENDPOINT: '/v1/events',
   EVENT_BATCH_ENDPOINT: '/v1/events/batch',
@@ -29,9 +29,6 @@ var MOESIF_CONSTANTS = {
   COMPANY_ENDPOINT: '/v1/companies'
 };
 
-/*
- * Dynamic... constants? Is that an oxymoron?
- */
 // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
 // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
 var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
@@ -40,6 +37,8 @@ var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest(
 // should only be true for Opera<12
 
 var ENQUEUE_REQUESTS = !USE_XHR && (userAgent.indexOf('MSIE') === -1) && (userAgent.indexOf('Mozilla') === -1);
+
+var NOOP = function() {};
 
 // save reference to navigator.sendBeacon so it can be minified
 var sendBeacon = null;
@@ -105,23 +104,19 @@ export default function () {
 
       var ops = {};
 
-      ops.getTags = options['getTags'] || function () {
-        return undefined;
-      };
+      ops.getTags = options['getTags'] || NOOP;
       ops.maskContent = options['maskContent'] || function (eventData) {
         return eventData;
       };
 
-      ops.getMetadata = options['getMetadata'] || function () {
-        return undefined;
-      };
+      ops.getMetadata = options['getMetadata'] || NOOP;
 
       ops.skip = options['skip'] || function () {
         return false;
       };
 
       ops.debug = options['debug'];
-      ops.callback = options['callback'];
+      ops.callback = options['callback'] || NOOP;
       ops.applicationId = options['applicationId'];
       ops.apiVersion = options['apiVersion'];
       ops.disableFetch = options['disableFetch'];
@@ -179,19 +174,31 @@ export default function () {
       }
 
       if (ops.batchEnabled) {
-        if (!localStorageSupported || !USE_XHR) {
+        if (!localStorageSupported() || !USE_XHR) {
           ops.batchEnabled = false;
           console.log('Turning off batch processing because it needs XHR and localStorage');
         } else {
           this.initBatching();
           if (sendBeacon && window.addEventListener) {
-            window.addEventListener('unload', _.bind(function () {
-              // Before page closes, attempt to flush any events queued up via navigator.sendBeacon.
-              // Since sendBeacon doesn't report success/failure, events will not be removed from
-              // the persistent store; if the site is loaded again, the events will be flushed again
-              // on startup and deduplicated on the Mixpanel server side.
-              this.requestBatchers.events.flush({ sendBeacon: true });
-            }, this));
+            var flushOnClose = _.bind(function() {
+              if (!this.requestBatchers.events.stopped) {
+                this.requestBatcher.events.flush({ sendBeacon: true });
+              }
+              if (!this.requestBatchers.actions.stopped) {
+                this.requestBatcher.actions.flush({ sendBeacon: true });
+              }
+            }, this);
+
+            // some browsers do not support visibilitychange event.
+            window.addEventListener('pagehide', function(ev) {
+                flushOnClose();
+            });
+
+            window.addEventListener('visibilitychange', function() {
+              if (document['visibilityState'] === 'hidden') {
+                flushOnClose();
+              }
+            });
           }
         }
       }
@@ -274,7 +281,10 @@ export default function () {
               options,
               cb
             );
-          }, this)
+          }, this),
+          stopAllBatching: _.bind(function () {
+            this.stopAllBatching();
+          }, this),
         };
 
         var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
@@ -288,6 +298,13 @@ export default function () {
 
       _.each(this.requestBatchers, function (batcher) {
         batcher.start();
+      });
+    },
+    stopBatching: function () {
+      this._options.batchEnabled = false;
+      _.each(this.requestBatchers, function(batcher) {
+          batcher.stop();
+          batcher.clear();
       });
     },
     _sendOrBatch: function(data, applicationId, endPoint, batcher, callback) {
