@@ -85,6 +85,7 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
  * already passed).
  */
 RequestQueue.prototype.fillBatch = function(batchSize) {
+    this.memQueue = filterOutIDsAndInvalid(this.memQueue, {}, this.storageExpiration);
     var batch = this.memQueue.slice(0, batchSize);
 
     if (batch.length < batchSize) {

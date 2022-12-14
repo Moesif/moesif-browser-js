@@ -181,12 +181,11 @@ export default function () {
           this.initBatching();
           if (sendBeacon && window.addEventListener) {
             var flushOnClose = _.bind(function() {
-              if (!this.requestBatchers.events.stopped) {
-                this.requestBatcher.events.flush({ sendBeacon: true });
-              }
-              if (!this.requestBatchers.actions.stopped) {
-                this.requestBatcher.actions.flush({ sendBeacon: true });
-              }
+              _.each(this.requestBatchers, function (batcher) {
+                if (!batcher.stopped) {
+                  batcher.flush({ sendBeacon: true });
+                }
+              });
             }, this);
 
             // some browsers do not support visibilitychange event.
@@ -300,7 +299,7 @@ export default function () {
         batcher.start();
       });
     },
-    stopBatching: function () {
+    stopAllBatching: function () {
       this._options.batchEnabled = false;
       _.each(this.requestBatchers, function(batcher) {
           batcher.stop();
@@ -309,18 +308,26 @@ export default function () {
     },
     _sendOrBatch: function(data, applicationId, endPoint, batcher, callback) {
       var requestInitiated = true;
+      var self = this;
 
-      if (this._options.batchEnabled && batcher) {
-        console.log('current batcher storage key is  ' + batcher.queue.storageKey);
-
-        batcher.enqueue(data);
-      } else {
-        // execute immediately
+      var sendImmediately = function () {
         var executeOps = {
           applicationId: applicationId
         };
+        return self._executeRequest(endPoint, data, executeOps, callback);
+      };
 
-        requestInitiated = this._executeRequest(endPoint, data, executeOps, callback);
+      if (this._options.batchEnabled && batcher) {
+        console.log('current batcher storage key is  ' + batcher.queue.storageKey);
+        var enqueueCallback = _.bind(function (enqueueSuccess) {
+          if (!enqueueSuccess) {
+            console.log('enqueue failed, send immediately');
+            sendImmediately();
+          }
+        }, this);
+        batcher.enqueue(data, enqueueCallback);
+      } else {
+        return sendImmediately();
       }
       return requestInitiated;
     },

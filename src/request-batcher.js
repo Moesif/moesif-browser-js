@@ -3,6 +3,7 @@ import { console_with_prefix, _, JSONStringify } from './utils'; // eslint-disab
 
 // maximum interval between request retries after exponential backoff
 var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+var MAX_REMOVE_FAILURE = 5;
 
 var logger = console_with_prefix('batch');
 
@@ -24,7 +25,7 @@ var RequestBatcher = function(storageKey, endpoint, options) {
     this.batchSize = this.libConfig['batch_size'];
     this.flushInterval = this.libConfig['batch_flush_interval_ms'];
 
-    this.stopAllBatching = options.stopBatching;
+    this.stopAllBatching = options.stopAllBatching;
 
     this.stopped = false;
     this.removalFailures = 0;
@@ -181,13 +182,13 @@ RequestBatcher.prototype.flush = function(options) {
                         this.removalFailures = 0;
                         this.flush();
                       } else {
-                        this.removalFailures = this.removalFailure + 1;
+                        this.removalFailures = this.removalFailures + 1;
                         logger.error(
                           'failed to remove items from batched queue ' +
                             this.removalFailures +
                             ' times.'
                         );
-                        if (this.removalFailures > 6) {
+                        if (this.removalFailures > MAX_REMOVE_FAILURE) {
                           logger.error(
                             'stop batching because too m any errors remove from storage'
                           );
