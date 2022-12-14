@@ -111,7 +111,6 @@
         };
     };
 
-
     // UNDERSCORE
     // Embed part of the Underscore Library
     _.bind = function(func, context) {
@@ -1690,6 +1689,18 @@
         return maxlen ? guid.substring(0, maxlen) : guid;
     };
 
+    var quick_hash = function (str) {
+      // Bernstein's hash: http://www.cse.yorku.ca/~oz/hash.html#djb2
+      var hash = 5381;
+      if (str.length == 0) return hash;
+      for (var i = 0; i < str.length; i++) {
+          hash = ((hash << 5) - hash) + str.charCodeAt(i);
+          hash = hash & hash;
+      }
+
+      return hash;
+    };
+
     /**
      * Check deterministically whether to include or exclude from a feature rollout/test based on the
      * given string and the desired percentage to include.
@@ -1702,12 +1713,7 @@
     var determine_eligibility = _.safewrap(function(str, feature, percent_allowed) {
         str = str + feature;
 
-        // Bernstein's hash: http://www.cse.yorku.ca/~oz/hash.html#djb2
-        var hash = 5381;
-        for (var i = 0; i < str.length; i++) {
-            hash = ((hash << 5) + hash) + str.charCodeAt(i);
-            hash = hash & hash;
-        }
+        var hash = quick_hash(str);
         var dart = (hash >>> 0) % 100;
         return dart < percent_allowed;
     });
@@ -3548,8 +3554,10 @@
               }, this)
             };
 
-            var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
-            var actionsBatcher = new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+            var hash = quick_hash(applicationId);
+
+            var eventsBatcher = new RequestBatcher('__mf_' + hash + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+            var actionsBatcher = new RequestBatcher('__mf_' + hash + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
 
             this.requestBatchers = {
               events: eventsBatcher,

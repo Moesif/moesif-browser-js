@@ -2,7 +2,7 @@
  * Created by Xingheng
  */
 
-import { _, console, userAgent, localStorageSupported, JSONStringify } from './utils';
+import { _, console, userAgent, localStorageSupported, JSONStringify, quick_hash } from './utils';
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './capture-fetch';
@@ -286,8 +286,10 @@ export default function () {
           }, this)
         };
 
-        var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
-        var actionsBatcher = new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+        var hash = quick_hash(applicationId);
+
+        var eventsBatcher = new RequestBatcher('__mf_' + hash + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+        var actionsBatcher = new RequestBatcher('__mf_' + hash + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
 
         this.requestBatchers = {
           events: eventsBatcher,

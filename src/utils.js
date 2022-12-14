@@ -108,7 +108,6 @@ var console_with_prefix = function(prefix) {
     };
 };
 
-
 // UNDERSCORE
 // Embed part of the Underscore Library
 _.bind = function(func, context) {
@@ -1687,6 +1686,18 @@ var cheap_guid = function(maxlen) {
     return maxlen ? guid.substring(0, maxlen) : guid;
 };
 
+var quick_hash = function (str) {
+  // Bernstein's hash: http://www.cse.yorku.ca/~oz/hash.html#djb2
+  var hash = 5381;
+  if (str.length == 0) return hash;
+  for (var i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash = hash & hash;
+  }
+
+  return hash;
+};
+
 /**
  * Check deterministically whether to include or exclude from a feature rollout/test based on the
  * given string and the desired percentage to include.
@@ -1699,12 +1710,7 @@ var cheap_guid = function(maxlen) {
 var determine_eligibility = _.safewrap(function(str, feature, percent_allowed) {
     str = str + feature;
 
-    // Bernstein's hash: http://www.cse.yorku.ca/~oz/hash.html#djb2
-    var hash = 5381;
-    for (var i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash) + str.charCodeAt(i);
-        hash = hash & hash;
-    }
+    var hash = quick_hash(str);
     var dart = (hash >>> 0) % 100;
     return dart < percent_allowed;
 });
@@ -1767,6 +1773,7 @@ export {
     document,
     navigator,
     cheap_guid,
+    quick_hash,
     console_with_prefix,
     determine_eligibility,
     extract_domain,
