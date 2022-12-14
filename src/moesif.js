@@ -2,7 +2,7 @@
  * Created by Xingheng
  */
 
-import { _, console, userAgent, localStorageSupported, JSONStringify } from './utils';
+import { _, console, userAgent, localStorageSupported, JSONStringify, quick_hash } from './utils';
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './capture-fetch';
@@ -29,9 +29,6 @@ var MOESIF_CONSTANTS = {
   COMPANY_ENDPOINT: '/v1/companies'
 };
 
-/*
- * Dynamic... constants? Is that an oxymoron?
- */
 // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
 // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
 var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest());
@@ -40,6 +37,8 @@ var USE_XHR = (window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest(
 // should only be true for Opera<12
 
 var ENQUEUE_REQUESTS = !USE_XHR && (userAgent.indexOf('MSIE') === -1) && (userAgent.indexOf('Mozilla') === -1);
+
+var NOOP = function() {};
 
 // save reference to navigator.sendBeacon so it can be minified
 var sendBeacon = null;
@@ -105,23 +104,19 @@ export default function () {
 
       var ops = {};
 
-      ops.getTags = options['getTags'] || function () {
-        return undefined;
-      };
+      ops.getTags = options['getTags'] || NOOP;
       ops.maskContent = options['maskContent'] || function (eventData) {
         return eventData;
       };
 
-      ops.getMetadata = options['getMetadata'] || function () {
-        return undefined;
-      };
+      ops.getMetadata = options['getMetadata'] || NOOP;
 
       ops.skip = options['skip'] || function () {
         return false;
       };
 
       ops.debug = options['debug'];
-      ops.callback = options['callback'];
+      ops.callback = options['callback'] || NOOP;
       ops.applicationId = options['applicationId'];
       ops.apiVersion = options['apiVersion'];
       ops.disableFetch = options['disableFetch'];
@@ -138,7 +133,7 @@ export default function () {
       ops['batch_size'] = options['batchSize'] || 25,
       ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
       ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
-
+      ops['batch_storage_expiration'] = options['batchStorageExpiration'];
 
       // storage persistence based options.
       // cookie, localStorage, or none.
@@ -179,19 +174,30 @@ export default function () {
       }
 
       if (ops.batchEnabled) {
-        if (!localStorageSupported || !USE_XHR) {
+        if (!localStorageSupported() || !USE_XHR) {
           ops.batchEnabled = false;
           console.log('Turning off batch processing because it needs XHR and localStorage');
         } else {
           this.initBatching();
           if (sendBeacon && window.addEventListener) {
-            window.addEventListener('unload', _.bind(function () {
-              // Before page closes, attempt to flush any events queued up via navigator.sendBeacon.
-              // Since sendBeacon doesn't report success/failure, events will not be removed from
-              // the persistent store; if the site is loaded again, the events will be flushed again
-              // on startup and deduplicated on the Mixpanel server side.
-              this.requestBatchers.events.flush({ sendBeacon: true });
-            }, this));
+            var flushOnClose = _.bind(function() {
+              _.each(this.requestBatchers, function (batcher) {
+                if (!batcher.stopped) {
+                  batcher.flush({ sendBeacon: true });
+                }
+              });
+            }, this);
+
+            // some browsers do not support visibilitychange event.
+            window.addEventListener('pagehide', function(ev) {
+                flushOnClose();
+            });
+
+            window.addEventListener('visibilitychange', function() {
+              if (document['visibilityState'] === 'hidden') {
+                flushOnClose();
+              }
+            });
           }
         }
       }
@@ -274,11 +280,16 @@ export default function () {
               options,
               cb
             );
+          }, this),
+          stopAllBatching: _.bind(function () {
+            this.stopAllBatching();
           }, this)
         };
 
-        var eventsBatcher = new RequestBatcher('__mf_' + applicationId + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
-        var actionsBatcher = new RequestBatcher('__mf_' + applicationId + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
+        var hash = quick_hash(applicationId);
+
+        var eventsBatcher = new RequestBatcher('__mf_' + hash + '_ev', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.EVENT_BATCH_ENDPOINT, batchConfig);
+        var actionsBatcher = new RequestBatcher('__mf_' + hash + '_ac', HTTP_PROTOCOL + host + MOESIF_CONSTANTS.ACTION_BATCH_ENDPOINT, batchConfig);
 
         this.requestBatchers = {
           events: eventsBatcher,
@@ -290,26 +301,40 @@ export default function () {
         batcher.start();
       });
     },
+    stopAllBatching: function () {
+      this._options.batchEnabled = false;
+      _.each(this.requestBatchers, function(batcher) {
+          batcher.stop();
+          batcher.clear();
+      });
+    },
     _sendOrBatch: function(data, applicationId, endPoint, batcher, callback) {
       var requestInitiated = true;
+      var self = this;
 
-      if (this._options.batchEnabled && batcher) {
-        console.log('current batcher storage key is  ' + batcher.queue.storageKey);
-
-        batcher.enqueue(data);
-      } else {
-        // execute immediately
+      var sendImmediately = function () {
         var executeOps = {
           applicationId: applicationId
         };
+        return self._executeRequest(endPoint, data, executeOps, callback);
+      };
 
-        requestInitiated = this._executeRequest(endPoint, data, executeOps, callback);
+      if (this._options.batchEnabled && batcher) {
+        console.log('current batcher storage key is  ' + batcher.queue.storageKey);
+        var enqueueCallback = _.bind(function (enqueueSuccess) {
+          if (!enqueueSuccess) {
+            console.log('enqueue failed, send immediately');
+            sendImmediately();
+          }
+        }, this);
+        batcher.enqueue(data, enqueueCallback);
+      } else {
+        return sendImmediately();
       }
       return requestInitiated;
     },
     'start': function (passedInWeb3) {
       var _self = this;
-
 
       if (this._stopRecording || this._stopWeb3Recording) {
         console.log('recording has already started, please call stop first.');

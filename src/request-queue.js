@@ -1,7 +1,9 @@
-import { cheap_guid, console_with_prefix, JSONParse, JSONStringify, _ } from './utils'; // eslint-disable-line
+import { cheap_guid, console_with_prefix, JSONParse, JSONStringify, localStorageSupported, _ } from './utils'; // eslint-disable-line
 import { SharedLock } from './shared-lock';
 
 var logger = console_with_prefix('batch');
+
+var DEFAULT_STORAGE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 hours.
 
 /**
  * RequestQueue: queue for batching API requests with localStorage backup for retries.
@@ -24,6 +26,7 @@ var RequestQueue = function(storageKey, options) {
     this.storageKey = storageKey;
     this.storage = options.storage || window.localStorage;
     this.lock = new SharedLock(storageKey, {storage: this.storage});
+    this.storageExpiration = options.storageExpiration || DEFAULT_STORAGE_EXPIRATION;
 
     this.pid = options.pid || null; // pass pid to test out storage lock contention scenarios
 
@@ -82,6 +85,7 @@ RequestQueue.prototype.enqueue = function(item, flushInterval, cb) {
  * already passed).
  */
 RequestQueue.prototype.fillBatch = function(batchSize) {
+    this.memQueue = filterOutIDsAndInvalid(this.memQueue, {}, this.storageExpiration);
     var batch = this.memQueue.slice(0, batchSize);
 
     if (batch.length < batchSize) {
@@ -97,11 +101,17 @@ RequestQueue.prototype.fillBatch = function(batchSize) {
 
             for (var i = 0; i < storedQueue.length; i++) {
                 var item = storedQueue[i];
-                if (new Date().getTime() > item['flushAfter'] && !idsInBatch[item['id']]) {
+                var currentTime = new Date().getTime();
+
+                var expirationTime = currentTime - this.storageExpiration;
+
+                if (currentTime > item['flushAfter'] && item['flushAfter'] >= expirationTime && !idsInBatch[item['id']]) {
                     batch.push(item);
                     if (batch.length >= batchSize) {
                         break;
                     }
+                } else {
+                  logger.log('fill batch filtered item because invalid or expired' + JSONStringify(item));
                 }
             }
         }
@@ -114,11 +124,20 @@ RequestQueue.prototype.fillBatch = function(batchSize) {
  * also remove any item without a valid id (e.g., malformed
  * storage entries).
  */
-var filterOutIDsAndInvalid = function(items, idSet) {
+var filterOutIDsAndInvalid = function(items, idSet, storageExpiration) {
     var filteredItems = [];
+    var currentTime = new Date().getTime();
+
+    var expirationTime = currentTime - storageExpiration;
+    logger.log('expiration time is ' + expirationTime);
+
     _.each(items, function(item) {
         if (item['id'] && !idSet[item['id']]) {
-            filteredItems.push(item);
+            if (item['flushAfter'] && item['flushAfter'] >= expirationTime) {
+              filteredItems.push(item);
+            }
+        } else {
+          logger.log('filtered out item because invalid or expired' + JSONStringify(item));
         }
     });
     return filteredItems;
@@ -132,28 +151,52 @@ RequestQueue.prototype.removeItemsByID = function(ids, cb) {
     var idSet = {}; // poor man's Set
     _.each(ids, function(id) { idSet[id] = true; });
 
-    this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet);
-    this.lock.withLock(_.bind(function lockAcquired() {
-        var succeeded;
-        try {
-            var storedQueue = this.readFromStorage();
-            storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
-            logger.log('new storedQueue ' + storedQueue && storedQueue.length);
-            succeeded = this.saveToStorage(storedQueue);
-        } catch(err) {
-            logger.error('Error removing items', ids);
-            succeeded = false;
-        }
+    this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet, this.storageExpiration);
+
+    var removeFromStorage = _.bind(function () {
+      var succeeded;
+      try {
+          var storedQueue = this.readFromStorage();
+          storedQueue = filterOutIDsAndInvalid(storedQueue, idSet, this.storageExpiration);
+          succeeded = this.saveToStorage(storedQueue);
+      } catch(err) {
+          logger.error('Error removing items', ids);
+          succeeded = false;
+      }
+      return succeeded;
+    } , this);
+
+    this.lock.withLock(
+      _.bind(function lockAcquired() {
+        var succeeded = removeFromStorage();
         if (cb) {
-            logger.log('triggering callback of removalItems');
-            cb(succeeded);
+          logger.log('triggering callback of removalItems');
+          cb(succeeded);
         }
-    }, this), function lockFailure(err) {
+      }, this),
+      _.bind(function lockFailure(err) {
+        var succeeded = false;
         logger.error('Error acquiring storage lock', err);
-        if (cb) {
-            cb(false);
+        if (!localStorageSupported(this.storage, true)) {
+          succeeded = removeFromStorage();
+          if (!succeeded) {
+            // still can not remove from storage.
+            // we stop using storage.
+            logger.error('still can not remove from storage, thus stop using storage');
+
+            try {
+              this.storage.removeItem(this.storageKey);
+            } catch (err) {
+              logger.error('error clearing queue', err);
+            }
+          }
         }
-    }, this.pid);
+        if (cb) {
+          cb(succeeded);
+        }
+      }, this),
+      this.pid
+    );
 };
 
 /**
@@ -199,7 +242,11 @@ RequestQueue.prototype.saveToStorage = function(queue) {
  */
 RequestQueue.prototype.clear = function() {
     this.memQueue = [];
-    this.storage.removeItem(this.storageKey);
+    try {
+      this.storage.removeItem(this.storageKey);
+    } catch (err) {
+      logger.error('Failed to clear storage', err);
+    }
 };
 
 export { RequestQueue };

@@ -3,6 +3,7 @@ import { console_with_prefix, _, JSONStringify } from './utils'; // eslint-disab
 
 // maximum interval between request retries after exponential backoff
 var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+var MAX_REMOVE_FAILURE = 5;
 
 var logger = console_with_prefix('batch');
 
@@ -13,7 +14,8 @@ var logger = console_with_prefix('batch');
  * @constructor
  */
 var RequestBatcher = function(storageKey, endpoint, options) {
-    this.queue = new RequestQueue(storageKey, {storage: options.storage});
+    var storageExpiration = options.libConfig['batch_storage_expiration'];
+    this.queue = new RequestQueue(storageKey, { storage: options.storage, storageExpiration: storageExpiration });
     this.endpoint = endpoint;
 
     this.libConfig = options.libConfig;
@@ -23,7 +25,10 @@ var RequestBatcher = function(storageKey, endpoint, options) {
     this.batchSize = this.libConfig['batch_size'];
     this.flushInterval = this.libConfig['batch_flush_interval_ms'];
 
+    this.stopAllBatching = options.stopAllBatching;
+
     this.stopped = false;
+    this.removalFailures = 0;
 };
 
 /**
@@ -39,6 +44,7 @@ RequestBatcher.prototype.enqueue = function(item, cb) {
  */
 RequestBatcher.prototype.start = function() {
     this.stopped = false;
+    this.removalFailures = 0;
     this.flush();
 };
 
@@ -167,12 +173,33 @@ RequestBatcher.prototype.flush = function(options) {
                 }
 
                 if (removeItemsFromQueue) {
-                    this.queue.removeItemsByID(
-                        _.map(batch, function(item) { return item['id']; }),
-                        _.bind(this.flush, this) // handle next batch if the queue isn't empty
-                    );
+                  this.queue.removeItemsByID(
+                    _.map(batch, function (item) {
+                      return item['id'];
+                    }),
+                    _.bind(function (success) {
+                      if (success) {
+                        this.removalFailures = 0;
+                        this.flush();
+                      } else {
+                        this.removalFailures = this.removalFailures + 1;
+                        logger.error(
+                          'failed to remove items from batched queue ' +
+                            this.removalFailures +
+                            ' times.'
+                        );
+                        if (this.removalFailures > MAX_REMOVE_FAILURE) {
+                          logger.error(
+                            'stop batching because too m any errors remove from storage'
+                          );
+                          this.stopAllBatching();
+                        } else {
+                          this.resetFlush();
+                        }
+                      }
+                    }, this) // handle next batch if the queue isn't empty
+                  );
                 }
-
             } catch(err) {
                 logger.error('Error handling API response', err);
                 this.resetFlush();
