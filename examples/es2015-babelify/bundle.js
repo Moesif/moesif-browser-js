@@ -602,7 +602,7 @@ Object.defineProperty(exports, '__esModule', {
 });
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.10'
+    LIB_VERSION: '1.8.11'
 };
 
 exports['default'] = Config;
@@ -734,9 +734,6 @@ var MOESIF_CONSTANTS = {
   COMPANY_ENDPOINT: '/v1/companies'
 };
 
-/*
- * Dynamic... constants? Is that an oxymoron?
- */
 // http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
 // https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#withCredentials
 var USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest();
@@ -745,6 +742,8 @@ var USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest()
 // should only be true for Opera<12
 
 var ENQUEUE_REQUESTS = !USE_XHR && _utils.userAgent.indexOf('MSIE') === -1 && _utils.userAgent.indexOf('Mozilla') === -1;
+
+var NOOP = function NOOP() {};
 
 // save reference to navigator.sendBeacon so it can be minified
 var sendBeacon = null;
@@ -809,23 +808,19 @@ exports['default'] = function () {
 
       var ops = {};
 
-      ops.getTags = options['getTags'] || function () {
-        return undefined;
-      };
+      ops.getTags = options['getTags'] || NOOP;
       ops.maskContent = options['maskContent'] || function (eventData) {
         return eventData;
       };
 
-      ops.getMetadata = options['getMetadata'] || function () {
-        return undefined;
-      };
+      ops.getMetadata = options['getMetadata'] || NOOP;
 
       ops.skip = options['skip'] || function () {
         return false;
       };
 
       ops.debug = options['debug'];
-      ops.callback = options['callback'];
+      ops.callback = options['callback'] || NOOP;
       ops.applicationId = options['applicationId'];
       ops.apiVersion = options['apiVersion'];
       ops.disableFetch = options['disableFetch'];
@@ -841,6 +836,7 @@ exports['default'] = function () {
 
       ops['batch_size'] = options['batchSize'] || 25, ops['batch_flush_interval_ms'] = options['batchMaxTime'] || 2500;
       ops['batch_request_timeout_ms'] = options['batchTimeout'] || 90000;
+      ops['batch_storage_expiration'] = options['batchStorageExpiration'];
 
       // storage persistence based options.
       // cookie, localStorage, or none.
@@ -881,19 +877,30 @@ exports['default'] = function () {
       }
 
       if (ops.batchEnabled) {
-        if (!_utils.localStorageSupported || !USE_XHR) {
+        if (!(0, _utils.localStorageSupported)() || !USE_XHR) {
           ops.batchEnabled = false;
           _utils.console.log('Turning off batch processing because it needs XHR and localStorage');
         } else {
           this.initBatching();
           if (sendBeacon && window.addEventListener) {
-            window.addEventListener('unload', _utils._.bind(function () {
-              // Before page closes, attempt to flush any events queued up via navigator.sendBeacon.
-              // Since sendBeacon doesn't report success/failure, events will not be removed from
-              // the persistent store; if the site is loaded again, the events will be flushed again
-              // on startup and deduplicated on the Mixpanel server side.
-              this.requestBatchers.events.flush({ sendBeacon: true });
-            }, this));
+            var flushOnClose = _utils._.bind(function () {
+              _utils._.each(this.requestBatchers, function (batcher) {
+                if (!batcher.stopped) {
+                  batcher.flush({ sendBeacon: true });
+                }
+              });
+            }, this);
+
+            // some browsers do not support visibilitychange event.
+            window.addEventListener('pagehide', function (ev) {
+              flushOnClose();
+            });
+
+            window.addEventListener('visibilitychange', function () {
+              if (document['visibilityState'] === 'hidden') {
+                flushOnClose();
+              }
+            });
           }
         }
       }
@@ -968,6 +975,9 @@ exports['default'] = function () {
           libConfig: this._options,
           sendRequestFunc: _utils._.bind(function (endPoint, data, options, cb) {
             this._executeRequest(endPoint, data, options, cb);
+          }, this),
+          stopAllBatching: _utils._.bind(function () {
+            this.stopAllBatching();
           }, this)
         };
 
@@ -984,20 +994,35 @@ exports['default'] = function () {
         batcher.start();
       });
     },
+    stopAllBatching: function stopAllBatching() {
+      this._options.batchEnabled = false;
+      _utils._.each(this.requestBatchers, function (batcher) {
+        batcher.stop();
+        batcher.clear();
+      });
+    },
     _sendOrBatch: function _sendOrBatch(data, applicationId, endPoint, batcher, callback) {
       var requestInitiated = true;
+      var self = this;
 
-      if (this._options.batchEnabled && batcher) {
-        _utils.console.log('current batcher storage key is  ' + batcher.queue.storageKey);
-
-        batcher.enqueue(data);
-      } else {
-        // execute immediately
+      var sendImmediately = function sendImmediately() {
         var executeOps = {
           applicationId: applicationId
         };
+        return self._executeRequest(endPoint, data, executeOps, callback);
+      };
 
-        requestInitiated = this._executeRequest(endPoint, data, executeOps, callback);
+      if (this._options.batchEnabled && batcher) {
+        _utils.console.log('current batcher storage key is  ' + batcher.queue.storageKey);
+        var enqueueCallback = _utils._.bind(function (enqueueSuccess) {
+          if (!enqueueSuccess) {
+            _utils.console.log('enqueue failed, send immediately');
+            sendImmediately();
+          }
+        }, this);
+        batcher.enqueue(data, enqueueCallback);
+      } else {
+        return sendImmediately();
       }
       return requestInitiated;
     },
@@ -1555,6 +1580,7 @@ var _utils = require('./utils');
 
 // maximum interval between request retries after exponential backoff
 var MAX_RETRY_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+var MAX_REMOVE_FAILURE = 5;
 
 var logger = (0, _utils.console_with_prefix)('batch');
 
@@ -1565,7 +1591,8 @@ var logger = (0, _utils.console_with_prefix)('batch');
  * @constructor
  */
 var RequestBatcher = function RequestBatcher(storageKey, endpoint, options) {
-    this.queue = new _requestQueue.RequestQueue(storageKey, { storage: options.storage });
+    var storageExpiration = options.libConfig['batch_storage_expiration'];
+    this.queue = new _requestQueue.RequestQueue(storageKey, { storage: options.storage, storageExpiration: storageExpiration });
     this.endpoint = endpoint;
 
     this.libConfig = options.libConfig;
@@ -1575,7 +1602,10 @@ var RequestBatcher = function RequestBatcher(storageKey, endpoint, options) {
     this.batchSize = this.libConfig['batch_size'];
     this.flushInterval = this.libConfig['batch_flush_interval_ms'];
 
+    this.stopAllBatching = options.stopAllBatching;
+
     this.stopped = false;
+    this.removalFailures = 0;
 };
 
 /**
@@ -1591,6 +1621,7 @@ RequestBatcher.prototype.enqueue = function (item, cb) {
  */
 RequestBatcher.prototype.start = function () {
     this.stopped = false;
+    this.removalFailures = 0;
     this.flush();
 };
 
@@ -1716,7 +1747,21 @@ RequestBatcher.prototype.flush = function (options) {
                 if (removeItemsFromQueue) {
                     this.queue.removeItemsByID(_utils._.map(batch, function (item) {
                         return item['id'];
-                    }), _utils._.bind(this.flush, this) // handle next batch if the queue isn't empty
+                    }), _utils._.bind(function (success) {
+                        if (success) {
+                            this.removalFailures = 0;
+                            this.flush();
+                        } else {
+                            this.removalFailures = this.removalFailures + 1;
+                            logger.error('failed to remove items from batched queue ' + this.removalFailures + ' times.');
+                            if (this.removalFailures > MAX_REMOVE_FAILURE) {
+                                logger.error('stop batching because too m any errors remove from storage');
+                                this.stopAllBatching();
+                            } else {
+                                this.resetFlush();
+                            }
+                        }
+                    }, this) // handle next batch if the queue isn't empty
                     );
                 }
             } catch (err) {
@@ -1758,6 +1803,8 @@ var _sharedLock = require('./shared-lock');
 
 var logger = (0, _utils.console_with_prefix)('batch');
 
+var DEFAULT_STORAGE_EXPIRATION = 6 * 60 * 60 * 1000; // 6 hours.
+
 /**
  * RequestQueue: queue for batching API requests with localStorage backup for retries.
  * Maintains an in-memory queue which represents the source of truth for the current
@@ -1779,6 +1826,7 @@ var RequestQueue = function RequestQueue(storageKey, options) {
     this.storageKey = storageKey;
     this.storage = options.storage || window.localStorage;
     this.lock = new _sharedLock.SharedLock(storageKey, { storage: this.storage });
+    this.storageExpiration = options.storageExpiration || DEFAULT_STORAGE_EXPIRATION;
 
     this.pid = options.pid || null; // pass pid to test out storage lock contention scenarios
 
@@ -1837,6 +1885,7 @@ RequestQueue.prototype.enqueue = function (item, flushInterval, cb) {
  * already passed).
  */
 RequestQueue.prototype.fillBatch = function (batchSize) {
+    this.memQueue = filterOutIDsAndInvalid(this.memQueue, {}, this.storageExpiration);
     var batch = this.memQueue.slice(0, batchSize);
 
     if (batch.length < batchSize) {
@@ -1854,11 +1903,17 @@ RequestQueue.prototype.fillBatch = function (batchSize) {
 
             for (var i = 0; i < storedQueue.length; i++) {
                 var item = storedQueue[i];
-                if (new Date().getTime() > item['flushAfter'] && !idsInBatch[item['id']]) {
+                var currentTime = new Date().getTime();
+
+                var expirationTime = currentTime - this.storageExpiration;
+
+                if (currentTime > item['flushAfter'] && item['flushAfter'] >= expirationTime && !idsInBatch[item['id']]) {
                     batch.push(item);
                     if (batch.length >= batchSize) {
                         break;
                     }
+                } else {
+                    logger.log('fill batch filtered item because invalid or expired' + (0, _utils.JSONStringify)(item));
                 }
             }
         }
@@ -1871,11 +1926,20 @@ RequestQueue.prototype.fillBatch = function (batchSize) {
  * also remove any item without a valid id (e.g., malformed
  * storage entries).
  */
-var filterOutIDsAndInvalid = function filterOutIDsAndInvalid(items, idSet) {
+var filterOutIDsAndInvalid = function filterOutIDsAndInvalid(items, idSet, storageExpiration) {
     var filteredItems = [];
+    var currentTime = new Date().getTime();
+
+    var expirationTime = currentTime - storageExpiration;
+    logger.log('expiration time is ' + expirationTime);
+
     _utils._.each(items, function (item) {
         if (item['id'] && !idSet[item['id']]) {
-            filteredItems.push(item);
+            if (item['flushAfter'] && item['flushAfter'] >= expirationTime) {
+                filteredItems.push(item);
+            }
+        } else {
+            logger.log('filtered out item because invalid or expired' + (0, _utils.JSONStringify)(item));
         }
     });
     return filteredItems;
@@ -1891,28 +1955,48 @@ RequestQueue.prototype.removeItemsByID = function (ids, cb) {
         idSet[id] = true;
     });
 
-    this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet);
-    this.lock.withLock(_utils._.bind(function lockAcquired() {
+    this.memQueue = filterOutIDsAndInvalid(this.memQueue, idSet, this.storageExpiration);
+
+    var removeFromStorage = _utils._.bind(function () {
         var succeeded;
         try {
             var storedQueue = this.readFromStorage();
-            storedQueue = filterOutIDsAndInvalid(storedQueue, idSet);
-            logger.log('new storedQueue ' + storedQueue && storedQueue.length);
+            storedQueue = filterOutIDsAndInvalid(storedQueue, idSet, this.storageExpiration);
             succeeded = this.saveToStorage(storedQueue);
         } catch (err) {
             logger.error('Error removing items', ids);
             succeeded = false;
         }
+        return succeeded;
+    }, this);
+
+    this.lock.withLock(_utils._.bind(function lockAcquired() {
+        var succeeded = removeFromStorage();
         if (cb) {
             logger.log('triggering callback of removalItems');
             cb(succeeded);
         }
-    }, this), function lockFailure(err) {
+    }, this), _utils._.bind(function lockFailure(err) {
+        var succeeded = false;
         logger.error('Error acquiring storage lock', err);
-        if (cb) {
-            cb(false);
+        if (!(0, _utils.localStorageSupported)(this.storage, true)) {
+            succeeded = removeFromStorage();
+            if (!succeeded) {
+                // still can not remove from storage.
+                // we stop using storage.
+                logger.error('still can not remove from storage, thus stop using storage');
+
+                try {
+                    this.storage.removeItem(this.storageKey);
+                } catch (err) {
+                    logger.error('error clearing queue', err);
+                }
+            }
         }
-    }, this.pid);
+        if (cb) {
+            cb(succeeded);
+        }
+    }, this), this.pid);
 };
 
 /**
@@ -1958,7 +2042,11 @@ RequestQueue.prototype.saveToStorage = function (queue) {
  */
 RequestQueue.prototype.clear = function () {
     this.memQueue = [];
-    this.storage.removeItem(this.storageKey);
+    try {
+        this.storage.removeItem(this.storageKey);
+    } catch (err) {
+        logger.error('Failed to clear storage', err);
+    }
 };
 
 exports.RequestQueue = RequestQueue;
