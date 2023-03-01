@@ -41,7 +41,7 @@
     "eslint": "^6.8.0",
     "express": "^4.12.2",
     "jsdom": "^8.1.0",
-    "mocha": "^5.2.0",
+    "mocha": "^10.2.0",
     "mocha-jsdom": "^1.1.0",
     "mock-local-storage": "^1.0.2",
     "morgan": "^1.9.1",
@@ -50,7 +50,7 @@
     "rollup": "^0.25.4",
     "rollup-plugin-npm": "^1.4.0",
     "sinon": "^1.17.3",
-    "webpack": "^1.12.2"
+    "webpack": "^5.75.0"
   },
   "pre-commit": [
     "lint",
