@@ -3,7 +3,7 @@
 
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.8.11'
+    LIB_VERSION: '1.8.12'
 };
 
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -944,6 +944,16 @@ _.UUID = (function() {
         return (T() + '-' + R() + '-' + UA() + '-' + se);
     };
 })();
+
+
+_.uuid4 = function () {
+  // based on
+  // https://github.com/tracker1/node-uuid4/blob/master/browser.js
+  var temp_url = URL.createObjectURL(new Blob());
+  var uuid = temp_url.toString();
+  URL.revokeObjectURL(temp_url);
+  return uuid.split(/[:\/]/g).pop().toLowerCase(); // remove prefixes
+};
 
 // _.isBlockedUA()
 // This is to block various web spiders from executing our JS and
@@ -3806,6 +3816,8 @@ function moesifCreator () {
         'user_agent_string': navigator.userAgent
       };
 
+      actionObject['traction_id'] = _.uuid4();
+
       if (metadata) {
         actionObject['metadata'] = metadata;
       }
@@ -3852,6 +3864,8 @@ function moesifCreator () {
       if (!logData['request']['headers']['User-Agent']) {
         logData['request']['headers']['User-Agent'] = window.navigator.userAgent;
       }
+
+      logData['traction_id'] = _.uuid4();
 
       if (_self._options.maskContent) {
         logData = _self._options.maskContent(logData);
