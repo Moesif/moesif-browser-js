@@ -942,6 +942,16 @@ _.UUID = (function() {
     };
 })();
 
+
+_.uuid4 = function () {
+  // based on
+  // https://github.com/tracker1/node-uuid4/blob/master/browser.js
+  var temp_url = URL.createObjectURL(new Blob());
+  var uuid = temp_url.toString();
+  URL.revokeObjectURL(temp_url);
+  return uuid.split(/[:\/]/g).pop().toLowerCase(); // remove prefixes
+};
+
 // _.isBlockedUA()
 // This is to block various web spiders from executing our JS and
 // sending false tracking data
