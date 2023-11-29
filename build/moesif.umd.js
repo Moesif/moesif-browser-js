@@ -3819,7 +3819,7 @@
             'user_agent_string': navigator.userAgent
           };
 
-          actionObject['traction_id'] = _.uuid4();
+          actionObject['transaction_id'] = _.uuid4();
 
           if (metadata) {
             actionObject['metadata'] = metadata;
@@ -3868,7 +3868,7 @@
             logData['request']['headers']['User-Agent'] = window.navigator.userAgent;
           }
 
-          logData['traction_id'] = _.uuid4();
+          logData['transaction_id'] = _.uuid4();
 
           if (_self._options.maskContent) {
             logData = _self._options.maskContent(logData);
