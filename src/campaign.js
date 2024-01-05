@@ -110,9 +110,9 @@ function saveEncodeIfHasData(persist, storageKey, data) {
 
 function getAndDecode(storageKey, opt) {
   try {
-    const stringVal = getFromPersistence(storageKey, opt);
+    var stringVal = getFromPersistence(storageKey, opt);
     if (stringVal && stringVal !== 'null') {
-       const data = _.JSONDecode(stringVal);
+       var data = _.JSONDecode(stringVal);
        if (hasData(data)) {
          return data;
        }
@@ -131,8 +131,9 @@ function storeForOneEntityIfNotSavedYet(
   entityStorageKey,
   currentCampaignData
 ) {
-  const storedData = getAndDecode(entityStorageKey, opt);
+  var storedData = getAndDecode(entityStorageKey, opt);
   if (!storedData && persist) {
+    // no stored data thus store current.
     saveEncodeIfHasData(persist, entityStorageKey, currentCampaignData);
   }
 }
@@ -144,7 +145,7 @@ function storeCampaignDataIfNeeded(persist, opt, currentCampaignData) {
 }
 
 function popStoredCampaignData(persist, opt, storageKey) {
-  const storedCampaignData = getAndDecode(storageKey, opt);
+  var storedCampaignData = getAndDecode(storageKey, opt);
 
   if (storedCampaignData) {
     // let's delete it
@@ -155,9 +156,8 @@ function popStoredCampaignData(persist, opt, storageKey) {
     } catch (err) {
       logger.error('failed to clear campaign data');
     }
-    return storedCampaignData;
   }
-  return null;
+  return storedCampaignData;
 }
 
 function popStoredCampaignDataForUser(persist, opt) {
