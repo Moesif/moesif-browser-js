@@ -3,7 +3,7 @@
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.8.12'
+        LIB_VERSION: '1.8.13'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -2438,8 +2438,8 @@
       STORED_COMPANY_ID: 'moesif_stored_company_id',
       STORED_SESSION_ID: 'moesif_stored_session_id',
       STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
-      STORED_CAMPAIGN_DATA: 'moesif_campaign_data',
-      STORED_INITIAL_CAMPAIGN_DATA: 'moesif_initial_campaign'
+      STORED_CAMPAIGN_DATA_USER: 'moesif_campaign_data',
+      STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company'
     };
 
     function replacePrefix(key, prefix) {
@@ -2531,7 +2531,10 @@
       _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
       _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
       _.cookie.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix)
+        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
+      );
+      _.cookie.remove(
+        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
       );
     }
 
@@ -2550,7 +2553,10 @@
         replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix)
       );
       _.localStorage.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix)
+        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
+      );
+      _.localStorage.remove(
+        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
       );
     }
 
@@ -2592,87 +2598,83 @@
       }
     }
 
-    // since identify company can happen a lot later
-    // than initial anonymous users
-    // persist the very initial campaign data for
-    // companies until company is identified.
-    function getStoredInitialCampaignData(opt) {
-      var storedCampaignData = null;
-      var storedCampaignString = null;
-      try {
-        storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, opt);
-        if (storedCampaignString) {
-          storedCampaignData = _.JSONDecode(storedCampaignString);
-        }
-      } catch (err) {
-        logger$4.error('failed to decode company campaign data ' + storedCampaignString);
-        logger$4.error(err);
+    function hasData(data) {
+      if (data && !_.isEmptyObject(data)) {
+        return true;
       }
-
-      return storedCampaignData;
+      return false;
     }
 
-    function mergeCampaignData(saved, current) {
-      if (!current) {
-        return saved;
-      }
-
-      if (!saved) {
-        return current;
-      }
-
-      var result = _.extend({}, saved, current);
-
-      // if utm source exists.
-      // every field of UTM will be override to be
-      // consistent.
-      if (current && current[UTMConstants.UTM_SOURCE]) {
-        for (var prop in UTMConstants) {
-          result[UTMConstants[prop]] = current[UTMConstants[prop]];
-        }
-      }
-
-      return result;
-    }
-
-    function getCampaignData(persist, opt) {
-      var storedCampaignData = null;
-      var storedCampaignString = null;
+    function saveEncodeIfHasData(persist, storageKey, data) {
       try {
-        storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, opt);
-        if (storedCampaignString && storedCampaignString !== 'null') {
-          storedCampaignData = _.JSONDecode(storedCampaignString);
+        if (hasData(data)) {
+          var dataString = _.JSONEncode(data);
+          persist(storageKey, dataString);
         }
       } catch (err) {
-        logger$4.error('failed to decode campaign data ' + storedCampaignString);
+        logger$4.error('failed to decode campaign data');
         logger$4.error(err);
       }
+    }
 
-      var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
-      logger$4.log('current campaignData');
-      logger$4.log(_.JSONEncode(currentCampaignData));
-
-      var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
-      logger$4.log('merged campaignData');
-      logger$4.log(_.JSONEncode(merged));
-
+    function getAndDecode(storageKey, opt) {
       try {
-        if (persist && merged && !_.isEmptyObject(merged)) {
-          var mergedString = _.JSONEncode(merged);
-          persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, mergedString);
-
-          // UTM_SOURCE exists means that merged campaign info have data.
-          if (!storedCampaignData && merged[UTMConstants.UTM_SOURCE]) {
-            // first time we persist campaign data, and thus persis the initial data until identifyCompany is called
-            persist(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, mergedString);
-          }
+        var stringVal = getFromPersistence(storageKey, opt);
+        if (stringVal && stringVal !== 'null') {
+           var data = _.JSONDecode(stringVal);
+           if (hasData(data)) {
+             return data;
+           }
+           return null;
         }
       } catch (err) {
         logger$4.error('failed to persist campaign data');
         logger$4.error(err);
+        return null;
       }
+    }
 
-      return merged;
+    function storeForOneEntityIfNotSavedYet(
+      persist,
+      opt,
+      entityStorageKey,
+      currentCampaignData
+    ) {
+      var storedData = getAndDecode(entityStorageKey, opt);
+      if (!storedData && persist) {
+        // no stored data thus store current.
+        saveEncodeIfHasData(persist, entityStorageKey, currentCampaignData);
+      }
+    }
+
+    // this stores Campaign data if not saved yet.
+    function storeCampaignDataIfNeeded(persist, opt, currentCampaignData) {
+      storeForOneEntityIfNotSavedYet(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, currentCampaignData);
+      storeForOneEntityIfNotSavedYet(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, currentCampaignData);
+    }
+
+    function popStoredCampaignData(persist, opt, storageKey) {
+      var storedCampaignData = getAndDecode(storageKey, opt);
+
+      if (storedCampaignData) {
+        // let's delete it
+        // we know we will use it.
+        // so next one can overridee
+        try {
+          persist(storageKey, '');
+        } catch (err) {
+          logger$4.error('failed to clear campaign data');
+        }
+      }
+      return storedCampaignData;
+    }
+
+    function popStoredCampaignDataForUser(persist, opt) {
+      return popStoredCampaignData(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER);
+    }
+
+    function popStoredCampaignDataForCompany(persist, opt) {
+      return popStoredCampaignData(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY);
     }
 
     // eslint-disable-line
@@ -3435,16 +3437,22 @@
             this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
             this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID, ops);
             this._anonymousId = getAnonymousId(this._persist, ops);
-            this._campaign = getCampaignData(this._persist, ops);
+            this._currentCampaign = getCampaignDataFromUrlOrCookie(ops);
+
+            if (this._currentCampaign) {
+              storeCampaignDataIfNeeded(this._persist, ops, this._currentCampaign);
+            }
+
+            // this._campaign = getCampaignData(this._persist, ops);
 
             // try to save campaign data on anonymous id
             // if there is no userId saved, means it is still anonymous.
             // later on, when identifyUser is called with real user id,
             // the campaigne data will be resent with that again.
-            if (this._campaign && !this._userId) {
+            if (this._currentCampaign && !this._userId) {
               var anonUserObject = {};
               anonUserObject['anonymous_id'] = this._anonymousId;
-              anonUserObject['campaign'] = this._campaign;
+              anonUserObject['campaign'] = this._currentCampaign;
               this.updateUser(anonUserObject, this._options.applicationId, this._options.host, this._options.callback);
             }
           } catch(err) {
@@ -3702,8 +3710,10 @@
             userObject['session_token'] = this._session;
           }
 
-          if (this._campaign) {
-            userObject['campaign'] = this._campaign;
+          var campaignData = popStoredCampaignDataForUser(this._persist, this._options) || this._currentCampaign;
+
+          if (campaignData) {
+            userObject['campaign'] = campaignData;
           }
 
           if (this._companyId) {
@@ -3735,8 +3745,6 @@
             return;
           }
 
-          var hasCompanyIdentifiedBefore = !!this._companyId;
-
           this._companyId = companyId;
           if (!(this._options && this._options.applicationId)) {
             throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -3756,9 +3764,7 @@
             companyObject['session_token'] = this._session;
           }
 
-          var campaignData = hasCompanyIdentifiedBefore
-            ? this._campaign
-            : getStoredInitialCampaignData(this._options) || this._campaign;
+          var campaignData = popStoredCampaignDataForCompany(this._persist, this._options) || this._currentCampaign;
 
           if (campaignData) {
             companyObject['campaign'] = campaignData;
@@ -3935,7 +3941,7 @@
           this._companyId = null;
           this._userId = null;
           this._session = null;
-          this._campaign = null;
+          this._currentCampaign = null;
         }
       };
     }
