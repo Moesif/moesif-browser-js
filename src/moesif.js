@@ -6,7 +6,12 @@ import { _, console, userAgent, localStorageSupported, JSONStringify, quick_hash
 import patchAjaxWithCapture from './capture';
 import patchWeb3WithCapture from './web3capture';
 import patchFetchWithCapture from './capture-fetch';
-import { getCampaignData, getStoredInitialCampaignData } from './campaign';
+import {
+  getCampaignDataFromUrlOrCookie,
+  storeCampaignDataIfNeeded,
+  popStoredCampaignDataForUser,
+  popStoredCampaignDataForCompany
+} from './campaign';
 import Config from './config';
 import { RequestBatcher } from './request-batcher';
 import {
@@ -157,16 +162,22 @@ export default function () {
         this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
         this._companyId = getFromPersistence(STORAGE_CONSTANTS.STORED_COMPANY_ID, ops);
         this._anonymousId = getAnonymousId(this._persist, ops);
-        this._campaign = getCampaignData(this._persist, ops);
+        this._currentCampaign = getCampaignDataFromUrlOrCookie(ops);
+
+        if (this._currentCampaign) {
+          storeCampaignDataIfNeeded(this._persist, ops, this._currentCampaign);
+        }
+
+        // this._campaign = getCampaignData(this._persist, ops);
 
         // try to save campaign data on anonymous id
         // if there is no userId saved, means it is still anonymous.
         // later on, when identifyUser is called with real user id,
         // the campaigne data will be resent with that again.
-        if (this._campaign && !this._userId) {
+        if (this._currentCampaign && !this._userId) {
           var anonUserObject = {};
           anonUserObject['anonymous_id'] = this._anonymousId;
-          anonUserObject['campaign'] = this._campaign;
+          anonUserObject['campaign'] = this._currentCampaign;
           this.updateUser(anonUserObject, this._options.applicationId, this._options.host, this._options.callback);
         }
       } catch(err) {
@@ -424,8 +435,10 @@ export default function () {
         userObject['session_token'] = this._session;
       }
 
-      if (this._campaign) {
-        userObject['campaign'] = this._campaign;
+      var campaignData = popStoredCampaignDataForUser(this._persist, this._options) || this._currentCampaign;
+
+      if (campaignData) {
+        userObject['campaign'] = campaignData;
       }
 
       if (this._companyId) {
@@ -457,8 +470,6 @@ export default function () {
         return;
       }
 
-      var hasCompanyIdentifiedBefore = !!this._companyId;
-
       this._companyId = companyId;
       if (!(this._options && this._options.applicationId)) {
         throw new Error('Init needs to be called with a valid application Id before calling identify User.');
@@ -478,9 +489,7 @@ export default function () {
         companyObject['session_token'] = this._session;
       }
 
-      var campaignData = hasCompanyIdentifiedBefore
-        ? this._campaign
-        : getStoredInitialCampaignData(this._options) || this._campaign;
+      var campaignData = popStoredCampaignDataForCompany(this._persist, this._options) || this._currentCampaign;
 
       if (campaignData) {
         companyObject['campaign'] = campaignData;
@@ -657,7 +666,7 @@ export default function () {
       this._companyId = null;
       this._userId = null;
       this._session = null;
-      this._campaign = null;
+      this._currentCampaign = null;
     }
   };
 }
