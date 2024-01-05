@@ -6,8 +6,8 @@ var STORAGE_CONSTANTS = {
   STORED_COMPANY_ID: 'moesif_stored_company_id',
   STORED_SESSION_ID: 'moesif_stored_session_id',
   STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
-  STORED_CAMPAIGN_DATA: 'moesif_campaign_data',
-  STORED_INITIAL_CAMPAIGN_DATA: 'moesif_initial_campaign'
+  STORED_CAMPAIGN_DATA_USER: 'moesif_campaign_data',
+  STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company',
 };
 
 function replacePrefix(key, prefix) {
@@ -99,7 +99,10 @@ function clearCookies(opt) {
   _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
   _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
   _.cookie.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix)
+    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
+  );
+  _.cookie.remove(
+    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
   );
 }
 
@@ -118,7 +121,10 @@ function clearLocalStorage(opt) {
     replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix)
   );
   _.localStorage.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, prefix)
+    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
+  );
+  _.localStorage.remove(
+    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
   );
 }
 

@@ -45,21 +45,26 @@ function getCampaignDataFromUrlOrCookie(opt) {
 // than initial anonymous users
 // persist the very initial campaign data for
 // companies until company is identified.
-function getStoredInitialCampaignData(opt) {
-  var storedCampaignData = null;
-  var storedCampaignString = null;
-  try {
-    storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, opt);
-    if (storedCampaignString) {
-      storedCampaignData = _.JSONDecode(storedCampaignString);
-    }
-  } catch (err) {
-    logger.error('failed to decode company campaign data ' + storedCampaignString);
-    logger.error(err);
-  }
+// function getStoredInitialCampaignData(opt) {
+//   var storedCampaignData = null;
+//   var storedCampaignString = null;
+//   try {
+//     storedCampaignString = getFromPersistence(
+//       STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA,
+//       opt
+//     );
+//     if (storedCampaignString) {
+//       storedCampaignData = _.JSONDecode(storedCampaignString);
+//     }
+//   } catch (err) {
+//     logger.error(
+//       'failed to decode company campaign data ' + storedCampaignString
+//     );
+//     logger.error(err);
+//   }
 
-  return storedCampaignData;
-}
+//   return storedCampaignData;
+// }
 
 function mergeCampaignData(saved, current) {
   if (!current) {
@@ -84,47 +89,131 @@ function mergeCampaignData(saved, current) {
   return result;
 }
 
-function getCampaignData(persist, opt) {
-  var storedCampaignData = null;
-  var storedCampaignString = null;
+function hasData(data) {
+  if (data && !_.isEmptyObject(data)) {
+    return true;
+  }
+  return false;
+}
+
+function saveEncodeIfHasData(persist, storageKey, data) {
   try {
-    storedCampaignString = getFromPersistence(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, opt);
-    if (storedCampaignString && storedCampaignString !== 'null') {
-      storedCampaignData = _.JSONDecode(storedCampaignString);
+    if (hasData(data)) {
+      var dataString = _.JSONEncode(data);
+      persist(storageKey, dataString);
     }
   } catch (err) {
-    logger.error('failed to decode campaign data ' + storedCampaignString);
+    logger.error('failed to decode campaign data');
     logger.error(err);
   }
+}
 
-  var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
-  logger.log('current campaignData');
-  logger.log(_.JSONEncode(currentCampaignData));
-
-  var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
-  logger.log('merged campaignData');
-  logger.log(_.JSONEncode(merged));
-
+function getAndDecode(storageKey, opt) {
   try {
-    if (persist && merged && !_.isEmptyObject(merged)) {
-      var mergedString = _.JSONEncode(merged);
-      persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, mergedString);
-
-      // UTM_SOURCE exists means that merged campaign info have data.
-      if (!storedCampaignData && merged[UTMConstants.UTM_SOURCE]) {
-        // first time we persist campaign data, and thus persis the initial data until identifyCompany is called
-        persist(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, mergedString);
-      }
+    const stringVal = getFromPersistence(storageKey, opt);
+    if (stringVal && stringVal !== 'null') {
+       const data = _.JSONDecode(stringVal);
+       if (hasData(data)) {
+         return data;
+       }
+       return null;
     }
   } catch (err) {
     logger.error('failed to persist campaign data');
     logger.error(err);
+    return null;
   }
-
-  return merged;
 }
 
+function storeForOneEntityIfNotSavedYet(
+  persist,
+  opt,
+  entityStorageKey,
+  currentCampaignData
+) {
+  const storedData = getAndDecode(entityStorageKey, opt);
+  if (!storedData && persist) {
+    saveEncodeIfHasData(persist, entityStorageKey, currentCampaignData);
+  }
+}
+
+// this stores Campaign data if not saved yet.
+function storeCampaignDataIfNeeded(persist, opt, currentCampaignData) {
+  storeForOneEntityIfNotSavedYet(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, currentCampaignData);
+  storeForOneEntityIfNotSavedYet(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, currentCampaignData);
+}
+
+function popStoredCampaignData(persist, opt, storageKey) {
+  const storedCampaignData = getAndDecode(storageKey, opt);
+
+  if (storedCampaignData) {
+    // let's delete it
+    // we know we will use it.
+    // so next one can overridee
+    try {
+      persist(storageKey, '');
+    } catch (err) {
+      logger.error('failed to clear campaign data');
+    }
+    return storedCampaignData;
+  }
+  return null;
+}
+
+function popStoredCampaignDataForUser(persist, opt) {
+  return popStoredCampaignData(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER);
+}
+
+function popStoredCampaignDataForCompany(persist, opt) {
+  return popStoredCampaignData(persist, opt, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY);
+}
+
+// function getCampaignData(persist, opt) {
+//   var storedCampaignData = null;
+//   var storedCampaignString = null;
+//   try {
+//     storedCampaignString = getFromPersistence(
+//       STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA,
+//       opt
+//     );
+//     if (storedCampaignString && storedCampaignString !== 'null') {
+//       storedCampaignData = _.JSONDecode(storedCampaignString);
+//     }
+//   } catch (err) {
+//     logger.error('failed to decode campaign data ' + storedCampaignString);
+//     logger.error(err);
+//   }
+
+//   var currentCampaignData = getCampaignDataFromUrlOrCookie(opt);
+//   logger.log('current campaignData');
+//   logger.log(_.JSONEncode(currentCampaignData));
+
+//   var merged = mergeCampaignData(storedCampaignData, currentCampaignData);
+//   logger.log('merged campaignData');
+//   logger.log(_.JSONEncode(merged));
+
+//   try {
+//     if (persist && merged && !_.isEmptyObject(merged)) {
+//       var mergedString = _.JSONEncode(merged);
+//       persist(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA, mergedString);
+
+//       // UTM_SOURCE exists means that merged campaign info have data.
+//       if (!storedCampaignData && merged[UTMConstants.UTM_SOURCE]) {
+//         // first time we persist campaign data, and thus persis the initial data until identifyCompany is called
+//         persist(STORAGE_CONSTANTS.STORED_INITIAL_CAMPAIGN_DATA, mergedString);
+//       }
+//     }
+//   } catch (err) {
+//     logger.error('failed to persist campaign data');
+//     logger.error(err);
+//   }
+
+//   return merged;
+// }
+
 export {
-  getCampaignData,
-  getStoredInitialCampaignData,
+  getCampaignDataFromUrlOrCookie,
+  storeCampaignDataIfNeeded,
+  popStoredCampaignDataForUser,
+  popStoredCampaignDataForCompany
 };
