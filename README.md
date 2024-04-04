@@ -30,7 +30,7 @@ If you want to automatically log AJAX API calls, you can also call the `start()`
 <script type="text/javascript">
   // Initialize the SDK. Must be called before any other methods
   moesif.init({
-    applicationId: "Your Moesif Application Id",
+    applicationId: "Your Publishable Moesif Application Id",
     // add other option here
   });
 
@@ -65,7 +65,7 @@ var moesif = require("moesif-browser-js");
 
 // Initialize the SDK. Must be called before any other methods
 moesif.init({
-  applicationId: "Your Moesif Application Id",
+  applicationId: "Your PUblishable Moesif Application Id",
   // add other option here
 });
 
@@ -183,13 +183,13 @@ By default, Moesif uses both local storage and cookies for redundancy, but you c
 
 #### init, (obj) => null
 
-Initialize the SDK with your Application Id and any other options.
+Initialize the SDK with your Publishable Application Id and any other options.
 On initialization, the SDK will capture user context like device and marketing attribution.
 This method must be called before any other methods like `start()` or `identifyUser`.
 
 ```javascript
 var options = {
-  applicationId: 'Your Moesif Application Id'
+  applicationId: 'Your Publishable Moesif Application Id'
 };
 
 moesif.init(options);
@@ -292,7 +292,7 @@ The `options` is an object that is passed into the SDK's `init` method.
 
 #### applicationId - string, required
 
-This is the collector API key that is obtained from your Moesif account. Collector Application Id's are write-only keys and can be safely used on the client side.
+This is the collector API key that is obtained from your Moesif account. You should only use your publishable application id in untrusted apps like client-side javascript. Publishable Collector Application Id’s are write-only keys and can be safely used on the client side.
 
 #### batchEnabled, boolean, optional, default false.
 
@@ -382,7 +382,7 @@ full options example:
 
 ```javascript
 var options = {
-  applicationId: "Your Moesif Application Id",
+  applicationId: "Your Publishable Moesif Application Id",
   skip: function (event) {
     if (event.request.uri.includes("google")) {
       return true;
