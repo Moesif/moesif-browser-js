@@ -84,9 +84,12 @@ With the `require` method, the `moesif` object is not attached to any global sco
 window.moesif = moesif;
 ```
 
-Your Moesif Application Id will be displayed during the onboarding steps when signing up for [Moesif](https://www.moesif.com/) You can always find your Moesif Application Id at any time by logging
+
+Your Publishable Moesif Application Id will be displayed during the onboarding steps when signing up for [Moesif](https://www.moesif.com/) when you select Browser JS. You can always find your Publishable Moesif Application Id at any time by logging
 into the [_Moesif Portal_](https://www.moesif.com/), go to the main menu,
 and then clicking _Installation_.
+
+> You should only use your __publishable__ application id in untrusted apps like client-side javascript. This can be found by logging into Moesif and clicking API Keys from the bottom left menu.
 
 ## How to use
 
