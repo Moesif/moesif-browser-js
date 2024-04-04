@@ -65,7 +65,7 @@ var moesif = require("moesif-browser-js");
 
 // Initialize the SDK. Must be called before any other methods
 moesif.init({
-  applicationId: "Your PUblishable Moesif Application Id",
+  applicationId: "Your Publishable Moesif Application Id",
   // add other option here
 });
 
