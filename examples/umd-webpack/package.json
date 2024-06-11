@@ -10,9 +10,9 @@
   "author": "team@moesif.com",
   "license": "Apache-2.0",
   "dependencies": {
-    "webpack": "^4.43.0"
+    "webpack": "^5.91.0"
   },
   "devDependencies": {
-    "webpack-cli": "^3.3.11"
+    "webpack-cli": "^5.1.4"
   }
 }
