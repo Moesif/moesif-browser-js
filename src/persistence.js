@@ -7,7 +7,8 @@ var STORAGE_CONSTANTS = {
   STORED_SESSION_ID: 'moesif_stored_session_id',
   STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
   STORED_CAMPAIGN_DATA_USER: 'moesif_campaign_data',
-  STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company'
+  STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company',
+  STORED_PENDING_REQUESTS: 'moesif_pending_requests'
 };
 
 function replacePrefix(key, prefix) {
@@ -73,12 +74,23 @@ function ensureNotNilString(str) {
   return str;
 }
 
+// Helper to check if localStorage should be used based on user's persistence preference
+function shouldUseLocalStorage(opt) {
+  var storageType = opt && opt['persistence'];
+  return storageType !== 'cookie' && _.localStorage.is_supported();
+}
+
+// Helper to get resolved storage key with prefix
+function getResolvedKey(key, opt) {
+  var prefix = opt && opt['persistence_key_prefix'];
+  return replacePrefix(key, prefix);
+}
+
 // this tries to get from either cookie or localStorage.
 // whichever have data.
 function getFromPersistence(key, opt) {
   var storageType = opt && opt['persistence'];
-  var prefix = opt && opt['persistence_key_prefix'];
-  var resolvedKey = replacePrefix(key, prefix);
+  var resolvedKey = getResolvedKey(key, opt);
   if (_.localStorage.is_supported()) {
     var localValue = ensureNotNilString(_.localStorage.get(resolvedKey));
     var cookieValue = ensureNotNilString(_.cookie.get(resolvedKey));
@@ -93,39 +105,56 @@ function getFromPersistence(key, opt) {
 }
 
 function clearCookies(opt) {
-  var prefix = opt && opt['persistence_key_prefix'];
-  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
-  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
-  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
-  _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
-  _.cookie.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
-  );
-  _.cookie.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
-  );
+  _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
+  _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
+  _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
+  _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
+  _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
+  _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
 }
 
 function clearLocalStorage(opt) {
-  var prefix = opt && opt['persistence_key_prefix'];
-  _.localStorage.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix)
-  );
-  _.localStorage.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix)
-  );
-  _.localStorage.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix)
-  );
-  _.localStorage.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix)
-  );
-  _.localStorage.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
-  );
-  _.localStorage.remove(
-    replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
-  );
+  _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
+  _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
+  _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
+  _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
+  _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
+  _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
 }
 
-export { getFromPersistence, getPersistenceFunction, STORAGE_CONSTANTS, clearCookies, clearLocalStorage };
+// LocalStorage-only helpers for page-specific data (e.g., pending requests queue)
+// These do NOT sync to cookies and are not meant for cross-subdomain data
+// Respects user's persistence preference - if they opted for 'cookie' mode, localStorage is not used
+function getFromLocalStorageOnly(key, opt) {
+  if (!shouldUseLocalStorage(opt)) {
+    return null;
+  }
+  return ensureNotNilString(_.localStorage.get(getResolvedKey(key, opt)));
+}
+
+function saveToLocalStorageOnly(key, value, opt) {
+  if (!shouldUseLocalStorage(opt)) {
+    return false;
+  }
+  _.localStorage.set(getResolvedKey(key, opt), value);
+  return true;
+}
+
+function removeFromLocalStorageOnly(key, opt) {
+  if (!shouldUseLocalStorage(opt)) {
+    return false;
+  }
+  _.localStorage.remove(getResolvedKey(key, opt));
+  return true;
+}
+
+export {
+  getFromPersistence,
+  getPersistenceFunction,
+  STORAGE_CONSTANTS,
+  clearCookies,
+  clearLocalStorage,
+  getFromLocalStorageOnly,
+  saveToLocalStorageOnly,
+  removeFromLocalStorageOnly
+};

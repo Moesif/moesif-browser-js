@@ -2,7 +2,7 @@ define(function () { 'use strict';
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.9.0'
+        LIB_VERSION: '1.10.0'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -2338,6 +2338,15 @@ define(function () { 'use strict';
       }
     }
 
+    function executeWithMiddleware(context, finalAction, middleware) {
+      // If no middleware, just run the core logic
+      if (typeof middleware !== 'function') {
+        return finalAction();
+      }
+
+      middleware(context, finalAction);
+    }
+
     function isTargetDomain(urlObj, decoratableDomains) {
       if (decoratableDomains === null) return true; // Decorate all domains if decoratableDomains is null
       if (Array.isArray(decoratableDomains) && decoratableDomains.length === 0) return false;
@@ -2383,60 +2392,75 @@ define(function () { 'use strict';
       return url;
     }
 
-    function decorateLinks(trackingDomains, trackingParamName, trackingParamValue, recorder, env) {
+    function decorateLinks(trackingDomains, trackingParamName, trackingParamValue, middleware, env) {
       var myenv = env || window || self;
 
       // Link click handler - handles various click events
       var linkClickHandler = function(e) {
-        var link = e.target.closest('a');
-        if (link && link.href) {
-          link.href = decorator(
-            link.href,
-            trackingDomains,
-            trackingParamName,
-            trackingParamValue,
-            myenv
-          );
+        function next() {
+          var link = e.target.closest('a');
+          if (link && link.href) {
+            link.href = decorator(link.href, trackingDomains, trackingParamName, trackingParamValue, myenv);
+          }
         }
+        var contextForMiddleware = {
+          event: e,
+          trackingDomains: trackingDomains,
+          trackingParamName: trackingParamName,
+          trackingParamValue: trackingParamValue,
+          env: myenv
+        };
+        executeWithMiddleware(contextForMiddleware, next, middleware);
       };
 
       // Form submission handler
       var formSubmitHandler = function(e) {
-        var form = e.target;
-        try {
-          var actionUrl = new URL(form.action, myenv.location.origin);
+        function next() {
+          var form = e.target;
+          try {
+            var actionUrl = new URL(form.action, myenv.location.origin);
 
-          // Skip same-origin forms
-          if (isSameOrigin(actionUrl, myenv)) {
-            return;
-          }
-
-          var isTarget = isTargetDomain(actionUrl, trackingDomains);
-
-          if (isTarget) {
-            var method = (form.method || 'get').toLowerCase();
-
-            // Only decorate GET forms automatically
-            // POST forms are skipped to avoid breaking server-side logic (CSRF, routing, etc.)
-            // POST body can't be read by JavaScript on the destination page anyway
-            // Users can manually use cdtUrlDecorator() for form.action if needed
-            if (method === 'get') {
-              // Add as hidden input which will be appended to the query string
-              var trackingInput = form.querySelector('input[name="' + trackingParamName + '"]');
-
-              if (!trackingInput) {
-                trackingInput = myenv.document.createElement('input');
-                trackingInput.type = 'hidden';
-                trackingInput.name = trackingParamName;
-                form.appendChild(trackingInput);
-              }
-
-              trackingInput.value = trackingParamValue;
+            // Skip same-origin forms
+            if (isSameOrigin(actionUrl, myenv)) {
+              return;
             }
+
+            var isTarget = isTargetDomain(actionUrl, trackingDomains);
+
+            if (isTarget) {
+              var method = (form.method || 'get').toLowerCase();
+
+              // Only decorate GET forms automatically
+              // POST forms are skipped to avoid breaking server-side logic (CSRF, routing, etc.)
+              // POST body can't be read by JavaScript on the destination page anyway
+              // Users can manually use cdtUrlDecorator() for form.action if needed
+              if (method === 'get') {
+                // Add as hidden input which will be appended to the query string
+                var trackingInput = form.querySelector('input[name="' + trackingParamName + '"]');
+
+                if (!trackingInput) {
+                  trackingInput = myenv.document.createElement('input');
+                  trackingInput.type = 'hidden';
+                  trackingInput.name = trackingParamName;
+                  form.appendChild(trackingInput);
+                }
+
+                trackingInput.value = trackingParamValue;
+              }
+            }
+          } catch (err) {
+            // skip decoration
           }
-        } catch (err) {
-          // skip decoration
         }
+
+        var contextForMiddleware = {
+          event: e,
+          trackingDomains: trackingDomains,
+          trackingParamName: trackingParamName,
+          trackingParamValue: trackingParamValue,
+          env: myenv
+        };
+        executeWithMiddleware(contextForMiddleware, next, middleware);
       };
 
       // Add event listeners for various interaction types
@@ -2615,7 +2639,8 @@ define(function () { 'use strict';
       STORED_SESSION_ID: 'moesif_stored_session_id',
       STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
       STORED_CAMPAIGN_DATA_USER: 'moesif_campaign_data',
-      STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company'
+      STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company',
+      STORED_PENDING_REQUESTS: 'moesif_pending_requests'
     };
 
     function replacePrefix(key, prefix) {
@@ -2681,12 +2706,23 @@ define(function () { 'use strict';
       return str;
     }
 
+    // Helper to check if localStorage should be used based on user's persistence preference
+    function shouldUseLocalStorage(opt) {
+      var storageType = opt && opt['persistence'];
+      return storageType !== 'cookie' && _.localStorage.is_supported();
+    }
+
+    // Helper to get resolved storage key with prefix
+    function getResolvedKey(key, opt) {
+      var prefix = opt && opt['persistence_key_prefix'];
+      return replacePrefix(key, prefix);
+    }
+
     // this tries to get from either cookie or localStorage.
     // whichever have data.
     function getFromPersistence(key, opt) {
       var storageType = opt && opt['persistence'];
-      var prefix = opt && opt['persistence_key_prefix'];
-      var resolvedKey = replacePrefix(key, prefix);
+      var resolvedKey = getResolvedKey(key, opt);
       if (_.localStorage.is_supported()) {
         var localValue = ensureNotNilString(_.localStorage.get(resolvedKey));
         var cookieValue = ensureNotNilString(_.cookie.get(resolvedKey));
@@ -2701,39 +2737,47 @@ define(function () { 'use strict';
     }
 
     function clearCookies(opt) {
-      var prefix = opt && opt['persistence_key_prefix'];
-      _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
-      _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
-      _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
-      _.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
-      _.cookie.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
-      );
-      _.cookie.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
-      );
+      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
+      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
+      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
+      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
+      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
+      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
     }
 
     function clearLocalStorage(opt) {
-      var prefix = opt && opt['persistence_key_prefix'];
-      _.localStorage.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix)
-      );
-      _.localStorage.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix)
-      );
-      _.localStorage.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix)
-      );
-      _.localStorage.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix)
-      );
-      _.localStorage.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix)
-      );
-      _.localStorage.remove(
-        replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix)
-      );
+      _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
+      _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
+      _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
+      _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
+      _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
+      _.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
+    }
+
+    // LocalStorage-only helpers for page-specific data (e.g., pending requests queue)
+    // These do NOT sync to cookies and are not meant for cross-subdomain data
+    // Respects user's persistence preference - if they opted for 'cookie' mode, localStorage is not used
+    function getFromLocalStorageOnly(key, opt) {
+      if (!shouldUseLocalStorage(opt)) {
+        return null;
+      }
+      return ensureNotNilString(_.localStorage.get(getResolvedKey(key, opt)));
+    }
+
+    function saveToLocalStorageOnly(key, value, opt) {
+      if (!shouldUseLocalStorage(opt)) {
+        return false;
+      }
+      _.localStorage.set(getResolvedKey(key, opt), value);
+      return true;
+    }
+
+    function removeFromLocalStorageOnly(key, opt) {
+      if (!shouldUseLocalStorage(opt)) {
+        return false;
+      }
+      _.localStorage.remove(getResolvedKey(key, opt));
+      return true;
     }
 
     var logger$4 = console_with_prefix('campaign');
@@ -3655,10 +3699,21 @@ define(function () { 'use strict';
           ops.crossDomainTargets = Object.hasOwn(options, 'crossDomainTargets') ? options['crossDomainTargets'] : [];
           ops.crossDomainTrackingParameterName = ops.enableCrossDomainTracking ? (options['crossDomainTrackingParameterName'] || '__mt') : null;
 
+          // consent management options
+          ops.requirePublishingConsent = options['requirePublishingConsent'] || false;
+          ops.maxQueueSize = options['maxQueueSize'] || 1000; // Max pending requests before consent
+
           this.requestBatchers = {};
 
           this._options = ops;
           this._persist = getPersistenceFunction(ops);
+
+          // Initialize consent state and pending requests queue
+          // If consent is not required, it's automatically granted
+          this._publishingConsentGranted = !ops.requirePublishingConsent;
+          this._pendingRequests = [];
+          this._recordingActive = false; // Track if recording is active
+
           try {
             this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID, ops);
             this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
@@ -3668,6 +3723,11 @@ define(function () { 'use strict';
 
             if (this._currentCampaign) {
               storeCampaignDataIfNeeded(this._persist, ops, this._currentCampaign);
+            }
+
+            // Load persisted pending requests queue if consent is required
+            if (ops.requirePublishingConsent) {
+              this._loadPersistedQueue();
             }
 
             // this._campaign = getCampaignData(this._persist, ops);
@@ -3777,6 +3837,83 @@ define(function () { 'use strict';
             }
           }
         },
+        // Queue persistence helpers - uses localStorage only (not cookies)
+        // Pending requests are page-specific, not user-specific
+        _loadPersistedQueue: function() {
+          try {
+            var persistedQueue = getFromLocalStorageOnly(STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, this._options);
+            if (persistedQueue) {
+              var parsed = JSON.parse(persistedQueue);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                this._pendingRequests = parsed;
+                console$1.log('loaded ' + parsed.length + ' requests from persisted queue');
+              }
+            }
+          } catch (err) {
+            console$1.error('error loading persisted queue: ' + err);
+            this._pendingRequests = [];
+          }
+        },
+        _savePersistedQueue: function() {
+          try {
+            // Serialize queue without callbacks (callbacks can't be serialized)
+            var serializableQueue = this._pendingRequests.map(function(req) {
+              var copy = Object.assign({}, req);
+              delete copy.callback; // Remove callback function
+              return copy;
+            });
+            saveToLocalStorageOnly(STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, JSON.stringify(serializableQueue), this._options);
+          } catch (err) {
+            console$1.error('error saving persisted queue: ' + err);
+          }
+        },
+        _clearPersistedQueue: function() {
+          try {
+            removeFromLocalStorageOnly(STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, this._options);
+          } catch (err) {
+            console$1.error('error clearing persisted queue: ' + err);
+          }
+        },
+        _enqueueRequest: function(requestObject) {
+          // Don't queue if recording is not active
+          if (!this._recordingActive) {
+            console$1.log('recording is not active, dropping request');
+            if (requestObject.callback) {
+              requestObject.callback({ status: 0, error: 'Recording is not active' });
+            }
+            return;
+          }
+
+          // FIFO queue: if queue is full, remove oldest request and add newest
+          if (this._pendingRequests.length >= this._options.maxQueueSize) {
+            var droppedRequest = this._pendingRequests.shift(); // Remove oldest
+            console$1.log('queue size limit reached (' + this._options.maxQueueSize + '), dropping oldest request');
+            if (droppedRequest && droppedRequest.callback) {
+              droppedRequest.callback({ status: 0, error: 'Dropped from queue - queue size limit reached' });
+            }
+          }
+
+          console$1.log('publishing consent not granted, queuing request');
+          this._pendingRequests.push(requestObject);
+
+          // Persist queue to storage
+          this._savePersistedQueue();
+        },
+        _executeOrQueueRequest: function(url, data, options, callback) {
+          // Check consent before sending
+          if (!this._publishingConsentGranted) {
+            this._enqueueRequest({
+              type: 'direct',
+              url: url,
+              data: data,
+              options: options,
+              callback: callback
+            });
+            return;
+          }
+
+          this._executeRequest(url, data, options, callback);
+        },
         initBatching: function () {
           var applicationId = this._options.applicationId;
           var host = this._options.host;
@@ -3825,6 +3962,19 @@ define(function () { 'use strict';
           var requestInitiated = true;
           var self = this;
 
+          // Check consent before sending
+          if (!this._publishingConsentGranted) {
+            this._enqueueRequest({
+              type: 'batch',
+              data: data,
+              applicationId: applicationId,
+              endPoint: endPoint,
+              batcher: batcher,
+              callback: callback
+            });
+            return true;
+          }
+
           var sendImmediately = function () {
             var executeOps = {
               applicationId: applicationId
@@ -3859,6 +4009,7 @@ define(function () { 'use strict';
           }
 
           console$1.log('moesif starting');
+          this._recordingActive = true; // Mark recording as active
           this._stopRecording = captureXMLHttpRequest(recorder, this._options);
 
           if (!this._options.disableFetch) {
@@ -3871,20 +4022,31 @@ define(function () { 'use strict';
 
             var targets = this._options.crossDomainTargets;
 
+            // If user has not consented to publishing data, we should not decorate links for cross domain tracking
+            var crossDomainDecoratorMiddleware = _.bind(function(context, next) {
+              if (this._publishingConsentGranted) {
+                next();
+              } else {
+                // if no consent, skip decoration (ex: not call next())
+              }
+            }, this);
+
             // null means decorate all domains (explicit opt-in)
             if (targets === null) {
               console$1.log('cross domain tracking is enabled for ALL domains and hyperlinks');
               this._stopCrossDomainTracking = decorateLinks(
                 null,
                 this._options.crossDomainTrackingParameterName,
-                this._anonymousId
+                this._anonymousId,
+                crossDomainDecoratorMiddleware
               );
             } else if (Array.isArray(targets) && targets.length > 0) {
               console$1.log('decorating links for cross domain tracking on specified domains: ' + targets.join(', '));
               this._stopCrossDomainTracking = decorateLinks(
                 targets,
                 this._options.crossDomainTrackingParameterName,
-                this._anonymousId
+                this._anonymousId,
+                crossDomainDecoratorMiddleware
               );
             } else {
               console$1.log('cross domain tracking is enabled but no target domains specified - no links will be decorated');
@@ -3911,6 +4073,13 @@ define(function () { 'use strict';
           if (!url) {
             return url;
           }
+
+          // Check consent before decorating
+          if (!this._publishingConsentGranted) {
+            console$1.log('publishing consent not granted, skipping URL decoration');
+            return url;
+          }
+
           var decoratableDomains = overrideDomains ? null : this._options.crossDomainTargets;
           return _.crossDomainTrackingUtils.cdtUrlDecorator(url, decoratableDomains, this._options.crossDomainTrackingParameterName, this._anonymousId, window);
         },
@@ -3946,7 +4115,7 @@ define(function () { 'use strict';
           return false;
         },
         updateUser: function(userObject, applicationId, host, callback) {
-          this._executeRequest(
+          this._executeOrQueueRequest(
             HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT,
             userObject,
             { applicationId: applicationId },
@@ -3996,7 +4165,7 @@ define(function () { 'use strict';
           }
         },
         updateCompany: function(companyObject, applicationId, host, callback) {
-          this._executeRequest(
+          this._executeOrQueueRequest(
             HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT,
             companyObject,
             { applicationId: applicationId },
@@ -4175,6 +4344,9 @@ define(function () { 'use strict';
           return this._session;
         },
         'stop': function () {
+          console$1.log('stopping moesif recording');
+          this._recordingActive = false; // Mark recording as inactive
+
           if (this._stopRecording) {
             this._stopRecording();
             this._stopRecording = null;
@@ -4197,6 +4369,7 @@ define(function () { 'use strict';
         },
         'clearStorage': function () {
           clearLocalStorage(this._options);
+          this._clearPersistedQueue();
         },
         'resetAnonymousId': function () {
           this._anonymousId = regenerateAnonymousId(this._persist);
@@ -4210,6 +4383,64 @@ define(function () { 'use strict';
           this._userId = null;
           this._session = null;
           this._currentCampaign = null;
+          this._pendingRequests = [];
+          this._clearPersistedQueue();
+          // Consent state is NOT reset - use revokePublishingConsent() to explicitly revoke consent
+        },
+        '_flushPendingRequests': function() {
+          console$1.log('flushing ' + this._pendingRequests.length + ' pending requests');
+
+          while (this._pendingRequests.length > 0) {
+            var request = this._pendingRequests.shift();
+
+            if (request.type === 'batch') {
+              // Re-call _sendOrBatch, but now consent is granted so it will send
+              this._sendOrBatch(
+                request.data,
+                request.applicationId,
+                request.endPoint,
+                request.batcher,
+                request.callback
+              );
+            } else if (request.type === 'direct') {
+              // Direct requests (user/company updates) - just execute with stored parameters
+              this._executeRequest(
+                request.url,
+                request.data,
+                request.options,
+                request.callback
+              );
+            }
+          }
+
+          // Clear persisted queue after flushing
+          this._clearPersistedQueue();
+        },
+        'grantPublishingConsent': function() {
+          if (this._publishingConsentGranted) {
+            console$1.log('publishing consent already granted');
+            return;
+          }
+
+          console$1.log('granting publishing consent and flushing pending requests');
+          this._publishingConsentGranted = true;
+          this._flushPendingRequests();
+        },
+        'revokePublishingConsent': function() {
+          if (!this._publishingConsentGranted) {
+            console$1.log('publishing consent already revoked');
+            return;
+          }
+
+          console$1.log('revoking publishing consent - future requests will be queued');
+          this._publishingConsentGranted = false;
+          // Clear pending requests when revoking consent
+          this._pendingRequests = [];
+          // Clear persisted queue as well
+          this._clearPersistedQueue();
+        },
+        'isPublishingConsentGranted': function() {
+          return this._publishingConsentGranted;
         }
       };
     }

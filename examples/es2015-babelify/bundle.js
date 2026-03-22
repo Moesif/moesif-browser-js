@@ -566,7 +566,7 @@ Object.defineProperty(exports, "__esModule", {
 exports["default"] = void 0;
 var Config = {
   DEBUG: false,
-  LIB_VERSION: '1.9.0'
+  LIB_VERSION: '1.10.0'
 };
 var _default = exports["default"] = Config;
 
@@ -578,6 +578,13 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports["default"] = decorateLinks;
 var _utils = require("./utils");
+function executeWithMiddleware(context, finalAction, middleware) {
+  // If no middleware, just run the core logic
+  if (typeof middleware !== 'function') {
+    return finalAction();
+  }
+  middleware(context, finalAction);
+}
 function isTargetDomain(urlObj, decoratableDomains) {
   if (decoratableDomains === null) return true; // Decorate all domains if decoratableDomains is null
   if (Array.isArray(decoratableDomains) && decoratableDomains.length === 0) return false;
@@ -617,50 +624,70 @@ function decorator(url, decoratableDomains, trackingParam, trackingValue, env) {
   }
   return url;
 }
-function decorateLinks(trackingDomains, trackingParamName, trackingParamValue, recorder, env) {
+function decorateLinks(trackingDomains, trackingParamName, trackingParamValue, middleware, env) {
   var myenv = env || window || self;
 
   // Link click handler - handles various click events
   var linkClickHandler = function linkClickHandler(e) {
-    var link = e.target.closest('a');
-    if (link && link.href) {
-      link.href = decorator(link.href, trackingDomains, trackingParamName, trackingParamValue, myenv);
+    function next() {
+      var link = e.target.closest('a');
+      if (link && link.href) {
+        link.href = decorator(link.href, trackingDomains, trackingParamName, trackingParamValue, myenv);
+      }
     }
+    var contextForMiddleware = {
+      event: e,
+      trackingDomains: trackingDomains,
+      trackingParamName: trackingParamName,
+      trackingParamValue: trackingParamValue,
+      env: myenv
+    };
+    executeWithMiddleware(contextForMiddleware, next, middleware);
   };
 
   // Form submission handler
   var formSubmitHandler = function formSubmitHandler(e) {
-    var form = e.target;
-    try {
-      var actionUrl = new URL(form.action, myenv.location.origin);
+    function next() {
+      var form = e.target;
+      try {
+        var actionUrl = new URL(form.action, myenv.location.origin);
 
-      // Skip same-origin forms
-      if (isSameOrigin(actionUrl, myenv)) {
-        return;
-      }
-      var isTarget = isTargetDomain(actionUrl, trackingDomains);
-      if (isTarget) {
-        var method = (form.method || 'get').toLowerCase();
-
-        // Only decorate GET forms automatically
-        // POST forms are skipped to avoid breaking server-side logic (CSRF, routing, etc.)
-        // POST body can't be read by JavaScript on the destination page anyway
-        // Users can manually use cdtUrlDecorator() for form.action if needed
-        if (method === 'get') {
-          // Add as hidden input which will be appended to the query string
-          var trackingInput = form.querySelector('input[name="' + trackingParamName + '"]');
-          if (!trackingInput) {
-            trackingInput = myenv.document.createElement('input');
-            trackingInput.type = 'hidden';
-            trackingInput.name = trackingParamName;
-            form.appendChild(trackingInput);
-          }
-          trackingInput.value = trackingParamValue;
+        // Skip same-origin forms
+        if (isSameOrigin(actionUrl, myenv)) {
+          return;
         }
+        var isTarget = isTargetDomain(actionUrl, trackingDomains);
+        if (isTarget) {
+          var method = (form.method || 'get').toLowerCase();
+
+          // Only decorate GET forms automatically
+          // POST forms are skipped to avoid breaking server-side logic (CSRF, routing, etc.)
+          // POST body can't be read by JavaScript on the destination page anyway
+          // Users can manually use cdtUrlDecorator() for form.action if needed
+          if (method === 'get') {
+            // Add as hidden input which will be appended to the query string
+            var trackingInput = form.querySelector('input[name="' + trackingParamName + '"]');
+            if (!trackingInput) {
+              trackingInput = myenv.document.createElement('input');
+              trackingInput.type = 'hidden';
+              trackingInput.name = trackingParamName;
+              form.appendChild(trackingInput);
+            }
+            trackingInput.value = trackingParamValue;
+          }
+        }
+      } catch (err) {
+        // skip decoration
       }
-    } catch (err) {
-      // skip decoration
     }
+    var contextForMiddleware = {
+      event: e,
+      trackingDomains: trackingDomains,
+      trackingParamName: trackingParamName,
+      trackingParamValue: trackingParamValue,
+      env: myenv
+    };
+    executeWithMiddleware(contextForMiddleware, next, middleware);
   };
 
   // Add event listeners for various interaction types
@@ -942,9 +969,21 @@ function _default() {
       // crossDomainTargets: array of domains to decorate, null to decorate all domains, [] or undefined to decorate none
       ops.crossDomainTargets = Object.hasOwn(options, 'crossDomainTargets') ? options['crossDomainTargets'] : [];
       ops.crossDomainTrackingParameterName = ops.enableCrossDomainTracking ? options['crossDomainTrackingParameterName'] || '__mt' : null;
+
+      // consent management options
+      ops.requirePublishingConsent = options['requirePublishingConsent'] || false;
+      ops.maxQueueSize = options['maxQueueSize'] || 1000; // Max pending requests before consent
+
       this.requestBatchers = {};
       this._options = ops;
       this._persist = (0, _persistence.getPersistenceFunction)(ops);
+
+      // Initialize consent state and pending requests queue
+      // If consent is not required, it's automatically granted
+      this._publishingConsentGranted = !ops.requirePublishingConsent;
+      this._pendingRequests = [];
+      this._recordingActive = false; // Track if recording is active
+
       try {
         this._userId = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_USER_ID, ops);
         this._session = (0, _persistence.getFromPersistence)(_persistence.STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
@@ -953,6 +992,11 @@ function _default() {
         this._currentCampaign = (0, _campaign.getCampaignDataFromUrlOrCookie)(ops);
         if (this._currentCampaign) {
           (0, _campaign.storeCampaignDataIfNeeded)(this._persist, ops, this._currentCampaign);
+        }
+
+        // Load persisted pending requests queue if consent is required
+        if (ops.requirePublishingConsent) {
+          this._loadPersistedQueue();
         }
 
         // this._campaign = getCampaignData(this._persist, ops);
@@ -1063,6 +1107,87 @@ function _default() {
         }
       }
     },
+    // Queue persistence helpers - uses localStorage only (not cookies)
+    // Pending requests are page-specific, not user-specific
+    _loadPersistedQueue: function _loadPersistedQueue() {
+      try {
+        var persistedQueue = (0, _persistence.getFromLocalStorageOnly)(_persistence.STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, this._options);
+        if (persistedQueue) {
+          var parsed = JSON.parse(persistedQueue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this._pendingRequests = parsed;
+            _utils.console.log('loaded ' + parsed.length + ' requests from persisted queue');
+          }
+        }
+      } catch (err) {
+        _utils.console.error('error loading persisted queue: ' + err);
+        this._pendingRequests = [];
+      }
+    },
+    _savePersistedQueue: function _savePersistedQueue() {
+      try {
+        // Serialize queue without callbacks (callbacks can't be serialized)
+        var serializableQueue = this._pendingRequests.map(function (req) {
+          var copy = Object.assign({}, req);
+          delete copy.callback; // Remove callback function
+          return copy;
+        });
+        (0, _persistence.saveToLocalStorageOnly)(_persistence.STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, JSON.stringify(serializableQueue), this._options);
+      } catch (err) {
+        _utils.console.error('error saving persisted queue: ' + err);
+      }
+    },
+    _clearPersistedQueue: function _clearPersistedQueue() {
+      try {
+        (0, _persistence.removeFromLocalStorageOnly)(_persistence.STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, this._options);
+      } catch (err) {
+        _utils.console.error('error clearing persisted queue: ' + err);
+      }
+    },
+    _enqueueRequest: function _enqueueRequest(requestObject) {
+      // Don't queue if recording is not active
+      if (!this._recordingActive) {
+        _utils.console.log('recording is not active, dropping request');
+        if (requestObject.callback) {
+          requestObject.callback({
+            status: 0,
+            error: 'Recording is not active'
+          });
+        }
+        return;
+      }
+
+      // FIFO queue: if queue is full, remove oldest request and add newest
+      if (this._pendingRequests.length >= this._options.maxQueueSize) {
+        var droppedRequest = this._pendingRequests.shift(); // Remove oldest
+        _utils.console.log('queue size limit reached (' + this._options.maxQueueSize + '), dropping oldest request');
+        if (droppedRequest && droppedRequest.callback) {
+          droppedRequest.callback({
+            status: 0,
+            error: 'Dropped from queue - queue size limit reached'
+          });
+        }
+      }
+      _utils.console.log('publishing consent not granted, queuing request');
+      this._pendingRequests.push(requestObject);
+
+      // Persist queue to storage
+      this._savePersistedQueue();
+    },
+    _executeOrQueueRequest: function _executeOrQueueRequest(url, data, options, callback) {
+      // Check consent before sending
+      if (!this._publishingConsentGranted) {
+        this._enqueueRequest({
+          type: 'direct',
+          url: url,
+          data: data,
+          options: options,
+          callback: callback
+        });
+        return;
+      }
+      this._executeRequest(url, data, options, callback);
+    },
     initBatching: function initBatching() {
       var applicationId = this._options.applicationId;
       var host = this._options.host;
@@ -1099,6 +1224,19 @@ function _default() {
     _sendOrBatch: function _sendOrBatch(data, applicationId, endPoint, batcher, callback) {
       var requestInitiated = true;
       var self = this;
+
+      // Check consent before sending
+      if (!this._publishingConsentGranted) {
+        this._enqueueRequest({
+          type: 'batch',
+          data: data,
+          applicationId: applicationId,
+          endPoint: endPoint,
+          batcher: batcher,
+          callback: callback
+        });
+        return true;
+      }
       var sendImmediately = function sendImmediately() {
         var executeOps = {
           applicationId: applicationId
@@ -1129,6 +1267,7 @@ function _default() {
         _self.recordEvent(event);
       }
       _utils.console.log('moesif starting');
+      this._recordingActive = true; // Mark recording as active
       this._stopRecording = (0, _capture["default"])(recorder, this._options);
       if (!this._options.disableFetch) {
         _utils.console.log('also instrumenting fetch API');
@@ -1138,13 +1277,22 @@ function _default() {
         _utils.console.log('enabling cross domain tracking');
         var targets = this._options.crossDomainTargets;
 
+        // If user has not consented to publishing data, we should not decorate links for cross domain tracking
+        var crossDomainDecoratorMiddleware = _utils._.bind(function (context, next) {
+          if (this._publishingConsentGranted) {
+            next();
+          } else {
+            // if no consent, skip decoration (ex: not call next())
+          }
+        }, this);
+
         // null means decorate all domains (explicit opt-in)
         if (targets === null) {
           _utils.console.log('cross domain tracking is enabled for ALL domains and hyperlinks');
-          this._stopCrossDomainTracking = (0, _crossDomainTracking["default"])(null, this._options.crossDomainTrackingParameterName, this._anonymousId);
+          this._stopCrossDomainTracking = (0, _crossDomainTracking["default"])(null, this._options.crossDomainTrackingParameterName, this._anonymousId, crossDomainDecoratorMiddleware);
         } else if (Array.isArray(targets) && targets.length > 0) {
           _utils.console.log('decorating links for cross domain tracking on specified domains: ' + targets.join(', '));
-          this._stopCrossDomainTracking = (0, _crossDomainTracking["default"])(targets, this._options.crossDomainTrackingParameterName, this._anonymousId);
+          this._stopCrossDomainTracking = (0, _crossDomainTracking["default"])(targets, this._options.crossDomainTrackingParameterName, this._anonymousId, crossDomainDecoratorMiddleware);
         } else {
           _utils.console.log('cross domain tracking is enabled but no target domains specified - no links will be decorated');
           // Don't set up event listeners if no targets specified
@@ -1167,6 +1315,12 @@ function _default() {
         overrideDomains = false;
       }
       if (!url) {
+        return url;
+      }
+
+      // Check consent before decorating
+      if (!this._publishingConsentGranted) {
+        _utils.console.log('publishing consent not granted, skipping URL decoration');
         return url;
       }
       var decoratableDomains = overrideDomains ? null : this._options.crossDomainTargets;
@@ -1206,7 +1360,7 @@ function _default() {
       return false;
     },
     updateUser: function updateUser(userObject, applicationId, host, callback) {
-      this._executeRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT, userObject, {
+      this._executeOrQueueRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT, userObject, {
         applicationId: applicationId
       }, callback);
     },
@@ -1246,7 +1400,7 @@ function _default() {
       }
     },
     updateCompany: function updateCompany(companyObject, applicationId, host, callback) {
-      this._executeRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT, companyObject, {
+      this._executeOrQueueRequest(HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT, companyObject, {
         applicationId: applicationId
       }, callback);
     },
@@ -1390,6 +1544,9 @@ function _default() {
       return this._session;
     },
     'stop': function stop() {
+      _utils.console.log('stopping moesif recording');
+      this._recordingActive = false; // Mark recording as inactive
+
       if (this._stopRecording) {
         this._stopRecording();
         this._stopRecording = null;
@@ -1412,6 +1569,7 @@ function _default() {
     },
     'clearStorage': function clearStorage() {
       (0, _persistence.clearLocalStorage)(this._options);
+      this._clearPersistedQueue();
     },
     'resetAnonymousId': function resetAnonymousId() {
       this._anonymousId = (0, _anonymousId.regenerateAnonymousId)(this._persist);
@@ -1425,6 +1583,49 @@ function _default() {
       this._userId = null;
       this._session = null;
       this._currentCampaign = null;
+      this._pendingRequests = [];
+      this._clearPersistedQueue();
+      // Consent state is NOT reset - use revokePublishingConsent() to explicitly revoke consent
+    },
+    '_flushPendingRequests': function _flushPendingRequests() {
+      _utils.console.log('flushing ' + this._pendingRequests.length + ' pending requests');
+      while (this._pendingRequests.length > 0) {
+        var request = this._pendingRequests.shift();
+        if (request.type === 'batch') {
+          // Re-call _sendOrBatch, but now consent is granted so it will send
+          this._sendOrBatch(request.data, request.applicationId, request.endPoint, request.batcher, request.callback);
+        } else if (request.type === 'direct') {
+          // Direct requests (user/company updates) - just execute with stored parameters
+          this._executeRequest(request.url, request.data, request.options, request.callback);
+        }
+      }
+
+      // Clear persisted queue after flushing
+      this._clearPersistedQueue();
+    },
+    'grantPublishingConsent': function grantPublishingConsent() {
+      if (this._publishingConsentGranted) {
+        _utils.console.log('publishing consent already granted');
+        return;
+      }
+      _utils.console.log('granting publishing consent and flushing pending requests');
+      this._publishingConsentGranted = true;
+      this._flushPendingRequests();
+    },
+    'revokePublishingConsent': function revokePublishingConsent() {
+      if (!this._publishingConsentGranted) {
+        _utils.console.log('publishing consent already revoked');
+        return;
+      }
+      _utils.console.log('revoking publishing consent - future requests will be queued');
+      this._publishingConsentGranted = false;
+      // Clear pending requests when revoking consent
+      this._pendingRequests = [];
+      // Clear persisted queue as well
+      this._clearPersistedQueue();
+    },
+    'isPublishingConsentGranted': function isPublishingConsentGranted() {
+      return this._publishingConsentGranted;
     }
   };
 }
@@ -1504,8 +1705,11 @@ Object.defineProperty(exports, "__esModule", {
 exports.STORAGE_CONSTANTS = void 0;
 exports.clearCookies = clearCookies;
 exports.clearLocalStorage = clearLocalStorage;
+exports.getFromLocalStorageOnly = getFromLocalStorageOnly;
 exports.getFromPersistence = getFromPersistence;
 exports.getPersistenceFunction = getPersistenceFunction;
+exports.removeFromLocalStorageOnly = removeFromLocalStorageOnly;
+exports.saveToLocalStorageOnly = saveToLocalStorageOnly;
 var _config = _interopRequireDefault(require("./config"));
 var _utils = require("./utils");
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { "default": e }; }
@@ -1515,7 +1719,8 @@ var STORAGE_CONSTANTS = exports.STORAGE_CONSTANTS = {
   STORED_SESSION_ID: 'moesif_stored_session_id',
   STORED_ANONYMOUS_ID: 'moesif_anonymous_id',
   STORED_CAMPAIGN_DATA_USER: 'moesif_campaign_data',
-  STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company'
+  STORED_CAMPAIGN_DATA_COMPANY: 'moesif_campaign_company',
+  STORED_PENDING_REQUESTS: 'moesif_pending_requests'
 };
 function replacePrefix(key, prefix) {
   if (!prefix) return key;
@@ -1559,12 +1764,23 @@ function ensureNotNilString(str) {
   return str;
 }
 
+// Helper to check if localStorage should be used based on user's persistence preference
+function shouldUseLocalStorage(opt) {
+  var storageType = opt && opt['persistence'];
+  return storageType !== 'cookie' && _utils._.localStorage.is_supported();
+}
+
+// Helper to get resolved storage key with prefix
+function getResolvedKey(key, opt) {
+  var prefix = opt && opt['persistence_key_prefix'];
+  return replacePrefix(key, prefix);
+}
+
 // this tries to get from either cookie or localStorage.
 // whichever have data.
 function getFromPersistence(key, opt) {
   var storageType = opt && opt['persistence'];
-  var prefix = opt && opt['persistence_key_prefix'];
-  var resolvedKey = replacePrefix(key, prefix);
+  var resolvedKey = getResolvedKey(key, opt);
   if (_utils._.localStorage.is_supported()) {
     var localValue = ensureNotNilString(_utils._.localStorage.get(resolvedKey));
     var cookieValue = ensureNotNilString(_utils._.cookie.get(resolvedKey));
@@ -1578,22 +1794,44 @@ function getFromPersistence(key, opt) {
   return ensureNotNilString(_utils._.cookie.get(resolvedKey));
 }
 function clearCookies(opt) {
-  var prefix = opt && opt['persistence_key_prefix'];
-  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
-  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
-  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
-  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
-  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix));
-  _utils._.cookie.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix));
+  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
+  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
+  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
+  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
+  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
+  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
 }
 function clearLocalStorage(opt) {
-  var prefix = opt && opt['persistence_key_prefix'];
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_USER_ID, prefix));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_COMPANY_ID, prefix));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, prefix));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_SESSION_ID, prefix));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, prefix));
-  _utils._.localStorage.remove(replacePrefix(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, prefix));
+  _utils._.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
+  _utils._.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
+  _utils._.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
+  _utils._.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
+  _utils._.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
+  _utils._.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
+}
+
+// LocalStorage-only helpers for page-specific data (e.g., pending requests queue)
+// These do NOT sync to cookies and are not meant for cross-subdomain data
+// Respects user's persistence preference - if they opted for 'cookie' mode, localStorage is not used
+function getFromLocalStorageOnly(key, opt) {
+  if (!shouldUseLocalStorage(opt)) {
+    return null;
+  }
+  return ensureNotNilString(_utils._.localStorage.get(getResolvedKey(key, opt)));
+}
+function saveToLocalStorageOnly(key, value, opt) {
+  if (!shouldUseLocalStorage(opt)) {
+    return false;
+  }
+  _utils._.localStorage.set(getResolvedKey(key, opt), value);
+  return true;
+}
+function removeFromLocalStorageOnly(key, opt) {
+  if (!shouldUseLocalStorage(opt)) {
+    return false;
+  }
+  _utils._.localStorage.remove(getResolvedKey(key, opt));
+  return true;
 }
 
 },{"./config":6,"./utils":17}],13:[function(require,module,exports){

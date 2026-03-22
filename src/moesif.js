@@ -20,7 +20,10 @@ import {
   getFromPersistence,
   clearCookies,
   STORAGE_CONSTANTS,
-  clearLocalStorage
+  clearLocalStorage,
+  getFromLocalStorageOnly,
+  saveToLocalStorageOnly,
+  removeFromLocalStorageOnly
 } from './persistence';
 import { getAnonymousId, regenerateAnonymousId } from './anonymousId';
 
@@ -160,10 +163,21 @@ export default function () {
       ops.crossDomainTargets = Object.hasOwn(options, 'crossDomainTargets') ? options['crossDomainTargets'] : [];
       ops.crossDomainTrackingParameterName = ops.enableCrossDomainTracking ? (options['crossDomainTrackingParameterName'] || '__mt') : null;
 
+      // consent management options
+      ops.requirePublishingConsent = options['requirePublishingConsent'] || false;
+      ops.maxQueueSize = options['maxQueueSize'] || 1000; // Max pending requests before consent
+
       this.requestBatchers = {};
 
       this._options = ops;
       this._persist = getPersistenceFunction(ops);
+
+      // Initialize consent state and pending requests queue
+      // If consent is not required, it's automatically granted
+      this._publishingConsentGranted = !ops.requirePublishingConsent;
+      this._pendingRequests = [];
+      this._recordingActive = false; // Track if recording is active
+
       try {
         this._userId = getFromPersistence(STORAGE_CONSTANTS.STORED_USER_ID, ops);
         this._session = getFromPersistence(STORAGE_CONSTANTS.STORED_SESSION_ID, ops);
@@ -173,6 +187,11 @@ export default function () {
 
         if (this._currentCampaign) {
           storeCampaignDataIfNeeded(this._persist, ops, this._currentCampaign);
+        }
+
+        // Load persisted pending requests queue if consent is required
+        if (ops.requirePublishingConsent) {
+          this._loadPersistedQueue();
         }
 
         // this._campaign = getCampaignData(this._persist, ops);
@@ -282,6 +301,83 @@ export default function () {
         }
       }
     },
+    // Queue persistence helpers - uses localStorage only (not cookies)
+    // Pending requests are page-specific, not user-specific
+    _loadPersistedQueue: function() {
+      try {
+        var persistedQueue = getFromLocalStorageOnly(STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, this._options);
+        if (persistedQueue) {
+          var parsed = JSON.parse(persistedQueue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this._pendingRequests = parsed;
+            console.log('loaded ' + parsed.length + ' requests from persisted queue');
+          }
+        }
+      } catch (err) {
+        console.error('error loading persisted queue: ' + err);
+        this._pendingRequests = [];
+      }
+    },
+    _savePersistedQueue: function() {
+      try {
+        // Serialize queue without callbacks (callbacks can't be serialized)
+        var serializableQueue = this._pendingRequests.map(function(req) {
+          var copy = Object.assign({}, req);
+          delete copy.callback; // Remove callback function
+          return copy;
+        });
+        saveToLocalStorageOnly(STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, JSON.stringify(serializableQueue), this._options);
+      } catch (err) {
+        console.error('error saving persisted queue: ' + err);
+      }
+    },
+    _clearPersistedQueue: function() {
+      try {
+        removeFromLocalStorageOnly(STORAGE_CONSTANTS.STORED_PENDING_REQUESTS, this._options);
+      } catch (err) {
+        console.error('error clearing persisted queue: ' + err);
+      }
+    },
+    _enqueueRequest: function(requestObject) {
+      // Don't queue if recording is not active
+      if (!this._recordingActive) {
+        console.log('recording is not active, dropping request');
+        if (requestObject.callback) {
+          requestObject.callback({ status: 0, error: 'Recording is not active' });
+        }
+        return;
+      }
+
+      // FIFO queue: if queue is full, remove oldest request and add newest
+      if (this._pendingRequests.length >= this._options.maxQueueSize) {
+        var droppedRequest = this._pendingRequests.shift(); // Remove oldest
+        console.log('queue size limit reached (' + this._options.maxQueueSize + '), dropping oldest request');
+        if (droppedRequest && droppedRequest.callback) {
+          droppedRequest.callback({ status: 0, error: 'Dropped from queue - queue size limit reached' });
+        }
+      }
+
+      console.log('publishing consent not granted, queuing request');
+      this._pendingRequests.push(requestObject);
+
+      // Persist queue to storage
+      this._savePersistedQueue();
+    },
+    _executeOrQueueRequest: function(url, data, options, callback) {
+      // Check consent before sending
+      if (!this._publishingConsentGranted) {
+        this._enqueueRequest({
+          type: 'direct',
+          url: url,
+          data: data,
+          options: options,
+          callback: callback
+        });
+        return;
+      }
+
+      this._executeRequest(url, data, options, callback);
+    },
     initBatching: function () {
       var applicationId = this._options.applicationId;
       var host = this._options.host;
@@ -330,6 +426,19 @@ export default function () {
       var requestInitiated = true;
       var self = this;
 
+      // Check consent before sending
+      if (!this._publishingConsentGranted) {
+        this._enqueueRequest({
+          type: 'batch',
+          data: data,
+          applicationId: applicationId,
+          endPoint: endPoint,
+          batcher: batcher,
+          callback: callback
+        });
+        return true;
+      }
+
       var sendImmediately = function () {
         var executeOps = {
           applicationId: applicationId
@@ -364,6 +473,7 @@ export default function () {
       }
 
       console.log('moesif starting');
+      this._recordingActive = true; // Mark recording as active
       this._stopRecording = patchAjaxWithCapture(recorder, this._options);
 
       if (!this._options.disableFetch) {
@@ -376,20 +486,31 @@ export default function () {
 
         var targets = this._options.crossDomainTargets;
 
+        // If user has not consented to publishing data, we should not decorate links for cross domain tracking
+        var crossDomainDecoratorMiddleware = _.bind(function(context, next) {
+          if (this._publishingConsentGranted) {
+            next();
+          } else {
+            // if no consent, skip decoration (ex: not call next())
+          }
+        }, this);
+
         // null means decorate all domains (explicit opt-in)
         if (targets === null) {
           console.log('cross domain tracking is enabled for ALL domains and hyperlinks');
           this._stopCrossDomainTracking = decorateLinksForCrossDomainTracking(
             null,
             this._options.crossDomainTrackingParameterName,
-            this._anonymousId
+            this._anonymousId,
+            crossDomainDecoratorMiddleware
           );
         } else if (Array.isArray(targets) && targets.length > 0) {
           console.log('decorating links for cross domain tracking on specified domains: ' + targets.join(', '));
           this._stopCrossDomainTracking = decorateLinksForCrossDomainTracking(
             targets,
             this._options.crossDomainTrackingParameterName,
-            this._anonymousId
+            this._anonymousId,
+            crossDomainDecoratorMiddleware
           );
         } else {
           console.log('cross domain tracking is enabled but no target domains specified - no links will be decorated');
@@ -416,6 +537,13 @@ export default function () {
       if (!url) {
         return url;
       }
+
+      // Check consent before decorating
+      if (!this._publishingConsentGranted) {
+        console.log('publishing consent not granted, skipping URL decoration');
+        return url;
+      }
+
       var decoratableDomains = overrideDomains ? null : this._options.crossDomainTargets;
       return _.crossDomainTrackingUtils.cdtUrlDecorator(url, decoratableDomains, this._options.crossDomainTrackingParameterName, this._anonymousId, window);
     },
@@ -451,7 +579,7 @@ export default function () {
       return false;
     },
     updateUser: function(userObject, applicationId, host, callback) {
-      this._executeRequest(
+      this._executeOrQueueRequest(
         HTTP_PROTOCOL + host + MOESIF_CONSTANTS.USER_ENDPOINT,
         userObject,
         { applicationId: applicationId },
@@ -501,7 +629,7 @@ export default function () {
       }
     },
     updateCompany: function(companyObject, applicationId, host, callback) {
-      this._executeRequest(
+      this._executeOrQueueRequest(
         HTTP_PROTOCOL + host + MOESIF_CONSTANTS.COMPANY_ENDPOINT,
         companyObject,
         { applicationId: applicationId },
@@ -680,6 +808,9 @@ export default function () {
       return this._session;
     },
     'stop': function () {
+      console.log('stopping moesif recording');
+      this._recordingActive = false; // Mark recording as inactive
+
       if (this._stopRecording) {
         this._stopRecording();
         this._stopRecording = null;
@@ -702,6 +833,7 @@ export default function () {
     },
     'clearStorage': function () {
       clearLocalStorage(this._options);
+      this._clearPersistedQueue();
     },
     'resetAnonymousId': function () {
       this._anonymousId = regenerateAnonymousId(this._persist);
@@ -715,6 +847,64 @@ export default function () {
       this._userId = null;
       this._session = null;
       this._currentCampaign = null;
+      this._pendingRequests = [];
+      this._clearPersistedQueue();
+      // Consent state is NOT reset - use revokePublishingConsent() to explicitly revoke consent
+    },
+    '_flushPendingRequests': function() {
+      console.log('flushing ' + this._pendingRequests.length + ' pending requests');
+
+      while (this._pendingRequests.length > 0) {
+        var request = this._pendingRequests.shift();
+
+        if (request.type === 'batch') {
+          // Re-call _sendOrBatch, but now consent is granted so it will send
+          this._sendOrBatch(
+            request.data,
+            request.applicationId,
+            request.endPoint,
+            request.batcher,
+            request.callback
+          );
+        } else if (request.type === 'direct') {
+          // Direct requests (user/company updates) - just execute with stored parameters
+          this._executeRequest(
+            request.url,
+            request.data,
+            request.options,
+            request.callback
+          );
+        }
+      }
+
+      // Clear persisted queue after flushing
+      this._clearPersistedQueue();
+    },
+    'grantPublishingConsent': function() {
+      if (this._publishingConsentGranted) {
+        console.log('publishing consent already granted');
+        return;
+      }
+
+      console.log('granting publishing consent and flushing pending requests');
+      this._publishingConsentGranted = true;
+      this._flushPendingRequests();
+    },
+    'revokePublishingConsent': function() {
+      if (!this._publishingConsentGranted) {
+        console.log('publishing consent already revoked');
+        return;
+      }
+
+      console.log('revoking publishing consent - future requests will be queued');
+      this._publishingConsentGranted = false;
+      // Clear pending requests when revoking consent
+      this._pendingRequests = [];
+      // Clear persisted queue as well
+      this._clearPersistedQueue();
+    },
+    'isPublishingConsentGranted': function() {
+      return this._publishingConsentGranted;
     }
   };
 }

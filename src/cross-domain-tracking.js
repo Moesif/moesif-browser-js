@@ -1,5 +1,14 @@
 import { _ } from './utils';
 
+function executeWithMiddleware(context, finalAction, middleware) {
+  // If no middleware, just run the core logic
+  if (typeof middleware !== 'function') {
+    return finalAction();
+  }
+
+  middleware(context, finalAction);
+}
+
 function isTargetDomain(urlObj, decoratableDomains) {
   if (decoratableDomains === null) return true; // Decorate all domains if decoratableDomains is null
   if (Array.isArray(decoratableDomains) && decoratableDomains.length === 0) return false;
@@ -45,60 +54,75 @@ function decorator(url, decoratableDomains, trackingParam, trackingValue, env) {
   return url;
 }
 
-export default function decorateLinks(trackingDomains, trackingParamName, trackingParamValue, recorder, env) {
+export default function decorateLinks(trackingDomains, trackingParamName, trackingParamValue, middleware, env) {
   var myenv = env || window || self;
 
   // Link click handler - handles various click events
   var linkClickHandler = function(e) {
-    var link = e.target.closest('a');
-    if (link && link.href) {
-      link.href = decorator(
-        link.href,
-        trackingDomains,
-        trackingParamName,
-        trackingParamValue,
-        myenv
-      );
+    function next() {
+      var link = e.target.closest('a');
+      if (link && link.href) {
+        link.href = decorator(link.href, trackingDomains, trackingParamName, trackingParamValue, myenv);
+      }
     }
+    var contextForMiddleware = {
+      event: e,
+      trackingDomains: trackingDomains,
+      trackingParamName: trackingParamName,
+      trackingParamValue: trackingParamValue,
+      env: myenv
+    };
+    executeWithMiddleware(contextForMiddleware, next, middleware);
   };
 
   // Form submission handler
   var formSubmitHandler = function(e) {
-    var form = e.target;
-    try {
-      var actionUrl = new URL(form.action, myenv.location.origin);
+    function next() {
+      var form = e.target;
+      try {
+        var actionUrl = new URL(form.action, myenv.location.origin);
 
-      // Skip same-origin forms
-      if (isSameOrigin(actionUrl, myenv)) {
-        return;
-      }
-
-      var isTarget = isTargetDomain(actionUrl, trackingDomains);
-
-      if (isTarget) {
-        var method = (form.method || 'get').toLowerCase();
-
-        // Only decorate GET forms automatically
-        // POST forms are skipped to avoid breaking server-side logic (CSRF, routing, etc.)
-        // POST body can't be read by JavaScript on the destination page anyway
-        // Users can manually use cdtUrlDecorator() for form.action if needed
-        if (method === 'get') {
-          // Add as hidden input which will be appended to the query string
-          var trackingInput = form.querySelector('input[name="' + trackingParamName + '"]');
-
-          if (!trackingInput) {
-            trackingInput = myenv.document.createElement('input');
-            trackingInput.type = 'hidden';
-            trackingInput.name = trackingParamName;
-            form.appendChild(trackingInput);
-          }
-
-          trackingInput.value = trackingParamValue;
+        // Skip same-origin forms
+        if (isSameOrigin(actionUrl, myenv)) {
+          return;
         }
+
+        var isTarget = isTargetDomain(actionUrl, trackingDomains);
+
+        if (isTarget) {
+          var method = (form.method || 'get').toLowerCase();
+
+          // Only decorate GET forms automatically
+          // POST forms are skipped to avoid breaking server-side logic (CSRF, routing, etc.)
+          // POST body can't be read by JavaScript on the destination page anyway
+          // Users can manually use cdtUrlDecorator() for form.action if needed
+          if (method === 'get') {
+            // Add as hidden input which will be appended to the query string
+            var trackingInput = form.querySelector('input[name="' + trackingParamName + '"]');
+
+            if (!trackingInput) {
+              trackingInput = myenv.document.createElement('input');
+              trackingInput.type = 'hidden';
+              trackingInput.name = trackingParamName;
+              form.appendChild(trackingInput);
+            }
+
+            trackingInput.value = trackingParamValue;
+          }
+        }
+      } catch (err) {
+        // skip decoration
       }
-    } catch (err) {
-      // skip decoration
     }
+
+    var contextForMiddleware = {
+      event: e,
+      trackingDomains: trackingDomains,
+      trackingParamName: trackingParamName,
+      trackingParamValue: trackingParamValue,
+      env: myenv
+    };
+    executeWithMiddleware(contextForMiddleware, next, middleware);
   };
 
   // Add event listeners for various interaction types
