@@ -2,7 +2,7 @@
 
 var Config = {
     DEBUG: false,
-    LIB_VERSION: '1.10.0'
+    LIB_VERSION: '1.10.1'
 };
 
 // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -3775,6 +3775,45 @@ function moesifCreator () {
         }
       }
 
+      // Set up cross-domain tracking link decoration
+      // This is done in init() (not start()) because CDT is independent of API recording
+      // and needs to be active as soon as the SDK is configured.
+      if (ops.enableCrossDomainTracking) {
+        console$1.log('enabling cross domain tracking');
+
+        var targets = ops.crossDomainTargets;
+
+        // If user has not consented to publishing data, we should not decorate links for cross domain tracking
+        var crossDomainDecoratorMiddleware = _.bind(function(context, next) {
+          if (this._publishingConsentGranted) {
+            next();
+          } else {
+            // if no consent, skip decoration (ex: not call next())
+          }
+        }, this);
+
+        // null means decorate all domains (explicit opt-in)
+        if (targets === null) {
+          console$1.log('cross domain tracking is enabled for ALL domains and hyperlinks');
+          this._stopCrossDomainTracking = decorateLinks(
+            null,
+            ops.crossDomainTrackingParameterName,
+            this._anonymousId,
+            crossDomainDecoratorMiddleware
+          );
+        } else if (Array.isArray(targets) && targets.length > 0) {
+          console$1.log('decorating links for cross domain tracking on specified domains: ' + targets.join(', '));
+          this._stopCrossDomainTracking = decorateLinks(
+            targets,
+            ops.crossDomainTrackingParameterName,
+            this._anonymousId,
+            crossDomainDecoratorMiddleware
+          );
+        } else {
+          console$1.log('cross domain tracking is enabled but no target domains specified - no links will be decorated');
+        }
+      }
+
       console$1.log('moesif initiated');
       return this;
     },
@@ -4015,43 +4054,6 @@ function moesifCreator () {
       if (!this._options.disableFetch) {
         console$1.log('also instrumenting fetch API');
         this._stopFetchRecording = patch(recorder);
-      }
-
-      if (this._options.enableCrossDomainTracking) {
-        console$1.log('enabling cross domain tracking');
-
-        var targets = this._options.crossDomainTargets;
-
-        // If user has not consented to publishing data, we should not decorate links for cross domain tracking
-        var crossDomainDecoratorMiddleware = _.bind(function(context, next) {
-          if (this._publishingConsentGranted) {
-            next();
-          } else {
-            // if no consent, skip decoration (ex: not call next())
-          }
-        }, this);
-
-        // null means decorate all domains (explicit opt-in)
-        if (targets === null) {
-          console$1.log('cross domain tracking is enabled for ALL domains and hyperlinks');
-          this._stopCrossDomainTracking = decorateLinks(
-            null,
-            this._options.crossDomainTrackingParameterName,
-            this._anonymousId,
-            crossDomainDecoratorMiddleware
-          );
-        } else if (Array.isArray(targets) && targets.length > 0) {
-          console$1.log('decorating links for cross domain tracking on specified domains: ' + targets.join(', '));
-          this._stopCrossDomainTracking = decorateLinks(
-            targets,
-            this._options.crossDomainTrackingParameterName,
-            this._anonymousId,
-            crossDomainDecoratorMiddleware
-          );
-        } else {
-          console$1.log('cross domain tracking is enabled but no target domains specified - no links will be decorated');
-          // Don't set up event listeners if no targets specified
-        }
       }
 
       this['useWeb3'](passedInWeb3);
@@ -4358,10 +4360,6 @@ function moesifCreator () {
       if (this._stopFetchRecording) {
         this._stopFetchRecording();
         this._stopFetchRecording = null;
-      }
-      if (this._stopCrossDomainTracking) {
-        this._stopCrossDomainTracking();
-        this._stopCrossDomainTracking = null;
       }
     },
     'clearCookies': function () {
