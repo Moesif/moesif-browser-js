@@ -566,7 +566,7 @@ Object.defineProperty(exports, "__esModule", {
 exports["default"] = void 0;
 var Config = {
   DEBUG: false,
-  LIB_VERSION: '1.11.0'
+  LIB_VERSION: '1.10.1'
 };
 var _default = exports["default"] = Config;
 
