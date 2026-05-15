@@ -2,7 +2,7 @@ define(function () { 'use strict';
 
     var Config = {
         DEBUG: false,
-        LIB_VERSION: '1.10.0'
+        LIB_VERSION: '1.10.1'
     };
 
     // since es6 imports are static and we run unit tests from the console, window won't be defined when importing this file
@@ -2737,12 +2737,19 @@ define(function () { 'use strict';
     }
 
     function clearCookies(opt) {
-      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
-      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
-      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
-      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
-      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
-      _.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
+      var isCrossSubdomain = opt && opt['cross_subdomain_cookie'];
+      var domain = opt && opt['cookie_domain'];
+      var keys = [
+        STORAGE_CONSTANTS.STORED_USER_ID,
+        STORAGE_CONSTANTS.STORED_COMPANY_ID,
+        STORAGE_CONSTANTS.STORED_ANONYMOUS_ID,
+        STORAGE_CONSTANTS.STORED_SESSION_ID,
+        STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER,
+        STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY
+      ];
+      keys.forEach(function(key) {
+        _.cookie.remove(getResolvedKey(key, opt), isCrossSubdomain, domain);
+      });
     }
 
     function clearLocalStorage(opt) {

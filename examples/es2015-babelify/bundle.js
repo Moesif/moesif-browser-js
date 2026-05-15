@@ -566,7 +566,7 @@ Object.defineProperty(exports, "__esModule", {
 exports["default"] = void 0;
 var Config = {
   DEBUG: false,
-  LIB_VERSION: '1.10.0'
+  LIB_VERSION: '1.10.1'
 };
 var _default = exports["default"] = Config;
 
@@ -1794,12 +1794,12 @@ function getFromPersistence(key, opt) {
   return ensureNotNilString(_utils._.cookie.get(resolvedKey));
 }
 function clearCookies(opt) {
-  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
-  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_COMPANY_ID, opt));
-  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, opt));
-  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_SESSION_ID, opt));
-  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, opt));
-  _utils._.cookie.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY, opt));
+  var isCrossSubdomain = opt && opt['cross_subdomain_cookie'];
+  var domain = opt && opt['cookie_domain'];
+  var keys = [STORAGE_CONSTANTS.STORED_USER_ID, STORAGE_CONSTANTS.STORED_COMPANY_ID, STORAGE_CONSTANTS.STORED_ANONYMOUS_ID, STORAGE_CONSTANTS.STORED_SESSION_ID, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_USER, STORAGE_CONSTANTS.STORED_CAMPAIGN_DATA_COMPANY];
+  keys.forEach(function (key) {
+    _utils._.cookie.remove(getResolvedKey(key, opt), isCrossSubdomain, domain);
+  });
 }
 function clearLocalStorage(opt) {
   _utils._.localStorage.remove(getResolvedKey(STORAGE_CONSTANTS.STORED_USER_ID, opt));
